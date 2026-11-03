@@ -28,41 +28,53 @@ Item {
   // live: hovering a row previews it, Esc / leaving the category reverts;
   // bar: preview pane draws a bar mock (BarMock.qml); tweak: h/l step the row's value.
   readonly property var allCategories: [
-    { group: "desk", key: "themes",      icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
-    { group: "desk", key: "theme-walls", icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
-    { group: "desk", key: "walls",       icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
+    { group: "presets", key: "presets",   icon: "󰆓", title: "Presets",      hint: "Full desktop snapshots · D — delete",   image: false, live: false, presetStage: true },
+    { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
+    { group: "desk", key: "theme-walls",  icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
+    { group: "desk", key: "walls",        icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
+    { group: "desk", key: "dotify",       icon: "󰇄", title: "Dotify",       hint: "LED dot-matrix · O folder · o image(s)", image: true, live: false },
     { group: "desk", key: "wallpaper-fx", icon: "󰗘", title: "Wallpaper FX", hint: "Wallpaper transitions · p — play",      image: false, live: false, fx: true },
-    { group: "desk", key: "widgets",     icon: "󰖲", title: "Widgets",      hint: "Desktop widgets · h l change",           image: false, live: false, tweak: true },
-    { group: "desk", key: "dashboard",   icon: "󰕮", title: "Dashboard",    hint: "Dashboard: player, calendar, weather, graphs", image: false, live: false, tweak: true },
-    { group: "bar",  key: "bar-skins",   icon: "󰉼", title: "Bar Skin",     hint: "Live preview · form, colors, glass",   image: false, live: true,  bar: true },
-    { group: "bar",  key: "bar-layouts", icon: "󰕮", title: "Bar Layout",   hint: "Sections & edge · shell.json",         image: false, live: false, bar: true },
-    { group: "bar",  key: "bar-tweaks",  icon: "󰒓", title: "Bar Tweaks",   hint: "h l / − + change · ⏎ custom color",    image: false, live: false, bar: true, tweak: true },
-    { group: "win",  key: "anims",       icon: "󰔡", title: "Animations",   hint: "Live preview while you browse",       image: false, live: true },
-    { group: "win",  key: "opacity",     icon: "󰂵", title: "Transparency", hint: "Live preview while you browse",        image: false, live: true },
-    { group: "win",  key: "blur",        icon: "󰂷", title: "Blur",         hint: "Live preview while you browse",        image: false, live: true },
-    { group: "win",  key: "osd",         icon: "󰕾", title: "OSD",          hint: "Volume & brightness",                   image: false, live: false, tweak: true },
+    { group: "desk", key: "widgets",      icon: "󰖲", title: "Widgets",      hint: "Desktop widgets · h l change",           image: false, live: false, tweak: true },
+    { group: "desk", key: "dashboard",    icon: "󰕮", title: "Dashboard",    hint: "Dashboard: player, calendar, weather, graphs", image: false, live: false, tweak: true },
+    { group: "bar",  key: "bar-skins",    icon: "󰉼", title: "Bar Skin",     hint: "Live preview · form, colors, glass",   image: false, live: true,  bar: true },
+    { group: "bar",  key: "bar-widgets",  icon: "󰕰", title: "Bar Widgets",  hint: "h l move · ⏎ on / off · shell.json",    image: false, live: false, tweak: true },
+    { group: "bar",  key: "bar-layouts",  icon: "󰕮", title: "Bar Layout",   hint: "Sections & edge · shell.json",         image: false, live: false, bar: true },
+    { group: "bar",  key: "bar-tweaks",   icon: "󰒓", title: "Bar Tweaks",   hint: "h l / − + change · ⏎ custom color",    image: false, live: false, bar: true, tweak: true },
+    { group: "win",  key: "anims",        icon: "󰔡", title: "Animations",   hint: "Live preview while you browse",       image: false, live: true },
+    { group: "win",  key: "opacity",      icon: "󰂵", title: "Transparency", hint: "Live preview while you browse",        image: false, live: true },
+    { group: "win",  key: "blur",         icon: "󰂷", title: "Blur",         hint: "Live preview while you browse",        image: false, live: true },
+    { group: "win",  key: "osd",          icon: "󰕾", title: "OSD",          hint: "Volume & brightness",                   image: false, live: false, tweak: true },
     { group: "win",  key: "notifications", icon: "󰂚", title: "Notifications", hint: "Toasts and sounds",                   image: false, live: false, tweak: true },
-    { group: "win",  key: "shaders",     icon: "󰍹", title: "Shader",       hint: "CRT, TFT · scripts/crt-toggle.sh",      image: false, live: false },
-    { group: "lock", key: "lock",        icon: "󰌾", title: "Lock",         hint: "p — show it live · T — previews",       image: true,  live: false },
-    { group: "lock", key: "lock-tweaks", icon: "󰷛", title: "Lock Tweaks",  hint: "h l change · p — show",                 image: false, live: false, tweak: true },
-    { group: "pick", key: "theme-switcher", icon: "󰸌", title: "Theme Switcher", hint: "Picker style · ⚡ cache · p — open", image: false, live: false, picker: true }
+    { group: "win",  key: "glyph",        icon: "󰛨", title: "Glyph",        hint: "Perimeter edge lighting · p — test",    image: false, live: false },
+    { group: "win",  key: "shaders",      icon: "󰍹", title: "Shader",       hint: "CRT, TFT · scripts/crt-toggle.sh",      image: false, live: false },
+    { group: "lock", key: "lock",         icon: "󰌾", title: "Lock",         hint: "p — show it live · T — previews",       image: true,  live: false },
+    { group: "lock", key: "lock-tweaks",  icon: "󰷛", title: "Lock Tweaks",  hint: "h l change · p — show",                 image: false, live: false, tweak: true },
+    { group: "pick", key: "theme-switcher", icon: "󰸌", title: "Theme Switcher", hint: "Picker style · ⚡ cache · p — open", image: false, live: false, picker: true },
+    { group: "pick", key: "launcher",     icon: "󰀻", title: "Launcher",     hint: "Application menu skins · p — open",     image: false, live: false }
   ]
 
-  // Вкладки сверху: группы категорий (1–5, Tab / Shift+Tab); chips — какие чипы
+  // Вкладки сверху: группы категорий (1–6, Tab / Shift+Tab); chips — какие чипы
   // статуса показывать в шапке, пока группа открыта.
   readonly property var allGroups: [
+    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "theme", "bar-skin", "lock", "launcher"] },
     { id: "desk", icon: "󰧨", title: "Desktop",  chips: ["theme", "wallpaper", "fx"] },
     { id: "bar",  icon: "󰕮", title: "Bar",      chips: ["bar-skin", "bar-layout"] },
-    { id: "win",  icon: "󱂬", title: "Windows",  chips: ["anims", "opacity", "blur", "shader"] },
+    { id: "win",  icon: "󱂬", title: "Windows",  chips: ["anims", "opacity", "blur", "glyph", "shader"] },
     { id: "lock", icon: "󰌾", title: "Lock",     chips: ["lock"] },
-    { id: "pick", icon: "󰸌", title: "Pickers",  chips: ["picker"] }
+    { id: "pick", icon: "󰸌", title: "Pickers",  chips: ["picker", "launcher"] }
   ]
 
   // Tweaks rows whose ⏎ opens a picker (color, text, file) instead of stepping.
-  readonly property var colorTweaks: ["background", "gradient", "border", "text", "active", "moduleBackground", "wsActiveColor", "ownerMessage", "avatar"]
+  readonly property var colorTweaks: [
+    "background", "gradient", "border", "text", "active", "moduleBackground", "wsActiveColor",
+    "ownerMessage", "avatar", "tint", "osdBackground", "notifyBackground", "dashBackground",
+    "weatherCity", "dotTint", "dotBackground", "glyphColor", "glyphCriticalColor",
+    "nihilBg", "nihilFg", "nihilDim", "nihilMuted", "nihilLine", "nihilSurface", "nihilLit", "nihilSignal", "nihilDanger"
+  ]
 
   // Header chips: status key -> category key it opens.
   readonly property var allStatusChips: [
+    { key: "preset",     icon: "󰆓", title: "Preset",       category: "presets" },
     { key: "theme",      icon: "󰏘", title: "Theme",        category: "themes" },
     { key: "wallpaper",  icon: "󰸉", title: "Wallpaper",    category: "theme-walls" },
     { key: "fx",         icon: "󰗘", title: "Transition",   category: "wallpaper-fx" },
@@ -71,9 +83,11 @@ Item {
     { key: "anims",      icon: "󰔡", title: "Animations",   category: "anims" },
     { key: "opacity",    icon: "󰂵", title: "Transparency", category: "opacity" },
     { key: "blur",       icon: "󰂷", title: "Blur",         category: "blur" },
+    { key: "glyph",      icon: "󰛨", title: "Glyph",        category: "glyph" },
     { key: "shader",     icon: "󰍹", title: "Shader",       category: "shaders" },
     { key: "lock",       icon: "󰌾", title: "Design",       category: "lock" },
-    { key: "picker",     icon: "󰸌", title: "Style",        category: "theme-switcher" }
+    { key: "picker",     icon: "󰸌", title: "Style",        category: "theme-switcher" },
+    { key: "launcher",   icon: "󰀻", title: "Launcher",     category: "launcher" }
   ]
 
   // ── Перевод и что доступно на этой машине ────────────────────────────
@@ -136,6 +150,9 @@ Item {
   property var activeBar: ({})       // ~/.config/omarchy/shell.json .bar
   property var activeFx: ({})        // ~/.config/omarchy/wallpaper-transition.json
   property var activePicker: ({})    // ~/.config/omarchy/image-picker.json
+  property var activeSounds: ({})    // ~/.config/omarchy/sounds.json
+  property bool soundEventsArmed: false
+  readonly property bool windowSoundsEnabled: activeSounds.sounds !== false && activeSounds.windowSounds === true
 
   readonly property var category: categories[categoryIndex]
 
@@ -222,7 +239,7 @@ Item {
   function syncBarPreview() {
     var mode = "off"
     var k = root.category.key
-    if (root.opened && (k === "bar-skins" || k === "bar-tweaks" || k === "bar-layouts")) {
+    if (root.opened && (k === "bar-skins" || k === "bar-tweaks" || k === "bar-layouts" || k === "bar-widgets")) {
       var row = root.selectedRow
       mode = row && root.isTweakRow(row) && /^compact/.test(root.tweakKey(row)) ? "compact" : "expanded"
     }
@@ -508,8 +525,9 @@ Item {
     var row = root.selectedIndex >= 0 && root.selectedIndex < displayModel.count
       ? displayModel.get(root.selectedIndex) : null
     root.selectedRow = row ? { label: row.label, value: row.value, preview: row.preview, current: row.current, note: row.note } : null
-    previewFile.path = (row && !root.category.image) ? row.preview : ""
-    if (!row || root.category.image || !row.preview) root.previewText = ""
+    var rowHasImage = root.category.image && row !== null && !root.isTweakRow(row)
+    previewFile.path = (row && !rowHasImage) ? row.preview : ""
+    if (!row || rowHasImage || !row.preview) root.previewText = ""
     if (root.category.live && root.pane === 1 && row) previewTimer.restart()
     root.syncBarPreview()
   }
@@ -547,7 +565,13 @@ Item {
       else root.openWallDir(target, "")
       return
     }
-    if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
+    if (root.category.key === "glyph" && /^test:/.test(root.selectedRow.value)) {
+      Quickshell.execDetached([root.script, "apply", "glyph", root.selectedRow.value])
+      return
+    }
+    // Виджеты бара: ⏎ убирает с бара / возвращает (h/l двигают), параметр виджета — переключает.
+    if (root.isTweakRow(root.selectedRow) && /^wset?:/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
+    else if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
     else root.run(root.selectedRow.value)
   }
 
@@ -659,14 +683,14 @@ Item {
     var out = []
     for (var i = 0; i < displayModel.count; i++) {
       var r = displayModel.get(i)
-      if (/^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|cache$|prune$|none$|dir:)/.test(r.value) || r.current || i === root.selectedIndex) continue
+      if (/^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/.test(r.value) || r.current || i === root.selectedIndex) continue
       out.push(i)
     }
     return out
   }
 
   function randomPick() {
-    if (root.category.key === "walls") return   // a random Lutgen run is too slow to be a toy
+    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "glyph") return
     if (root.category.tweak) return
     if (root.pane === 0) { root.pane = 1 }
     var c = root.randomCandidates()
@@ -688,18 +712,20 @@ Item {
     Quickshell.execDetached([root.script, "apply", key, value])
   }
 
-  // Bar Skin / Bar Layout: удалить свой пресет (★, файл в ~/.config/omarchy/bar-skins или bar-layouts) —
-  // с подтверждением в customizer.sh. Overlay закрывается первым (откатывая превью), иначе диалог окажется под ним.
+  // Bar Skin / Bar Layout / Presets: удалить свой пресет (★) — с подтверждением в customizer.sh.
   function isUserPreset(row) {
     if (row === null) return false
     var k = root.category.key
+    if (k === "presets")
+      return /\/\.config\/omarchy\/customizer\/presets\/[^/]+\.json$/.test(row.value) && !/\/my-settings\.json$/.test(row.value)
     return (k === "bar-skins" || k === "bar-layouts") && new RegExp("/\\.config/omarchy/" + k + "/[^/]+\\.json$").test(row.value)
   }
   function deletePreset() {
     var row = root.selectedRow
     if (!root.isUserPreset(row)) return
     root.dismiss()
-    Quickshell.execDetached([root.script, root.category.key === "bar-skins" ? "skin-delete" : "layout-delete", row.value])
+    var cmd = root.category.key === "presets" ? "preset-delete" : (root.category.key === "bar-skins" ? "skin-delete" : "layout-delete")
+    Quickshell.execDetached([root.script, cmd, row.value])
   }
 
   // Lock: показать дизайн по-настоящему (окно превью экрана блокировки поверх
@@ -731,8 +757,8 @@ Item {
   // The old fzf preview for shaders showed just the header comments and consts.
   function formatPreview(text) {
     // Описание пресета уже есть в заметке над JSON — переводы note_* в нём только мешают.
-    if (root.category.key === "bar-skins" || root.category.key === "bar-layouts")
-      return text.split("\n").filter(function(l) { return !/^\s*"note(_[a-z]+)?":/.test(l) }).join("\n")
+    if (root.category.key === "bar-skins" || root.category.key === "bar-layouts" || root.category.key === "presets")
+      return text.split("\n").filter(function(l) { return !/^\s*"(note|name)(_[a-z]+)?":/.test(l) }).join("\n")
     if (root.category.key !== "shaders") return text
     return text.split("\n").filter(function(l) { return /^(\/\/|const)/.test(l) }).join("\n")
   }
@@ -765,18 +791,27 @@ Item {
     if (root.filtering) return [["⏎", "keep filter"], ["Esc", "clear"], ["↑↓", "move"]]
     if (root.pane === 0) return [["Tab", "group"], ["1–" + root.groups.length, "group"], ["j k", "category"], ["l ⏎", "open"], ["/", "search"], ["?", "keys"], ["q", "close"]]
     if (root.category.key === "lock-tweaks") return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["x", "default"], ["⏎", "step · pick"], ["p", "preview"], ["Esc", "back"]]
+    if (root.category.key === "bar-widgets") return [["j k", "move"], ["h l", "move widget"], ["⏎ x", "on / off"], ["[ ]", "section"], ["Esc", "back"]]
     if (root.category.tweak) return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["[ ]", "section"], ["x", "default"], ["⏎", "step · pick color"], ["Esc", "back"]]
-    if (root.category.fx || root.category.picker) {
+    if (root.category.fx || root.category.picker || root.category.key === "glyph" || root.category.key === "launcher" || root.category.key === "dotify") {
       var tw = root.isTweakRow(root.selectedRow)
-      return tw ? [["j k", "move"], ["h l  − +", "change (hold)"], ["x", "default"], ["p", root.category.fx ? "play" : "open"], ["Esc", "back"]]
-        : [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : "open switcher"], ["/", "search"], ["h", "back"], ["?", "keys"]]
+      var pLabel = root.category.fx ? "play" : root.category.key === "glyph" ? "test" : "open"
+      if (tw) {
+        var th = [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["x", "default"]]
+        if (root.category.key !== "dotify") th.push(["p", pLabel])
+        th.push(["Esc", "back"])
+        return th
+      }
+      if (root.category.key === "dotify") return [["j k", "move"], ["⏎", "dotify"], ["o O", "pick"], ["/", "search"], ["h", "back"], ["?", "keys"]]
+      return [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : root.category.key === "glyph" ? "test sweep" : "open"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     }
     if (root.category.key === "lock") return [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     var h = [["j k", "move"], ["⏎", "apply"], ["/", "search"], ["h", "back"]]
-    if (root.category.key !== "walls") h.push(["r", "random"])
-    else h.push(["o O", "pick"])
-    if (root.isUserPreset(root.selectedRow)) h.push(["D", root.category.key === "bar-skins" ? "delete skin" : "delete layout"])
-    if (!root.category.image && !root.category.bar && root.category.key !== "opacity" && root.category.key !== "blur") h.push(["J K", "scroll"])
+    if (root.category.key !== "walls" && root.category.key !== "presets") h.push(["r", "random"])
+    else if (root.category.key === "walls") h.push(["o O", "pick"])
+    if (root.isUserPreset(root.selectedRow))
+      h.push(["D", root.category.key === "presets" ? "delete preset" : (root.category.key === "bar-skins" ? "delete skin" : "delete layout")])
+    if (!root.category.image && !root.category.bar && !root.category.presetStage && root.category.key !== "opacity" && root.category.key !== "blur") h.push(["J K", "scroll"])
     h.push(["?", "keys"])
     return h
   }
@@ -836,12 +871,33 @@ Item {
     id: restoreProc
     command: [root.script, "restore"]
   }
+  Timer {
+    id: soundArmTimer
+    interval: 2500
+    running: true
+    onTriggered: root.soundEventsArmed = true
+  }
+  Timer {
+    id: reloadSilenceTimer
+    interval: 1000
+  }
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name !== "configreloaded") return
-      restoreProc.running = false
-      restoreProc.running = true
+      if (event.name === "configreloaded") {
+        reloadSilenceTimer.restart()
+        restoreProc.running = false
+        restoreProc.running = true
+        return
+      }
+      if (!root.soundEventsArmed || reloadSilenceTimer.running || !root.windowSoundsEnabled) return
+      var snd = ""
+      if (event.name === "workspace" || event.name === "workspacev2") snd = "switch"
+      else if (event.name === "activespecial" || event.name === "activespecialv2") snd = "special"
+      else if (event.name === "openwindow") snd = "open"
+      else if (event.name === "closewindow") snd = "close"
+      else if (event.name === "fullscreen") snd = "fullscreen"
+      if (snd !== "") Quickshell.execDetached([root.pluginDir + "/scripts/play-sound.sh", snd])
     }
   }
   Component.onCompleted: {
@@ -930,6 +986,23 @@ Item {
     printErrors: false
     onFileChanged: reload()
     onLoaded: root.parsePalette(text())
+  }
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/omarchy/sounds.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.activeSounds = root.parseJson(text())
+    onLoadFailed: root.activeSounds = ({})
+  }
+
+  GlyphOverlay {
+    id: glyphOverlay
+    activeSkin: root.activeSkin
+    activeBar: root.activeBar
+    palette: root.themePalette
+    soundScript: root.pluginDir + "/scripts/play-sound.sh"
   }
 
   // Live preview, debounced so scrolling doesn't reload Hyprland per row.
@@ -1122,14 +1195,16 @@ Item {
           if (tweaking && (t === "h" || t === "-" || k === Qt.Key_Left)) root.tweak("-")
           else if (tweaking && (t === "l" || t === "+" || t === "=" || k === Qt.Key_Right)) root.tweak("+")
           else if (tweaking && t === "x") root.tweak("reset")
-          else if (tweaking && t === "i") root.startEdit()
+          else if (tweaking && t === "i" && root.category.key !== "bar-widgets") root.startEdit()
           else if (!ctrl && root.pane === 1 && t === "[") root.jumpSection(-1)
           else if (!ctrl && root.pane === 1 && t === "]") root.jumpSection(1)
           else if (!ctrl && t === "p" && (root.category.key === "lock" || root.category.key === "lock-tweaks")) root.previewLock()
           else if (!ctrl && t === "T" && root.category.key === "lock") root.run("regen-thumbs")
           else if (!ctrl && t === "p" && root.category.key === "wallpaper-fx") root.playFx()
           else if (!ctrl && t === "p" && root.category.key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
-          else if (ctrl && root.category.key === "walls" && k === Qt.Key_O) root.run("pick-files")
+          else if (!ctrl && t === "p" && root.category.key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
+          else if (!ctrl && t === "p" && root.category.key === "glyph") Quickshell.execDetached([root.script, "glyph-test", "false"])
+          else if (ctrl && (root.category.key === "walls" || root.category.key === "dotify") && k === Qt.Key_O) root.run("pick-files")
           else if (ctrl && (k === Qt.Key_D)) root.move(root.halfPage())
           else if (ctrl && (k === Qt.Key_U)) root.move(-root.halfPage())
           else if (ctrl && (k === Qt.Key_F)) root.move(root.halfPage() * 2)
@@ -1166,8 +1241,8 @@ Item {
           else if (t === "q") root.dismiss()
           else if (t === "r") root.randomPick()
           else if (t === "D") root.deletePreset()
-          else if (root.category.key === "walls" && t === "o") root.run("pick-files")
-          else if (root.category.key === "walls" && t === "O") root.run("pick-dir")
+          else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "o") root.run("pick-files")
+          else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "O") root.run("pick-dir")
           else if (t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)
           else return
           event.accepted = true
@@ -1729,9 +1804,12 @@ Item {
                 required property bool current
 
                 readonly property bool header: /^section:/.test(value)
-                readonly property bool editing: index === root.editingIndex
-                readonly property bool hasCursor: index === root.selectedIndex
+                readonly property bool tweakRow: !header && (root.category.tweak === true || /^tweak:/.test(value))
+                readonly property bool showThumb: root.category.image && !header && !tweakRow
+                readonly property bool editing: index >= 0 && index === root.editingIndex
+                readonly property bool hasCursor: index >= 0 && index === root.selectedIndex
                 onEditingChanged: if (editing) Qt.callLater(function() {
+                  if (typeof root === "undefined" || !root || !itemRow.editing) return
                   editInput.text = root.editInitial
                   editInput.selectAll()
                   editInput.forceActiveFocus()
@@ -1749,8 +1827,8 @@ Item {
                 }
                 // Длинные подписи переносятся (до двух строк) — строка растёт под них.
                 height: header ? Style.space(30)
-                  : root.category.image ? root.listRowHeight()
-                  : Math.max(root.listRowHeight(), rowText.implicitHeight + Style.space(12))
+                  : showThumb ? root.thumbRowHeight
+                  : Math.max(tweakRow ? Math.round(root.rowHeight * 1.5) : root.rowHeight, rowText.implicitHeight + Style.space(12))
 
                 // Заголовок раздела: линия с названием, не выделяется.
                 Item {
@@ -1783,7 +1861,7 @@ Item {
 
                 ClippingRectangle {
                   id: thumb
-                  visible: root.category.image && !itemRow.header
+                  visible: itemRow.showThumb
                   anchors.left: parent.left
                   anchors.leftMargin: Style.space(6)
                   anchors.verticalCenter: parent.verticalCenter
@@ -1818,11 +1896,10 @@ Item {
 
                 Text {
                   id: rowIcon
-                  visible: !root.category.image && !itemRow.header
+                  visible: !itemRow.showThumb && !itemRow.header
                   anchors.left: parent.left
                   anchors.leftMargin: Style.space(12)
                   anchors.verticalCenter: parent.verticalCenter
-                  width: visible ? implicitWidth : 0
                   text: itemRow.current ? "󰄬" : root.category.icon
                   color: itemRow.current ? root.accent : Util.alpha(root.foreground, itemRow.hasCursor ? 0.8 : 0.35)
                   font.family: root.fontFamily
@@ -1832,7 +1909,7 @@ Item {
                 Column {
                   id: rowText
                   visible: !itemRow.header
-                  anchors.left: root.category.image ? thumb.right : rowIcon.right
+                  anchors.left: itemRow.showThumb ? thumb.right : (rowIcon.visible ? rowIcon.right : parent.left)
                   anchors.leftMargin: Style.space(10)
                   anchors.right: activePill.visible ? activePill.left : parent.right
                   anchors.rightMargin: Style.space(8)
@@ -1842,9 +1919,9 @@ Item {
                   Text {
                     width: parent.width
                     // Имена файлов — одной строкой с многоточием в середине, остальное переносится.
-                    wrapMode: root.category.image ? Text.NoWrap : Text.Wrap
-                    maximumLineCount: root.category.image ? 1 : 2
-                    elide: root.category.image ? Text.ElideMiddle : Text.ElideRight
+                    wrapMode: itemRow.showThumb ? Text.NoWrap : Text.Wrap
+                    maximumLineCount: itemRow.showThumb ? 1 : 2
+                    elide: itemRow.showThumb ? Text.ElideMiddle : Text.ElideRight
                     textFormat: Text.PlainText
                     text: itemRow.label
                     color: itemRow.hasCursor ? root.selectedText : (itemRow.current ? root.accent : root.foreground)
@@ -2070,8 +2147,9 @@ Item {
               Image {
                 id: previewImage
                 anchors.fill: parent
-                visible: root.category.image
-                source: root.category.image && root.selectedRow && root.selectedRow.preview ? root.fileUrl(root.selectedRow.preview) : ""
+                readonly property bool showImage: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow)
+                visible: showImage
+                source: showImage && root.selectedRow.preview ? root.fileUrl(root.selectedRow.preview) : ""
                 sourceSize.width: Math.max(1, previewBox.width * 2)
                 sourceSize.height: Math.max(1, previewBox.height * 2)
                 fillMode: root.category.key === "themes" ? Image.PreserveAspectFit : Image.PreserveAspectCrop
@@ -2100,7 +2178,7 @@ Item {
 
               Column {
                 anchors.centerIn: parent
-                visible: root.category.image && root.selectedRow !== null && !root.selectedRow.preview
+                visible: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow) && !root.selectedRow.preview
                 width: parent.width * 0.8
                 spacing: Style.space(8)
                 Text {
@@ -2423,12 +2501,79 @@ Item {
                 }
               }
 
+              // Global Presets: hero wallpaper preview + description and JSON summary.
+              Item {
+                id: presetStage
+                anchors.fill: parent
+                visible: root.category.presetStage === true && root.selectedRow !== null
+                readonly property var presetData: visible && root.previewText ? root.parseJson(root.previewText) : ({})
+                readonly property string presetWallPath: {
+                  var w = String(presetData.wallpaper || "")
+                  if (!w) return ""
+                  if (w.indexOf("~/") === 0) return Quickshell.env("HOME") + "/" + w.slice(2)
+                  return w
+                }
+
+                ClippingRectangle {
+                  id: presetHero
+                  visible: presetStage.presetWallPath !== ""
+                  anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(12) }
+                  height: visible ? Math.round(parent.height * 0.48) : 0
+                  radius: root.innerRadius
+                  color: root.faint
+
+                  Image {
+                    anchors.fill: parent
+                    source: presetStage.visible && presetStage.presetWallPath ? root.fileUrl(presetStage.presetWallPath) : ""
+                    sourceSize.width: Math.max(1, presetHero.width)
+                    sourceSize.height: Math.max(1, presetHero.height)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                  }
+
+                  Pill {
+                    visible: Boolean(presetStage.presetData.theme)
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Style.space(10)
+                    tone: Color.foreground
+                    label: String(presetStage.presetData.theme || "")
+                      + (presetStage.presetData.barSkin ? "  ·  " + presetStage.presetData.barSkin : "")
+                  }
+                }
+
+                Flickable {
+                  anchors {
+                    top: presetHero.visible ? presetHero.bottom : parent.top
+                    bottom: parent.bottom; left: parent.left; right: parent.right
+                    margins: Style.space(14)
+                  }
+                  contentHeight: presetNote.implicitHeight
+                  boundsBehavior: Flickable.StopAtBounds
+                  clip: true
+                  Text {
+                    id: presetNote
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    lineHeight: 1.2
+                    text: !root.selectedRow ? ""
+                      : root.selectedRow.note + (root.previewText ? "\n\n" + root.previewText : "")
+                    color: root.foreground
+                    opacity: 0.85
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                  }
+                }
+              }
+
               // Text previews (animations, layouts, shaders) as a code block.
               Flickable {
                 id: previewFlick
                 anchors.fill: parent
                 anchors.margins: Style.space(14)
-                visible: !root.category.image && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible
+                visible: (!root.category.image || (root.selectedRow !== null && root.isTweakRow(root.selectedRow)))
+                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible
                 contentHeight: previewLabel.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
@@ -2458,7 +2603,7 @@ Item {
               spacing: Style.space(8)
 
               Rectangle {
-                visible: root.category.key !== "walls"
+                visible: root.category.key !== "walls" && root.category.key !== "dotify" && root.category.key !== "presets" && root.category.key !== "glyph" && !root.category.tweak
                 height: parent.height
                 width: randomRow.implicitWidth + Style.space(24)
                 radius: height / 2
@@ -2536,8 +2681,8 @@ Item {
                   ["gg  G", "first / last"], ["^d ^u  ^f ^b", "half / full page"],
                   ["⏎", "apply"], ["r", "random pick (not Recolor)"],
                   ["/", "search, ⏎ keeps, Esc clears"], ["J K", "scroll text preview"],
-                  ["Tab  ⇧Tab", "next / previous group"], ["1 – 5", "jump to group"],
-                  ["o  O  ^o", "Recolor: image(s) / folder"],
+                  ["Tab  ⇧Tab", "next / previous group"], ["1 – 6", "jump to group"],
+                  ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
                   ["h l  − +", "Bar Tweaks: change (hold)"], ["x", "Bar Tweaks: reset to default"],
                   ["⏎", "Bar Tweaks: step · pick color"], ["●", "Bar Tweaks: changed from default"],
                   ["p", "Lock: show design live (Esc closes)"], ["T", "Lock: refresh previews"],

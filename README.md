@@ -10,11 +10,12 @@ plugins installed it also drives the bar, the lock screen, wallpaper transitions
 
 | Group | What's inside |
 |---|---|
-| **Desktop** | Theme (palette + preview), Wallpaper (categories as in the background switcher), Recolor (any image into the current theme with lutgen), Wallpaper FX* |
+| **Presets** | Global desktop snapshots (bundled **NIHIL** preset + your own presets in `~/.config/omarchy/customizer/presets/*.json` with ★, `D` to delete, and automatic rollback to the previous setup) |
+| **Desktop** | Theme (palette + preview), Wallpaper (categories as in the background switcher), Recolor (any image into the current theme with lutgen), Dotify (LED dot-matrix wallpapers & Arch glyph generator), Wallpaper FX*, Widgets*, Dashboard* |
 | **Bar*** | Bar Skin (plus “💾 Save the current skin” into `~/.config/omarchy/bar-skins/`, listed with ★; `D` deletes one after a confirmation), Bar Layout (own layouts the same way, in `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 settings, each with its default and a live preview |
-| **Windows** | Animations (17 presets), Transparency, Blur, Shader (CRT / TFT) — all live while you browse |
+| **Windows** | Animations (18 presets), Transparency, Blur, OSD*, Notifications* (with tactile sound packs & Hyprland window/workspace sounds), Glyph (Nothing-inspired perimeter edge lighting & charger beams), Shader (CRT / TFT) |
 | **Lock*** | Lock design with previews in the current theme, Lock Tweaks |
-| **Pickers*** | Theme / wallpaper picker style, thumbnail cache |
+| **Pickers*** | Theme / wallpaper picker style, thumbnail cache, Launcher* skins |
 
 \* appears only when the matching companion plugin is installed — see below.
 
@@ -57,14 +58,14 @@ Each is a separate plugin; the Customizer finds them on its own.
 
 | Plugin | Adds to the Customizer |
 |---|---|
-| [omarchy-bar-skins](https://github.com/KamradSmeshnyavy/omarchy-bar-skins) | **Bar** group: 19 skins, 9 layouts, compact mode, workspace styles |
-| [omarchy-lock-designs](https://github.com/KamradSmeshnyavy/omarchy-lock-designs) | **Lock** group: 21 designs |
+| [omarchy-bar-skins](https://github.com/KamradSmeshnyavy/omarchy-bar-skins) | **Bar** group: 20 skins (incl. `nihil`), 10 layouts, compact mode, LED & glyph workspace styles |
+| [omarchy-lock-designs](https://github.com/KamradSmeshnyavy/omarchy-lock-designs) | **Lock** group: 22 designs (incl. `nihil`) |
 | [omarchy-wallpaper-fx](https://github.com/KamradSmeshnyavy/omarchy-wallpaper-fx) | **Wallpaper FX**: 24 transitions with a preview |
 | [omarchy-image-picker-styles](https://github.com/KamradSmeshnyavy/omarchy-image-picker-styles) | **Pickers** group: six picker styles |
-| [omarchy-launcher-skins](https://github.com/KamradSmeshnyavy/omarchy-launcher-skins) | full-screen launcher skins (configured in its own file) |
-| [omarchy-desktop-widgets](https://github.com/KamradSmeshnyavy/omarchy-desktop-widgets) | **Widgets** and **Dashboard** in Desktop: widgets, dashboard, power menu, overview |
-| [omarchy-edge-osd](https://github.com/KamradSmeshnyavy/omarchy-edge-osd) | **OSD** in Windows: volume and brightness at the screen edge |
-| [omarchy-drawer-notifications](https://github.com/KamradSmeshnyavy/omarchy-drawer-notifications) | **Notifications** in Windows: toasts in one panel by the bar |
+| [omarchy-launcher-skins](https://github.com/KamradSmeshnyavy/omarchy-launcher-skins) | **Launcher** in Pickers: full-screen & hardware-bump (`nihil`) launcher skins |
+| [omarchy-desktop-widgets](https://github.com/KamradSmeshnyavy/omarchy-desktop-widgets) | **Widgets** and **Dashboard** in Desktop: desktop cards, NIHIL LED dashboard & Quick Settings drawer |
+| [omarchy-edge-osd](https://github.com/KamradSmeshnyavy/omarchy-edge-osd) | **OSD** in Windows: volume and brightness at the screen edge (incl. NIHIL LED meter) |
+| [omarchy-drawer-notifications](https://github.com/KamradSmeshnyavy/omarchy-drawer-notifications) | **Notifications** in Windows: drawer or NIHIL hardware toast cards + Glyph sweep hook |
 
 ### Optional programs
 
@@ -78,7 +79,7 @@ Each is a separate plugin; the Customizer finds them on its own.
 
 | Keys | |
 |---|---|
-| Tab / 1–5 | groups |
+| Tab / 1–6 | groups |
 | j k · l ⏎ · h | move · open · back |
 | / | search |
 | h l, − + | change a tweak · x — reset it |
@@ -107,6 +108,7 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 
 ## Your own presets
 
+- Desktop presets: `~/.config/omarchy/customizer/presets/*.json` (save directly from the **Presets** tab).
 - Animations: `~/.config/omarchy/customizer/animations/*.lua` (Hyprland Lua: `hl.curve`, `hl.animation`).
   A file with the same name as a bundled preset replaces it.
 - Shaders: `~/.config/omarchy/customizer/shaders/*.frag`. A shader that uses `time` gets
@@ -121,8 +123,10 @@ a new language is one more file.
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). The animation presets come from
-[HyDE](https://github.com/HyDE-Project/HyDE), [ML4W](https://github.com/mylinuxforwork/dotfiles) and
-[end-4](https://github.com/end-4/dots-hyprland) ([credits](animations/CREDITS.md)); the overlay follows the
+[HyDE](https://github.com/HyDE-Project/HyDE), [ML4W](https://github.com/mylinuxforwork/dotfiles),
+[end-4](https://github.com/end-4/dots-hyprland) and [NIHIL](https://github.com/poligle/Nihil-Shell)
+([credits](animations/CREDITS.md)); Dotify, Glyph lighting and NIHIL sound packs are ported from
+[NIHIL](https://github.com/poligle/Nihil-Shell) (MIT, Pol Iglesias); the overlay follows the
 style of [Omarchy](https://github.com/basecamp/omarchy)'s own shell plugins (MIT).
 
 Part of [my dotfiles](https://github.com/KamradSmeshnyavy/dotfiles).

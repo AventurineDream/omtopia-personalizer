@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
 import qs.Commons
+import "nihil" as Nihil
 
 // Макет бара для превью Customizer: форма, цвета и раскладка рисуются по тем же
 // правилам, что и в kamradsmeshnyavy.bar (BarSkin.qml / SkinFrame.qml), только
@@ -35,6 +36,7 @@ Item {
     if (s === "accent") return Color.accent
     if (s === "muted") return Color.muted
     if (s === "urgent") return Color.urgent
+    if (s.indexOf("nihil.") === 0 && Nihil.Palette[s.slice(6)] !== undefined) return Nihil.Palette[s.slice(6)]
     return palette && palette[s] ? palette[s] : fallback
   }
   function alpha(c, a) {
@@ -108,12 +110,13 @@ Item {
       var occupied = i <= 2
       if (!showEmpty && !occupied) continue
       var label = style === "none" ? ""
+        : style === "leds" ? (i === 1 ? "▮" : occupied ? "●" : "·")
         : wsShapes[style] ? (style === "bars" && i === 1 ? "━━━" : wsShapes[style].charAt(occupied ? 0 : 1))
         : wsSets[style] ? Array.from(wsSets[style])[(i - 1) % Array.from(wsSets[style]).length]
         : (i === 1 ? "\uDB85\uDCFB" : String(i % 10))
       out.push(label + (icons && occupied ? " " + icon : ""))
     }
-    return out.join("  ")
+    return out.join(mock.vertical ? "\n" : "  ")
   }
 
   // Значок-заглушка для виджета.
@@ -121,9 +124,12 @@ Item {
     var short = String(id || "").replace(/^[a-z]+\./, "")
     if (short === "workspaces") return mock.workspacesText()
     var map = {
-      "menu": "󰣇", "workspaces": "1 2 3 4 5", "clock": "12:34", "tray": "󰅁", "indicators": "󰂚",
-      "system-update": "󰚰", "agents": "󰚩", "network": "󰖩", "bluetooth": "󰂯", "audio": "󰕾",
-      "power": "󰁹", "tailscale": "󰖂", "media": "󰎆 Song", "weather": "󰖐 12°", "active-window": "kitty",
+      "menu": "󰣇", "nihil-mark": "󰣇", "active-app": "󰆍", "workspaces": "1 2 3 4 5",
+      "clock": "12:34", "dot-clock": mock.vertical ? "12\n34" : "12:34",
+      "tray": "󰅁", "indicators": "󰂚", "privacy-led": "•",
+      "system-update": "󰚰", "agents": "󰚩", "network": "󰖩",
+      "bluetooth": "󰂯", "audio": "󰕾", "power": "󰁹", "battery-gauge": "󰁹",
+      "tailscale": "󰖂", "media": "󰎆 Song", "weather": "󰖐 12°", "active-window": "kitty",
       "keyboard-layout": "EN", "microphone": "󰍬", "monitor": "󰃠", "spacer": " ", "dropbox": "󰇣"
     }
     return map[short] !== undefined ? map[short] : "•"
@@ -153,7 +159,7 @@ Item {
       height: body.height + (mock.shape === "notch" ? mock.radius : 0)
       radius: mock.radius
       color: mock.transparent || mock.shape === "underline" && mock.fill.a === 0 ? "transparent" : mock.fill
-      border.width: mock.shape === "underline" || mock.shape === "hug" ? 0 : mock.borderWidth
+      border.width: mock.shape === "underline" || mock.shape === "hug" || mock.shape === "frame" ? 0 : mock.borderWidth
       border.color: mock.borderColor
       gradient: mock.hasGradient && !mock.transparent ? plateGradient : null
       Gradient {
@@ -226,6 +232,18 @@ Item {
           width: mock.width - (mock.vertical ? mock.barSize : 0)
           height: mock.height - (mock.vertical ? 0 : mock.barSize)
         }
+        PathRectangle {
+          x: mockFrame.inset("left")
+          y: mockFrame.inset("top")
+          width: mock.width - mockFrame.inset("left") - mockFrame.inset("right")
+          height: mock.height - mockFrame.inset("top") - mockFrame.inset("bottom")
+          radius: mock.frameRadius
+        }
+      }
+      ShapePath {
+        fillColor: "transparent"
+        strokeColor: mock.borderWidth > 0 ? mock.borderColor : "transparent"
+        strokeWidth: mock.borderWidth > 0 ? mock.borderWidth : -1
         PathRectangle {
           x: mockFrame.inset("left")
           y: mockFrame.inset("top")

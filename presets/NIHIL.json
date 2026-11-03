@@ -1,0 +1,105 @@
+{
+  "name": "NIHIL",
+  "name_ru": "NIHIL",
+  "note": "Nothing-inspired hardware shell: frame bezel, Doto LED dot-matrix typography, Space Grotesk & Space Mono, the signal colour strictly for alerts, perimeter Glyph lighting, LED bar/dashboard/OSD/launcher/lock and a tactile sound pack. Colours follow the omarchy theme; Desktop → Widgets → Nihil palette = mono gives the original black & white.",
+  "note_ru": "Аппаратная оболочка в духе Nothing: рамка-бортик, матричный шрифт Doto, Space Grotesk и Space Mono, сигнальный цвет строго для тревог, контурная подсветка Glyph, LED-бар/дашборд/OSD/лаунчер/локскрин и тактильный звуковой пакет. Цвета следуют теме omarchy; Рабочий стол → Виджеты → Палитра Nihil = mono даёт оригинальный чёрно-белый вид.",
+  "theme": "nihil",
+  "wallpaper": "~/.config/omarchy/themes/nihil/backgrounds/01-night.png",
+  "anims": "NIHIL",
+  "opacity": "nihil",
+  "blur": "nihil",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 4,
+    "gapsOut": 8,
+    "borderSize": 1,
+    "rounding": 12,
+    "shadow": false
+  },
+  "barSkin": "nihil",
+  "barLayout": "nihil",
+  "barTransparent": false,
+  "lock": {
+    "design": "nihil",
+    "clock24": true,
+    "showSeconds": false,
+    "showDate": true,
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.45
+  },
+  "launcher": {
+    "skin": "nihil",
+    "backdrop": 0.82
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 500,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 14,
+    "selectedBorder": 1,
+    "dim": 0.55,
+    "autoCache": true
+  },
+  "widgets": {
+    "widgetStyle": "nihil",
+    "edgeHover": false,
+    "clock": false,
+    "clockStyle": "big",
+    "media": false,
+    "visualizer": false,
+    "sysinfo": false,
+    "dashStyle": "nihil",
+    "dashFollowBar": true,
+    "dashAttach": "attached",
+    "dashBackground": "nihil.bg",
+    "dashAlpha": 1,
+    "dashRadius": 14,
+    "dashBorder": true,
+    "dashMedia": true,
+    "dashCalendar": true,
+    "dashWeather": true,
+    "dashStats": true,
+    "dashAnimation": "slide",
+    "dashDuration": 240
+  },
+  "osd": {
+    "osdStyle": "nihil",
+    "osdFollowBar": true,
+    "osdAttach": "attached",
+    "osdBackground": "nihil.bg",
+    "osdAlpha": 1,
+    "osdRadius": 14,
+    "osdSide": "right",
+    "osdAlign": "center",
+    "osdShowValue": true
+  },
+  "notifications": {
+    "notifyStyle": "stock",
+    "notifyFollowBar": true,
+    "notifyBackground": "nihil.bg",
+    "notifyAlpha": 1,
+    "notifyRadius": 14,
+    "notifyCards": "nihil",
+    "notifyCorner": "top-right",
+    "notifyWidth": 360
+  },
+  "sounds": {
+    "sounds": true,
+    "soundPack": "nihil",
+    "soundVolume": 0.6,
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": true,
+    "glyphCriticalRed": true,
+    "glyphCharger": true,
+    "glyphColor": "nihil.fg",
+    "glyphCriticalColor": "nihil.danger",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  }
+}

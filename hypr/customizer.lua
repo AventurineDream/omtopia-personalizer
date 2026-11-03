@@ -73,6 +73,24 @@ do
 			},
 		})
 	end
+
+	-- Optional window geometry override saved by presets ("<name> <gaps_in> <gaps_out> <border_size> <rounding> <shadow_0_or_1>").
+	-- Omarchy's "no gaps" toggle (Super+Shift+Backspace) wins while it is on.
+	local g = values("geometry")
+	local no_gaps = exists(state .. "/omarchy/toggles/hypr/window-no-gaps.lua")
+	if #g == 5 and not no_gaps then
+		hl.config({
+			general = {
+				gaps_in = g[1],
+				gaps_out = g[2],
+				border_size = g[3],
+			},
+			decoration = {
+				rounding = g[4],
+				shadow = { enabled = g[5] > 0 },
+			},
+		})
+	end
 end
 
 -- The animation preset picked in the Customizer.

@@ -17,7 +17,7 @@ BINDINGS="$HOME/.config/hypr/bindings.lua"
 # key | repo | plugin id | what it adds
 COMPANIONS=(
   "bar|omarchy-bar-skins|kamradsmeshnyavy.bar|top bar with 18 skins, layouts and a compact mode"
-  "lock|omarchy-lock-designs|kamradsmeshnyavy.lock|21 lock screen designs"
+  "lock|omarchy-lock-designs|kamradsmeshnyavy.lock|22 lock screen designs"
   "fx|omarchy-wallpaper-fx|kamradsmeshnyavy.background|24 wallpaper transitions"
   "picker|omarchy-image-picker-styles|kamradsmeshnyavy.image-picker|six theme/wallpaper picker styles"
   "launcher|omarchy-launcher-skins|kamradsmeshnyavy.menu|full-screen launcher skins"
@@ -58,6 +58,16 @@ ask() { # prompt -> 0 for yes
 }
 
 add omarchy-customizer kamradsmeshnyavy.customizer
+
+# Fonts of the Nihil (dot-matrix) style — Doto, Space Grotesk, Space Mono (SIL OFL 1.1).
+# Without them the Nihil skins fall back to the Omarchy font.
+fonts_src="$PLUGINS/kamradsmeshnyavy.customizer/fonts"
+fonts_dst="$HOME/.local/share/fonts/nihil"
+if [[ -d $fonts_src && ! -e $fonts_dst ]]; then
+  mkdir -p "$(dirname "$fonts_dst")"
+  ln -s "$fonts_src" "$fonts_dst"
+  command -v fc-cache >/dev/null && fc-cache -f "$fonts_dst" >/dev/null 2>&1 || true
+fi
 
 for c in "${COMPANIONS[@]}"; do
   IFS='|' read -r key repo id what <<<"$c"

@@ -16,3 +16,9 @@ This project includes or is based on:
     ML4W        https://github.com/mylinuxforwork/dotfiles
     end-4       https://github.com/end-4/dots-hyprland
   They were converted to Hyprland's Lua config format.
+
+- NIHIL (Nihil-Shell) — https://github.com/poligle/Nihil-Shell
+  MIT License, Copyright (c) 2026 Pol Iglesias.
+  Dot-matrix wallpaper generator (scripts/dotify.py), perimeter Glyph light
+  (GlyphOverlay.qml), interface sound packs (sounds/nihil, sounds/classic),
+  and the NIHIL Hyprland animation preset (animations/NIHIL.lua).

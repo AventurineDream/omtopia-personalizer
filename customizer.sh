@@ -30,6 +30,12 @@ ANIM_DIR="$CUSTOMIZER_DIR/animations"
 ANIM_USER_DIR="$HOME/.config/omarchy/customizer/animations"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-customizer"
 ANIM_ACTIVE="$STATE_DIR/animations.lua"
+PRESET_DIR="$CUSTOMIZER_DIR/presets"
+USER_PRESETS="$HOME/.config/omarchy/customizer/presets"
+LAST_PRESET="$STATE_DIR/last-preset.json"
+ACTIVE_PRESET="$STATE_DIR/active-preset"
+# Что применять из пресета (PRESET_TWEAKS): тема, обои, геометрия окон и т. д.
+PRESET_CFG="$HOME/.config/omarchy/customizer/preset-apply.json"
 # Бар (плагин kamradsmeshnyavy.bar): пресеты лежат в самом плагине, активный скин и shell.json — в ~/.config.
 # Плагины берём по ссылкам в ~/.config/omarchy/plugins: они — сабмодули и могут жить где угодно.
 BAR_DIR="$HOME/.config/omarchy/plugins/kamradsmeshnyavy.bar"
@@ -45,6 +51,12 @@ WIDGET_CFG="$HOME/.config/omarchy/widgets.json"
 OSD_CFG="$HOME/.config/omarchy/osd.json"
 NOTIFY_CFG="$HOME/.config/omarchy/notify-style.json"
 SOUND_CFG="$HOME/.config/omarchy/sounds.json"
+GLYPH_CFG="$HOME/.config/omarchy/glyph.json"
+# Палитра стиля Nihil во всех плагинах (nihil/Palette.qml): theme | mono.
+NIHIL_CFG="$HOME/.config/omarchy/nihil.json"
+DOTIFY_CFG="$HOME/.config/omarchy/dotify.json"
+MENU_PLUGIN="$HOME/.config/omarchy/plugins/kamradsmeshnyavy.menu"
+MENU_CFG="$HOME/.config/omarchy/extensions/menu-skin.json"
 LOCK_USER_DIR="$HOME/.config/omarchy/lock-designs"
 LOCK_THUMBS="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-customizer/lock"
 # Переходы обоев (kamradsmeshnyavy.background) и вид пикера тем/обоев (kamradsmeshnyavy.image-picker).
@@ -58,6 +70,8 @@ TOGGLE="$CUSTOMIZER_DIR/scripts/crt-toggle.sh"
 OPACITY="$CUSTOMIZER_DIR/scripts/opacity.sh"
 BLUR="$CUSTOMIZER_DIR/scripts/blur.sh"
 RECOLOR="$CUSTOMIZER_DIR/scripts/recolor-wallpapers"
+DOTIFY="$CUSTOMIZER_DIR/scripts/dotify.py"
+PLAY_SOUND="$CUSTOMIZER_DIR/scripts/play-sound.sh"
 RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/omarchy-customizer"
 ANIM_BACKUP="$RUN_DIR/active_animations.lua"
 SKIN_BACKUP="$RUN_DIR/bar-skin.json"
@@ -132,6 +146,90 @@ recolor_files() {
   recolor "$src"
 }
 
+# Resolve a hex color or theme role (foreground, accent, background, bar, urgent, …) to #rrggbb.
+resolve_hex_color() {
+  local spec=${1:-} fallback=${2:-#f2f2f2} colors="$HOME/.local/state/omarchy/current/theme/colors.toml" key hex
+  [[ $spec =~ ^#[0-9A-Fa-f]{6}$ ]] && { echo "$spec"; return; }
+  key=$spec
+  [[ $key == bar ]] && key=background
+  [[ $key == urgent ]] && key=red
+  if [[ -n $key && -f $colors ]]; then
+    hex=$(awk -F'"' -v k="$key" '$1 ~ "^" k " *=" { print $2; exit }' "$colors" 2>/dev/null)
+    [[ $hex =~ ^#[0-9A-Fa-f]{6}$ ]] && { echo "$hex"; return; }
+  fi
+  echo "$fallback"
+}
+
+# Свои обои темы — в ~/.config/omarchy/backgrounds/<тема> (omarchy подхватывает их рядом с обоями
+# темы). В каталог самой темы не пишем: это бывает git-клон или симлинк в dotfiles.
+dotify_dest_dir() {
+  local theme
+  theme=$(theme_name)
+  mkdir -p "$HOME/.config/omarchy/backgrounds/$theme"
+  echo "$HOME/.config/omarchy/backgrounds/$theme"
+}
+
+dotify_opts() {
+  TW_FILE="$DOTIFY_CFG"
+  local pitch gamma off tint bg
+  pitch=$(tweak_value dotPitch 9)
+  gamma=$(tweak_value dotGamma 1.25)
+  off=$(tweak_value dotOff 0.07)
+  tint=$(resolve_hex_color "$(tweak_value dotTint foreground)" '#f2f2f2')
+  bg=$(resolve_hex_color "$(tweak_value dotBackground background)" '#000000')
+  printf '%s\n' --pitch "$pitch" --gamma "$gamma" --off "$off" --tint "$tint" --background "$bg"
+}
+
+dotify_files() {
+  local dest out stem base count=0 last_out=""
+  dest=$(dotify_dest_dir)
+  local -a opts
+  mapfile -t opts < <(dotify_opts)
+  if (($# == 0)); then
+    notify-send "Dotify" "$(t "No images selected")"
+    exit 1
+  fi
+  if (($# == 1)); then
+    notify-send -t 3000 "Dotify" "$(t "Rendering LED dot-matrix for %s…" "$(basename "$1")")"
+  else
+    notify-send -t 3000 "Dotify" "$(t "Rendering %s LED dot-matrix wallpapers…" "$#")"
+  fi
+  for src in "$@"; do
+    [[ -f $src ]] || continue
+    base=$(basename "$src")
+    stem=${base%.*}
+    [[ $stem == dot-* ]] || stem="dot-$stem"
+    out="$dest/$stem.png"
+    if ! "$DOTIFY" "$src" "$out" "${opts[@]}" >/dev/null; then
+      notify-send -u critical "Dotify" "$(t "Dotify failed on %s" "$base")"
+      exit 1
+    fi
+    last_out=$out
+    ((count++))
+  done
+  if ((count == 1)) && [[ -n $last_out ]]; then
+    omarchy theme bg set "$last_out"
+    notify-send -t 3000 "Dotify" "$(t "Applied %s" "$(basename "$last_out")")"
+  elif ((count > 1)); then
+    notify-send -t 5000 "Dotify" "$(t "Added %s dot-matrix wallpapers to %s. Pick one in Wallpaper." "$count" "$(theme_name)")"
+  fi
+}
+
+dotify_glyph() {
+  local glyph=${1:-󰣇} slug=${2:-arch} dest out
+  dest=$(dotify_dest_dir)
+  out="$dest/dot-$slug.png"
+  local -a opts
+  mapfile -t opts < <(dotify_opts)
+  notify-send -t 3000 "Dotify" "$(t "Rendering Arch Linux LED dot-matrix wallpaper…")"
+  if ! "$DOTIFY" --glyph "$glyph" "$out" "${opts[@]}" >/dev/null; then
+    notify-send -u critical "Dotify" "$(t "Dotify failed")"
+    exit 1
+  fi
+  omarchy theme bg set "$out"
+  notify-send -t 3000 "Dotify" "$(t "Applied %s" "$(basename "$out")")"
+}
+
 # Пресеты анимаций по имени: пользовательский с тем же именем перекрывает встроенный.
 anim_files() {
   local f
@@ -154,12 +252,31 @@ current_shader() {
 # jq-фильтр поверх $TW_FILE (нет файла — начинаем с {}).
 skin_edit() {
   local tmp="$RUN_DIR/tweak.tmp"
+  mkdir -p "$(dirname "$TW_FILE")"
   { [[ -s $TW_FILE ]] && cat "$TW_FILE" || echo '{}'; } | jq "$@" >"$tmp" && cp "$tmp" "$TW_FILE"
 }
 
 shell_edit() {
   local tmp="$RUN_DIR/shell.tmp"
   jq "$@" "$SHELL_JSON" >"$tmp" && cp "$tmp" "$SHELL_JSON"
+}
+
+# Применить раскладку бара из файла $1 в shell.json:
+# - вычищает поля note / note_* из объекта раскладки и из .bar;
+# - гарантирует, что плагины-клоны из cloneSourceRestores (например, kamradsmeshnyavy.menu,
+#   который раньше мог быть включён только через присутствие в bar.layout) остаются в .plugins,
+#   чтобы смена раскладки бара не отключала лаунчер и другие клоны.
+shell_apply_layout() {
+  local layout_file=$1
+  shell_edit --slurpfile p "$layout_file" '
+    .bar = ((.bar | with_entries(select(.key | test("^note(_[a-z]+)?$") | not)))
+      + ($p[0] | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))))
+    | reduce (.cloneSourceRestores // [])[] as $id (.;
+        if ((.bar.id // "") != $id) and (((.plugins // []) | map(.id) | index($id)) == null)
+        then .plugins = ((.plugins // []) + [{"id": $id}])
+        else .
+        end)
+  '
 }
 
 # Стоковый флаг transparent живёт в shell.json; пишем, только если он меняется,
@@ -238,7 +355,7 @@ TWEAKS=(
   "autoHide|bool|false|Auto-hide (slides out on hover)"
   "transparent|bool|false|Transparent (stock, text over the wallpaper)"
   "#Workspaces"
-  "wsLabelStyle|enum|omarchy numbers circled circled-filled circled-sans circled-sans-filled parens fullwidth superscript roman roman-small kanji greek cyrillic braille dots squares diamonds stars triangles hearts hexagons bars none|Workspaces: labels"
+  "wsLabelStyle|enum|omarchy numbers leds circled circled-filled circled-sans circled-sans-filled parens fullwidth superscript roman roman-small kanji greek cyrillic braille dots squares diamonds stars triangles hearts hexagons bars none|Workspaces: labels"
   "wsWindowIcons|bool|false|Workspaces: window icons"
   "wsIconStyle|enum|color mono tinted accent bubble faded glyph letter dots count|Workspaces: window icon style"
   "wsMaxIcons|num|1 8 1 3|Workspaces: icons per workspace (then +N)"
@@ -263,6 +380,7 @@ default_label() {
   height:0) t "auto" ;;
   ownerMessage:) t "Hello, %s" "$USER" ;;
   wsActiveColor:default) t "as in the style (omarchy — text colour, otherwise accent)" ;;
+  nihil*:default) t "auto (theme or mono palette)" ;;
   avatar:) t "~/.face (or the first letter of the name)" ;;
   wallpaperBlur:1) t "1 (stock)" ;;
   expandedWidth:0 | expandedHeight:0 | sliceWidth:0 | sliceHeight:0) t "from the style" ;;
@@ -350,6 +468,8 @@ WIDGET_TWEAKS=(
   "sysinfo|bool|true|System rings"
   "sysinfoAnchor|enum|top-right left center right bottom-left bottom bottom-right top-left top|System rings: position"
   "#General"
+  "widgetStyle|enum|default nihil|Widgets: card style"
+  "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
   "edgeMargin|num|0 200 8 56|Margin from the screen edges"
   "tint|color|accent|Accent colour"
   "screens|enum|all primary|Screens"
@@ -358,7 +478,7 @@ WIDGET_TWEAKS=(
 # OSD (клон kamradsmeshnyavy.osd): громкость/яркость у края экрана или стоковой карточкой — osd.json.
 OSD_TWEAKS=(
   "#Style"
-  "osdStyle|enum|edge stock|OSD: style (edge — slides out of the screen edge / frame)"
+  "osdStyle|enum|edge nihil stock|OSD: style (edge — slides out of the screen edge / frame)"
   "osdFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
   "osdAttach|enum|auto attached floating|Attach to the edge (auto — only to a solid bar / frame)"
   "osdBackground|color|background|Background"
@@ -381,21 +501,24 @@ NOTIFY_TWEAKS=(
   "notifyBackground|color|background|Background"
   "notifyAlpha|num|0.3 1 0.05 0.94|Background alpha"
   "notifyRadius|num|0 40 2 18|Corner radius"
-  "notifyCards|enum|flat bordered|Cards"
+  "notifyCards|enum|flat bordered nihil|Cards"
   "#Size & position"
   "notifyCorner|enum|top-right top-left top-center|Corner"
   "notifyWidth|num|280 600 20 380|Width"
   "notifyMax|num|0 10 1 0|Visible at once (0 — all)"
 )
-# Звуки интерфейса (omarchy-sound из dotfiles): уведомления, громкость, вход, низкий заряд — sounds.json.
+# Звуки интерфейса (omarchy-sound + play-sound.sh): уведомления, громкость, окна, воркспейсы — sounds.json.
 SOUND_TWEAKS=(
   "#Sounds"
   "sounds|bool|true|Sounds: on"
+  "soundPack|enum|theme nihil classic|Sounds: pack"
   "soundVolume|num|0.1 1 0.1 0.6|Sounds: volume"
+  "windowSounds|bool|false|Sounds: window & workspace events"
 )
 # Дашборд (плагин kamradsmeshnyavy.widgets) — тот же widgets.json.
 DASH_TWEAKS=(
   "#Look"
+  "dashStyle|enum|default nihil|Dashboard: style"
   "dashFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
   "dashAttach|enum|auto attached floating|Attach to the bar (auto — only to a solid bar at the edge)"
   "dashBackground|color|background|Background"
@@ -415,9 +538,74 @@ DASH_TWEAKS=(
   "dashDuration|num|100 1000 20 340|Animation, ms"
 )
 
+# Контурная подсветка экрана Glyph (GlyphOverlay.qml) — glyph.json.
+GLYPH_TWEAKS=(
+  "#Glyph lighting"
+  "glyphEnabled|bool|false|Glyph: perimeter lighting"
+  "glyphCriticalRed|bool|true|Glyph: signal red on critical alerts"
+  "glyphCharger|bool|true|Glyph: rising beams on charger plug-in"
+  "glyphInsetMode|enum|auto frame edge|Glyph: path around the screen"
+  "#Appearance"
+  "glyphColor|color|foreground|Glyph: light colour"
+  "glyphCriticalColor|color|urgent|Glyph: critical colour"
+  "glyphDuration|num|300 3000 100 1100|Glyph: sweep duration, ms"
+  "glyphThickness|num|1 8 0.5 2.5|Glyph: core thickness"
+)
+
+# Генератор матричных LED-обоев Dotify (scripts/dotify.py) — dotify.json.
+DOTIFY_TWEAKS=(
+  "#Dot matrix"
+  "dotPitch|num|6 24 1 9|Cell pitch, px (logical)"
+  "dotGamma|num|0.4 2.2 0.05 1.25|Brightness gamma"
+  "dotOff|num|0 0.25 0.01 0.07|Unlit LED grid level"
+  "dotTint|color|foreground|Lit LED colour"
+  "dotBackground|color|background|Void background colour"
+)
+
+# Лаунчер приложений (kamradsmeshnyavy.menu) — extensions/menu-skin.json.
+LAUNCHER_TWEAKS=(
+  "backdrop|num|0.2 1 0.05 0.94|Background dim"
+)
+
+# Стиль Nihil (dot-matrix) — nihil.json, его читает nihil/Palette.qml в каждом плагине.
+NIHIL_TWEAKS=(
+  "#Nihil palette"
+  "palette|enum|theme mono|Nihil: palette (theme — omarchy colours, mono — original black & white)"
+  "#Nihil colours"
+  "nihilBg|color|default|Nihil: background (bar, drawers, cards)"
+  "nihilFg|color|default|Nihil: text"
+  "nihilDim|color|default|Nihil: secondary text"
+  "nihilMuted|color|default|Nihil: labels and app names"
+  "nihilLine|color|default|Nihil: hairlines and card borders"
+  "nihilSurface|color|default|Nihil: raised surfaces (rows, fields)"
+  "nihilLit|color|default|Nihil: lit LEDs, sliders, active toggles"
+  "nihilSignal|color|default|Nihil: signal (accent marks and indicators)"
+  "nihilDanger|color|default|Nihil: danger (critical, confirmations)"
+)
+
+# Что применять из пресета — preset-apply.json. Выключенный раздел пресет не трогает.
+PRESET_TWEAKS=(
+  "#Apply from presets"
+  "presetTheme|bool|true|Presets: apply theme"
+  "presetWallpaper|bool|true|Presets: apply wallpaper"
+  "presetGeometry|bool|true|Presets: apply window geometry (gaps, borders, rounding, shadow)"
+  "presetAnims|bool|true|Presets: apply animations"
+  "presetOpacity|bool|true|Presets: apply opacity and blur"
+  "presetShader|bool|true|Presets: apply screen shader"
+  "presetBar|bool|true|Presets: apply bar skin and layout"
+  "presetLock|bool|true|Presets: apply lock screen"
+  "presetLauncher|bool|true|Presets: apply launcher"
+  "presetWallpaperFx|bool|true|Presets: apply wallpaper transition and picker"
+  "presetWidgets|bool|true|Presets: apply widgets and dashboard"
+  "presetOsd|bool|true|Presets: apply OSD"
+  "presetNotifications|bool|true|Presets: apply notifications"
+  "presetSounds|bool|true|Presets: apply sounds"
+  "presetGlyph|bool|true|Presets: apply Glyph"
+)
+
 tweak_spec() {
   local t
-  for t in "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
+  for t in "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
   return 1
 }
 
@@ -431,6 +619,11 @@ tweak_file() {
   for t in "${OSD_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$OSD_CFG"; return; }; done
   for t in "${NOTIFY_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NOTIFY_CFG"; return; }; done
   for t in "${SOUND_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$SOUND_CFG"; return; }; done
+  for t in "${GLYPH_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$GLYPH_CFG"; return; }; done
+  for t in "${DOTIFY_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$DOTIFY_CFG"; return; }; done
+  for t in "${LAUNCHER_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$MENU_CFG"; return; }; done
+  for t in "${PRESET_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$PRESET_CFG"; return; }; done
+  for t in "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NIHIL_CFG"; return; }; done
   echo "$BAR_SKIN"
 }
 
@@ -438,6 +631,8 @@ tweak_file() {
 color_roles() {
   local colors="$HOME/.local/state/omarchy/current/theme/colors.toml"
   printf '%s\n' bar background foreground accent muted urgent
+  # Палитра Nihil (nihil/Palette.qml): тема или монохром — по nihil.json.
+  printf '%s\n' nihil.bg nihil.fg nihil.dim nihil.line nihil.surface nihil.signal nihil.danger
   awk -F'=' '/^[a-z_]+ *= *"#/ { gsub(/ /, "", $1); print $1 }' "$colors" 2>/dev/null |
     grep -vxE 'background|foreground|accent|muted'
 }
@@ -470,6 +665,11 @@ cycle() {
 
 tweak() {
   local key=$1 how=$2 spec kind args cur next dir=1
+  case "$key" in
+  w:*) widget_step "${key#w:}" "$how"; return ;;
+  fontProfile) font_profile_step "$how"; return ;;
+  wset:*) widget_setting "${key#wset:}"; return ;;
+  esac
   spec=$(tweak_spec "$key") || exit 1
   TW_FILE=$(tweak_file "$key")
   IFS='|' read -r _ kind args _ <<<"$spec"
@@ -536,11 +736,11 @@ tweak() {
   color)
     if [[ $how == pick ]]; then
       local picked
-      picked=$(zenity --color-selection --title="Bar: $key" 2>/dev/null) || exit 0
+      picked=$(zenity --color-selection --title="$key" 2>/dev/null) || exit 0
       # zenity отдаёт rgb(r,g,b) — переводим в #rrggbb.
       next=$(sed -E 's/rgba?\(([0-9]+),([0-9]+),([0-9]+).*/\1 \2 \3/' <<<"$picked" | xargs printf '#%02x%02x%02x')
     else
-      mapfile -t list < <( [[ $key == gradient ]] && echo none; [[ $key == wsActiveColor ]] && echo default; color_roles)
+      mapfile -t list < <( [[ $key == gradient ]] && echo none; [[ $key == wsActiveColor || $key == nihil* ]] && echo default; [[ $args == '#'* ]] && echo "$args"; color_roles)
       next=$(cycle "$(tweak_value "$key" "$args")" "$dir" "${list[@]}")
     fi
     if [[ $next == none || $next == default ]]; then
@@ -612,7 +812,7 @@ tweak_set() {
     skin_edit --arg k "$key" --argjson v "$value" '.[$k] = $v'
     ;;
   color)
-    if [[ ($key == gradient && $value == none) || ($key == wsActiveColor && $value == default) ]]; then
+    if [[ ($key == gradient && $value == none) || (($key == wsActiveColor || $key == nihil*) && $value == default) ]]; then
       skin_edit --arg k "$key" 'del(.[$k])'
     elif [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || color_roles | grep -qxF -- "$value"; then
       skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'
@@ -842,11 +1042,623 @@ delete_user_skin() {
 bar_skin_restore() {
   # Overlay зовёт это только после превью, так что снимок свежий.
   [[ -f $SKIN_BACKUP ]] && cp "$SKIN_BACKUP" "$BAR_SKIN"
-  [[ -f $TRANSPARENT_BACKUP ]] && set_transparent "$(cat "$TRANSPARENT_BACKUP")"
+  [[ -f $TRANSPARENT_BACKUP ]] && set_transparent "$(command cat "$TRANSPARENT_BACKUP")"
+}
+
+# ── Виджеты бара: включение, порядок, параметры (shell.json .bar.layout) ──
+# Строки категории bar-widgets — твики с ключами w:<id> (h/l — сдвиг, ⏎/x — вкл/выкл) и
+# wset:<id>:<key> (параметр виджета). Перемещение и добавление делает сам шелл
+# (moveBarWidget / putBarWidget); убранный виджет вместе с настройками и местом
+# запоминается в bar-hidden.json, чтобы вернуться туда же.
+BAR_HIDDEN="$HOME/.config/omarchy/customizer/bar-hidden.json"
+
+# Человеческие имена qml-модулей бара (у плагинов имя — из манифеста).
+widget_label() {
+  case "$1" in
+  nihil-mark) t "Nihil logo" ;;
+  active-app) t "Active app" ;;
+  battery-gauge) t "Battery (LED)" ;;
+  dot-clock) t "Clock (Doto)" ;;
+  privacy-led) t "Microphone LED" ;;
+  *) jq -r --arg id "$1" 'map(select(.id == $id))[0] | .barWidget.displayName // .name // $id' <<<"$WIDGET_CATALOG" 2>/dev/null || echo "$1" ;;
+  esac
+}
+
+widget_location() {
+  jq -r --arg id "$1" '.bar.layout as $l | [("left", "center", "right") as $s
+    | (($l[$s] // []) | map(if type == "object" then .id else . end) | index($id)) as $i
+    | select($i != null) | "\($s) \($i)"] | first // ""' "$SHELL_JSON"
+}
+
+widget_hide() {
+  local id=$1 sec=$2 idx=$3 entry
+  entry=$(jq -c --arg s "$sec" --argjson i "$idx" '.bar.layout[$s][$i]' "$SHELL_JSON")
+  mkdir -p "$(dirname "$BAR_HIDDEN")"
+  { [[ -s $BAR_HIDDEN ]] && cat "$BAR_HIDDEN" || echo '{}'; } |
+    jq --arg id "$id" --argjson e "$entry" --arg s "$sec" --argjson i "$idx" \
+      '.[$id] = {entry: $e, section: $s, index: $i}' >"$RUN_DIR/bar-hidden.tmp" && cp "$RUN_DIR/bar-hidden.tmp" "$BAR_HIDDEN"
+  shell_edit --arg s "$sec" --argjson i "$idx" '.bar.layout[$s] |= (.[0:$i] + .[$i + 1:])'
+}
+
+widget_show() {
+  local id=$1 stash
+  stash=$(jq -c --arg id "$id" '.[$id] // empty' "$BAR_HIDDEN" 2>/dev/null)
+  if [[ -n $stash ]]; then
+    shell_edit --argjson h "$stash" '.bar.layout[$h.section] = ((.bar.layout[$h.section] // [])
+      | ([$h.index, length] | min) as $i | .[0:$i] + [$h.entry] + .[$i:])'
+    jq --arg id "$id" 'del(.[$id])' "$BAR_HIDDEN" >"$RUN_DIR/bar-hidden.tmp" && cp "$RUN_DIR/bar-hidden.tmp" "$BAR_HIDDEN"
+  else
+    omarchy-shell shell putBarWidget "$id" '{}' >/dev/null
+  fi
+}
+
+# $1 = id, $2 = - | + | toggle | reset | pick
+widget_step() {
+  local id=$1 how=$2 loc sec idx n si place
+  local -a secs=(left center right)
+  loc=$(widget_location "$id")
+  [[ $how == set ]] && return 0
+  if [[ $how != - && $how != + ]]; then
+    if [[ -n $loc ]]; then widget_hide "$id" $loc; else widget_show "$id"; fi
+    return
+  fi
+  [[ -n $loc ]] || return 0
+  read -r sec idx <<<"$loc"
+  n=$(jq --arg s "$sec" '.bar.layout[$s] | length' "$SHELL_JSON")
+  for si in 0 1 2; do [[ ${secs[si]} == "$sec" ]] && break; done
+  # Через край секции виджет переходит в соседнюю: в конец предыдущей или в начало следующей.
+  if [[ $how == - ]]; then
+    if ((idx > 0)); then place=$(jq -cn --arg s "$sec" --argjson i $((idx - 1)) '{section: $s, index: $i}')
+    elif ((si > 0)); then place=$(jq -cn --arg s "${secs[si - 1]}" --argjson i "$(jq --arg s "${secs[si - 1]}" '.bar.layout[$s] // [] | length' "$SHELL_JSON")" '{section: $s, index: $i}')
+    else return 0; fi
+  else
+    if ((idx < n - 1)); then place=$(jq -cn --arg s "$sec" --argjson i $((idx + 1)) '{section: $s, index: $i}')
+    elif ((si < 2)); then place=$(jq -cn --arg s "${secs[si + 1]}" '{section: $s, index: 0}')
+    else return 0; fi
+  fi
+  omarchy-shell shell moveBarWidget "$id" "$place" >/dev/null
+}
+
+# Шрифты системы: omarchy-font-profile (dotfiles) — терминалы, fontconfig, GTK, VS Code, браузер, Nihil.
+font_profile_step() {
+  command -v omarchy-font-profile >/dev/null || return 0
+  local -a list
+  mapfile -t list < <(omarchy-font-profile list | cut -f1)
+  local cur next dir=1
+  [[ $1 == - ]] && dir=-1
+  cur=$(omarchy-font-profile)
+  if [[ $1 == reset ]]; then next=stock; else next=$(cycle "$cur" "$dir" "${list[@]}"); fi
+  omarchy-font-profile "$next" >/dev/null 2>&1 || true
+}
+
+list_font_profile() {
+  command -v omarchy-font-profile >/dev/null || return 0
+  local cur desc
+  cur=$(omarchy-font-profile)
+  desc=$(omarchy-font-profile list | awk -F'\t' -v c="$cur" '$1 == c { print $2 }')
+  printf '%s\t%s\t\t0\t\theader\n' "$(t "System fonts")" "section:System fonts"
+  printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "Font profile"):  $cur" "fontProfile" \
+    "$(t "$desc")"'\n\n'"$(t "h/l — stock · nothing · dot · pixel. Applies to terminals, GTK, VS Code, browser (Dark Reader, Stylus) and the Nihil shell. x — back to stock.")" \
+    "$(t "$desc")"
+}
+
+# Параметры виджетов (bool): id|key|default|label
+WIDGET_SETTINGS=(
+  "kamradsmeshnyavy.tray|collapse|false|Tray: collapse into a drawer (opens on hover)"
+  "kamradsmeshnyavy.tray|monochrome|true|Tray: monochrome icons (colour on hover)"
+)
+
+widget_setting_value() { # id key default
+  jq -r --arg id "$1" --arg k "$2" --arg d "$3" '[.bar.layout[][] | select(type == "object" and .id == $id)][0]
+    | if . != null and has($k) and .[$k] != null then .[$k] | tostring else $d end' "$SHELL_JSON"
+}
+
+widget_setting() { # "<id>:<key>"
+  local id=${1%:*} key=${1##*:} t def cur
+  for t in "${WIDGET_SETTINGS[@]}"; do
+    IFS='|' read -r tid tkey def _ <<<"$t"
+    [[ $tid == "$id" && $tkey == "$key" ]] && break
+  done
+  cur=$(widget_setting_value "$id" "$key" "$def")
+  omarchy-shell shell setBarWidget "$id" "$key" "$([[ $cur == true ]] && echo false || echo true)" '{}' >/dev/null
+}
+
+list_bar_widgets() {
+  WIDGET_CATALOG=$(omarchy plugin list --json 2>/dev/null || echo '[]')
+  local sec id on t tid tkey def label v
+  local -A seen=()
+  for sec in left center right; do
+    case $sec in left) label=$(t "Left / top") ;; center) label=$(t "Center") ;; right) label=$(t "Right / bottom") ;; esac
+    printf '%s\t%s\t\t0\t\theader\n' "$label" "section:$sec"
+    while read -r id; do
+      [[ -n $id ]] || continue
+      seen[$id]=1
+      printf '%s\t%s\t\t0\t%s\t%s\n' "● $(widget_label "$id")" "tweak:w:$id" \
+        "$(t "On the bar · %s" "$id")"'\n\n'"$(t "h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar")" "$id"
+    done < <(jq -r --arg s "$sec" '.bar.layout[$s] // [] | .[] | if type == "object" then .id else . end' "$SHELL_JSON")
+  done
+  # Не на баре: убранные (с запомненным местом) и установленные виджеты-плагины. Стоковый
+  # виджет, у которого есть свой клон, не предлагаем — его включение сняло бы клон.
+  printf '%s\t%s\t\t0\t\theader\n' "$(t "Not on the bar")" "section:off"
+  { jq -r 'keys[]' "$BAR_HIDDEN" 2>/dev/null
+    jq -r --argjson cloned "$(cat "$HOME"/.config/omarchy/plugins/*/manifest.json 2>/dev/null | jq -s '[.[].omarchy.clonedFrom // empty]')" \
+      '.[] | select((.kinds // []) | index("bar-widget")) | select(.id as $i | $cloned | index($i) | not) | .id' <<<"$WIDGET_CATALOG"
+  } | awk '!s[$0]++' | while read -r id; do
+    [[ -n $id && -z ${seen[$id]:-} ]] || continue
+    printf '%s\t%s\t\t0\t%s\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
+      "$(t "Not on the bar · %s" "$id")"'\n\n'"$(t "⏎ — put on the bar (back to its old place if it was removed here)")" "$id"
+  done
+  printf '%s\t%s\t\t0\t\theader\n' "$(t "Widget settings")" "section:settings"
+  for t in "${WIDGET_SETTINGS[@]}"; do
+    IFS='|' read -r tid tkey def label <<<"$t"
+    v=$(widget_setting_value "$tid" "$tkey" "$def")
+    printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "$label"):  $v" "tweak:wset:$tid:$tkey" \
+      "$(t "Now: %s" "$v")"'\n'"$(t "Default: %s" "$def")"'\n\n'"$(t "h/l or ⏎ — on/off")" "$(t "default: %s" "$def")"
+  done
+}
+
+# ── Глобальные пресеты, Glyph и Лаунчер ───────────────────────────────
+
+preset_name_of() {
+  local base
+  base=$(basename "$1" .json)
+  jq -r --arg l "$UI_LANG" --arg d "$base" '.["name_" + $l] // .name // $d' "$1" 2>/dev/null || echo "$base"
+}
+
+preset_summary() {
+  jq -r '[
+    (if .theme then "theme: " + .theme else empty end),
+    (if .barSkin then "bar: " + .barSkin elif .barSkinData then "bar: custom" else empty end),
+    (if .barLayout then "layout: " + .barLayout elif .barLayoutData then "layout: custom" else empty end),
+    (if .lock.design then "lock: " + .lock.design else empty end),
+    (if .launcher.skin then "launcher: " + .launcher.skin else empty end),
+    (if .anims and .anims != "" then "anims: " + .anims else empty end),
+    (if .glyph.glyphEnabled == true then "glyph: on" else empty end)
+  ] | join("  ·  ")' "$1" 2>/dev/null
+}
+
+# Включён ли раздел пресета (PRESET_TWEAKS, по умолчанию да).
+preset_on() {
+  [[ $(jq -r --arg k "$1" 'if has($k) then .[$k] | tostring else "true" end' "$PRESET_CFG" 2>/dev/null || echo true) != false ]]
+}
+
+# Сравниваются только разделы, которые пресет применяет.
+preset_matches() {
+  local f=$1 p_theme p_skin p_lock
+  if preset_on presetTheme; then
+    p_theme=$(jq -r '.theme // ""' "$f" 2>/dev/null)
+    [[ -n $p_theme && $p_theme != "$(theme_name)" ]] && return 1
+  fi
+  if preset_on presetBar; then
+    p_skin=$(jq -r '.barSkin // ""' "$f" 2>/dev/null)
+    [[ -n $p_skin && -f $BAR_DIR/manifest.json && $p_skin != "$(current_skin)" ]] && return 1
+  fi
+  if preset_on presetLock; then
+    p_lock=$(jq -r '.lock.design // ""' "$f" 2>/dev/null)
+    [[ -n $p_lock && -f $LOCK_PLUGIN/manifest.json && $p_lock != "$(lock_current)" ]] && return 1
+  fi
+  return 0
+}
+
+# Геометрия окон из пресета: ~/.local/state/hypr/geometry, читает hypr/customizer.lua.
+geometry_summary() {
+  local f="${XDG_STATE_HOME:-$HOME/.local/state}/hypr/geometry" _n gi go bs r shd
+  [[ -s $f ]] || { t "Hyprland config"; return; }
+  read -r _n gi go bs r shd <"$f" || true
+  t "gaps %s/%s · border %s · rounding %s · shadow %s" "$gi" "$go" "$bs" "$r" "$([[ ${shd:-0} != 0 ]] && echo on || echo off)"
+}
+
+geometry_reset() {
+  local f="${XDG_STATE_HOME:-$HOME/.local/state}/hypr/geometry"
+  [[ -s $f ]] && : >"$f"
+  hyprctl reload >/dev/null 2>&1 || true
+  restore
+  notify-send -t 2000 "Presets" "$(t "Window geometry: Hyprland config")"
+}
+
+theme_exists() {
+  [[ -n $1 && ( -d $HOME/.config/omarchy/themes/$1 || -d ${OMARCHY_PATH:-/usr/share/omarchy}/themes/$1 ) ]]
+}
+
+current_preset_stem() {
+  local saved f stem
+  if [[ -s $ACTIVE_PRESET ]]; then
+    saved=$(<"$ACTIVE_PRESET")
+    for f in "$USER_PRESETS/$saved.json" "$PRESET_DIR/$saved.json"; do
+      if [[ -f $f ]] && preset_matches "$f"; then
+        echo "$saved"
+        return
+      fi
+    done
+  fi
+  for f in "$USER_PRESETS"/*.json "$PRESET_DIR"/*.json; do
+    [[ -f $f ]] || continue
+    if preset_matches "$f"; then
+      basename "$f" .json
+      return
+    fi
+  done
+  echo custom
+}
+
+current_preset_label() {
+  local stem f
+  stem=$(current_preset_stem)
+  [[ $stem == custom ]] && { echo custom; return; }
+  for f in "$USER_PRESETS/$stem.json" "$PRESET_DIR/$stem.json"; do
+    [[ -f $f ]] && { preset_name_of "$f"; return; }
+  done
+  echo "$stem"
+}
+
+write_json_inplace() {
+  local target=$1 json=$2 tmp="$RUN_DIR/preset-write.tmp"
+  mkdir -p "$(dirname "$target")"
+  printf '%s\n' "$json" >"$tmp" && cp "$tmp" "$target"
+}
+
+read_json_or_empty() {
+  if [[ -s $1 ]]; then jq -c '.' "$1" 2>/dev/null || echo '{}'; else echo '{}'; fi
+}
+
+snapshot_preset() {
+  local out=$1 title=${2:-} note=${3:-}
+  local hypr_state="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+  local theme wp anim="" f op bl sh geom_json="null" skin_name layout_name skin_data="null" layout_data="null" bar_tr
+  theme=$(theme_name)
+  wp=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
+  [[ -n $wp ]] && wp=${wp/#"$HOME/"/"~/"}
+  if [[ -s $ANIM_ACTIVE ]]; then
+    while read -r f; do
+      cmp -s "$f" "$ANIM_ACTIVE" && { anim=$(basename "$f" .lua); break; }
+    done < <(anim_files)
+  fi
+  op=$("$OPACITY" current 2>/dev/null || echo subtle)
+  bl=$("$BLUR" current 2>/dev/null || echo medium)
+  sh=$(current_shader)
+  if [[ -s $hypr_state/geometry ]]; then
+    local _gn gi go bs r shd
+    read -r _gn gi go bs r shd <"$hypr_state/geometry" || true
+    if [[ -n ${shd:-} ]]; then
+      geom_json=$(jq -cn --argjson gi "$gi" --argjson go "$go" --argjson bs "$bs" --argjson r "$r" --argjson s "$((shd > 0 ? 1 : 0))" \
+        '{gapsIn: $gi, gapsOut: $go, borderSize: $bs, rounding: $r, shadow: ($s == 1)}')
+    fi
+  fi
+  skin_name=$(current_skin)
+  if [[ $skin_name == custom || $skin_name == stock ]]; then
+    skin_name=""
+    skin_data=$(read_json_or_empty "$BAR_SKIN")
+  fi
+  layout_name=$(current_layout)
+  if [[ $layout_name == custom ]]; then
+    layout_name=""
+    layout_data=$(jq -c '.bar | {position, centerAnchor, layout}' "$SHELL_JSON" 2>/dev/null || echo 'null')
+  fi
+  bar_tr=$(jq -r '.bar.transparent // false' "$SHELL_JSON" 2>/dev/null || echo false)
+
+  mkdir -p "$(dirname "$out")"
+  jq -n \
+    --arg name "$title" \
+    --arg note "$note" \
+    --arg theme "$theme" \
+    --arg wallpaper "$wp" \
+    --arg anims "$anim" \
+    --arg opacity "$op" \
+    --arg blur "$bl" \
+    --arg shader "$sh" \
+    --argjson hyprGeometry "$geom_json" \
+    --arg barSkin "$skin_name" \
+    --argjson barSkinData "$skin_data" \
+    --arg barLayout "$layout_name" \
+    --argjson barLayoutData "$layout_data" \
+    --argjson barTransparent "$bar_tr" \
+    --argjson lock "$(read_json_or_empty "$LOCK_CFG")" \
+    --argjson launcher "$(read_json_or_empty "$MENU_CFG")" \
+    --argjson wallpaperFx "$(read_json_or_empty "$FX_CFG")" \
+    --argjson imagePicker "$(read_json_or_empty "$PICKER_CFG")" \
+    --argjson widgets "$(read_json_or_empty "$WIDGET_CFG")" \
+    --argjson osd "$(read_json_or_empty "$OSD_CFG")" \
+    --argjson notifications "$(read_json_or_empty "$NOTIFY_CFG")" \
+    --argjson sounds "$(read_json_or_empty "$SOUND_CFG")" \
+    --argjson glyph "$(read_json_or_empty "$GLYPH_CFG")" \
+    '(if $name != "" then {name: $name} else {} end)
+     + (if $note != "" then {note: $note} else {} end)
+     + {
+       theme: $theme,
+       wallpaper: $wallpaper,
+       anims: $anims,
+       opacity: $opacity,
+       blur: $blur,
+       shader: $shader,
+       hyprGeometry: $hyprGeometry
+     }
+     + (if $barSkin != "" then {barSkin: $barSkin} else {barSkinData: $barSkinData} end)
+     + (if $barLayout != "" then {barLayout: $barLayout} else {barLayoutData: $barLayoutData} end)
+     + {
+       barTransparent: $barTransparent,
+       lock: $lock,
+       launcher: $launcher,
+       wallpaperFx: $wallpaperFx,
+       imagePicker: $imagePicker,
+       widgets: $widgets,
+       osd: $osd,
+       notifications: $notifications,
+       sounds: $sounds,
+       glyph: $glyph
+     }' >"$out.tmp" && cp "$out.tmp" "$out"
+}
+
+apply_preset() {
+  local file=$1 label
+  [[ -f $file ]] || { notify-send -u critical "Presets" "$(t "Preset not found: %s" "$file")"; exit 1; }
+  label=$(preset_name_of "$file")
+  local is_backup=false
+  [[ $(realpath "$file") == "$(realpath -m "$LAST_PRESET")" ]] && is_backup=true
+
+  # Тему проверяем до записи чего-либо: иначе пресет применится наполовину.
+  local theme wp
+  theme=$(jq -r '.theme // ""' "$file")
+  if $is_backup || preset_on presetTheme; then
+    if [[ -n $theme ]] && ! theme_exists "$theme"; then
+      notify-send -u critical "Presets" "$(t "Theme %s is not installed — preset not applied. Turn off \"Apply theme\" to use it without the theme." "$theme")"
+      exit 1
+    fi
+  else
+    theme=""
+  fi
+  notify-send -t 3000 "Presets" "$(t "Applying preset %s…" "$label")"
+
+  # Резервная копия — только с «своего» состояния. Поверх уже применённого пресета она
+  # не перезаписывается, чтобы «Восстановить прежнюю настройку» вела к исходному виду.
+  if ! $is_backup && { [[ ! -s $LAST_PRESET ]] || [[ $(current_preset_stem) == custom ]]; }; then
+    snapshot_preset "$LAST_PRESET" "$(t "Previous setup")" \
+      "$(t "Automatic backup before applying %s (%s)" "$label" "$(date '+%F %H:%M')")"
+  fi
+
+  # Раздел применяется, если включён в PRESET_TWEAKS; резервная копия — всегда целиком.
+  sect() { $is_backup || preset_on "$1"; }
+
+  local pair key flag target json
+  for pair in \
+    "lock|presetLock|$LOCK_CFG" \
+    "launcher|presetLauncher|$MENU_CFG" \
+    "wallpaperFx|presetWallpaperFx|$FX_CFG" \
+    "imagePicker|presetWallpaperFx|$PICKER_CFG" \
+    "widgets|presetWidgets|$WIDGET_CFG" \
+    "osd|presetOsd|$OSD_CFG" \
+    "notifications|presetNotifications|$NOTIFY_CFG" \
+    "sounds|presetSounds|$SOUND_CFG" \
+    "glyph|presetGlyph|$GLYPH_CFG"; do
+    IFS='|' read -r key flag target <<<"$pair"
+    sect "$flag" || continue
+    if jq -e --arg k "$key" 'has($k) and .[$k] != null' "$file" >/dev/null 2>&1; then
+      json=$(jq --arg k "$key" '.[$k]' "$file")
+      write_json_inplace "$target" "$json"
+    fi
+  done
+
+  # Bar skin & layout
+  local bs bl sfile lfile btr
+  if ! sect presetBar; then
+    :
+  elif jq -e '.barSkinData != null and (.barSkinData | type == "object")' "$file" >/dev/null 2>&1; then
+    write_json_inplace "$BAR_SKIN" "$(jq '.barSkinData' "$file")"
+  else
+    bs=$(jq -r '.barSkin // ""' "$file")
+    if [[ -n $bs ]]; then
+      for sfile in "$USER_SKINS/$bs.json" "$BAR_DIR/skins/$bs.json"; do
+        [[ -f $sfile ]] && { cp "$sfile" "$BAR_SKIN"; break; }
+      done
+    fi
+  fi
+  if ! sect presetBar; then
+    :
+  elif jq -e '.barLayoutData != null and (.barLayoutData | type == "object")' "$file" >/dev/null 2>&1; then
+    local ltmp="$RUN_DIR/preset-layout.tmp"
+    jq '.barLayoutData' "$file" >"$ltmp"
+    shell_apply_layout "$ltmp"
+  else
+    bl=$(jq -r '.barLayout // ""' "$file")
+    if [[ -n $bl ]]; then
+      for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
+        [[ -f $lfile ]] && { shell_apply_layout "$lfile"; break; }
+      done
+    fi
+  fi
+  if sect presetBar && jq -e 'has("barTransparent")' "$file" >/dev/null 2>&1; then
+    btr=$(jq -r '.barTransparent // false' "$file")
+    set_transparent "$btr"
+  fi
+
+  # Hyprland state (geometry, animations, opacity, blur, shader)
+  local hypr_state="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+  mkdir -p "$hypr_state"
+  if ! sect presetGeometry; then
+    :
+  elif jq -e '.hyprGeometry != null and (.hyprGeometry | type == "object")' "$file" >/dev/null 2>&1; then
+    jq -r '.hyprGeometry | "preset \(.gapsIn // 4) \(.gapsOut // 8) \(.borderSize // 1) \(.rounding // 12) \(if .shadow == true then 1 else 0 end)"' \
+      "$file" >"$hypr_state/geometry"
+  else
+    : >"$hypr_state/geometry"
+  fi
+
+  local anim afile op blr sh
+  if sect presetAnims && jq -e 'has("anims")' "$file" >/dev/null 2>&1; then
+    anim=$(jq -r '.anims // ""' "$file")
+    if [[ -z $anim ]]; then
+      : >"$ANIM_ACTIVE"
+    else
+      for afile in "$ANIM_USER_DIR/$anim.lua" "$ANIM_DIR/$anim.lua"; do
+        [[ -f $afile ]] && { cp "$afile" "$ANIM_ACTIVE"; cp "$afile" "$ANIM_BACKUP" 2>/dev/null || true; break; }
+      done
+    fi
+  fi
+  if sect presetOpacity; then
+    op=$(jq -r '.opacity // ""' "$file")
+    [[ -n $op ]] && "$OPACITY" set "$op" >/dev/null 2>&1 || true
+    blr=$(jq -r '.blur // ""' "$file")
+    [[ -n $blr ]] && "$BLUR" set "$blr" >/dev/null 2>&1 || true
+  fi
+  sh=""
+  sect presetShader && sh=$(jq -r '.shader // ""' "$file")
+  if [[ $sh == off ]]; then
+    "$TOGGLE" off >/dev/null 2>&1 || true
+  elif [[ -n $sh ]]; then
+    "$TOGGLE" on "$sh" >/dev/null 2>&1 || true
+  fi
+
+  # Theme & wallpaper (тема уже проверена и отфильтрована выше)
+  wp=""
+  sect presetWallpaper && wp=$(jq -r '.wallpaper // ""' "$file")
+  [[ $wp == "~/"* ]] && wp="$HOME/${wp#"~/"}"
+  if [[ -n $theme && $theme != "$(theme_name)" ]]; then
+    if [[ -n $wp && -f $wp ]]; then
+      OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme"
+      omarchy theme bg set "$wp"
+    else
+      omarchy theme set "$theme"
+    fi
+  elif [[ -n $wp && -f $wp ]]; then
+    omarchy theme bg set "$wp"
+  fi
+
+  hyprctl reload >/dev/null 2>&1 || true
+  restore
+
+  if $is_backup; then
+    : >"$ACTIVE_PRESET"
+  else
+    basename "$file" .json >"$ACTIVE_PRESET"
+  fi
+  notify-send -t 3000 "Presets" "$(t "Applied preset: %s" "$label")"
+}
+
+save_user_preset() {
+  local raw slug file note
+  raw=$(zenity --entry --title="$(t "Save preset")" --text="$(t "Preset name:")" \
+    --entry-text="My Preset" 2>/dev/null) || return 0
+  slug=$(tr '[:upper:] ' '[:lower:]-' <<<"$raw" | tr -cd 'a-z0-9_-')
+  [[ -n $slug ]] || slug="preset-$(date +%Y%m%d-%H%M%S)"
+  file="$USER_PRESETS/$slug.json"
+  if [[ -e $file ]]; then
+    zenity --question --title="$(t "Save preset")" --text="$(t "Preset %s already exists. Overwrite?" "$slug")" 2>/dev/null || return 0
+  fi
+  note=$(zenity --entry --title="$(t "Save preset")" --text="$(t "Description (optional):")" 2>/dev/null) || note=""
+  mkdir -p "$USER_PRESETS"
+  snapshot_preset "$file" "$raw" "$note"
+  basename "$file" .json >"$ACTIVE_PRESET"
+  notify-send -t 3000 "Presets" "$(t "Saved %s" "$raw")"
+}
+
+delete_user_preset() {
+  local file=$1 name
+  [[ -f $file && $(dirname "$(realpath "$file")") == "$(realpath "$USER_PRESETS")" && $file == *.json && $(basename "$file") != "my-settings.json" ]] || {
+    notify-send -u critical "Presets" "$(t "Only your own presets (★) can be deleted")"; return 1; }
+  name=$(preset_name_of "$file")
+  zenity --question --title="$(t "Delete preset")" \
+    --text="$(t "Delete your preset %s? The file goes to the trash." "$name")" 2>/dev/null || return 0
+  gio trash "$file" && notify-send -t 3000 "Presets" "$(t "Deleted %s" "$name")"
+}
+
+launcher_current() { jq -r '.skin // "constellation"' "$MENU_CFG" 2>/dev/null || echo constellation; }
+
+launcher_skins() {
+  [[ -f $MENU_PLUGIN/SkinConfig.qml ]] || return 0
+  # "list" — стоковый список меню, файла скина у него нет; остальные — ключи files в SkinConfig.qml.
+  echo "list"
+  awk -F'"' '/^    "[a-z0-9-]+":/ { print $2 }' "$MENU_PLUGIN/SkinConfig.qml"
+}
+
+launcher_skin_desc() {
+  case "$1" in
+  nihil) t "NIHIL hardware bump with concave fillets, monochrome app grid, > actions and = LED calculator" ;;
+  list) t "Stock Omarchy compact list card" ;;
+  board) t "Tactile keycap board grid" ;;
+  constellation) t "Starfield constellation launcher" ;;
+  terminal) t "Minimalist terminal prompt launcher" ;;
+  *-hack) t "Minimalist terminal-style hack variant of %s" "${1%-hack}" ;;
+  *-term) t "Terminal-palette variant of %s" "${1%-term}" ;;
+  *) t "Launcher skin: %s" "$1" ;;
+  esac
+}
+
+glyph_status() {
+  [[ $(jq -r '.glyphEnabled // false' "$GLYPH_CFG" 2>/dev/null) == true ]] && echo on || echo off
 }
 
 list() {
   case "$1" in
+  presets)
+    local f cur stem label
+    cur=$(current_preset_stem)
+    printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save current setup as a preset…")" "save" \
+      "$(t "Snapshot your active theme, wallpaper, bar, animations, opacity, blur, lock screen, launcher, widgets, OSD, notifications, sounds and Glyph into %s." "${USER_PRESETS/#$HOME/\~}")"
+    if [[ -s $LAST_PRESET ]]; then
+      printf '%s\t%s\t%s\t0\t%s\t%s\n' "$(t "↩ Restore previous setup")" "$LAST_PRESET" "$LAST_PRESET" \
+        "$(note_of "$LAST_PRESET")" "$(preset_summary "$LAST_PRESET")"
+    fi
+    for f in "$USER_PRESETS"/*.json; do
+      [[ -f $f ]] || continue
+      stem=$(basename "$f" .json)
+      label=$(preset_name_of "$f")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "★ $label" "$f" "$f" \
+        "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
+        "$(note_of "$f")"'\n\n'"$(preset_summary "$f")"'\n\n'"$(t "Your preset: %s" "${f/#$HOME/\~}")" \
+        "$(preset_summary "$f")"
+    done
+    for f in "$PRESET_DIR"/*.json; do
+      [[ -f $f ]] || continue
+      stem=$(basename "$f" .json)
+      label=$(preset_name_of "$f")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$f" "$f" \
+        "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
+        "$(note_of "$f")"'\n\n'"$(preset_summary "$f")" \
+        "$(preset_summary "$f")"
+    done
+    list_tweaks PRESET_TWEAKS "$PRESET_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
+      "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
+    ;;
+  dotify)
+    local dir cur_bg
+    dir=$(walls_dir)
+    cur_bg=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
+    printf '%s\t%s\t%s\t0\t%s\n' "$(t "⚡ Dotify current wallpaper")" "current" "$cur_bg" \
+      "$(t "Convert the active wallpaper into an LED dot-matrix wallpaper at your monitor's native resolution and apply it.")"
+    printf '%s\t%s\t\t0\t%s\n' "$(t "󰣇 Generate Arch Linux LED wallpaper")" "arch" \
+      "$(t "Render the Arch Linux glyph on an LED dot-matrix grid for your monitor resolution and apply it.")"
+    printf '%s\t%s\t\t0\t%s\n' "$(t "📂 Dotify a whole folder…  (O)")" "pick-dir" \
+      "$(t "Pick a folder; every image directly in it is converted into an LED dot-matrix wallpaper for the current theme.")"
+    printf '%s\t%s\t\t0\t%s\n' "$(t "🖼 Dotify image(s) from anywhere…  (o)")" "pick-files" \
+      "$(t "Pick one or more images (Ctrl/Shift-click) from any folder to convert into LED dot-matrix wallpapers.")"
+    list_tweaks DOTIFY_TWEAKS "$DOTIFY_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "Source images")" "section:Source images"
+    images_in "$dir" 10 | while read -r f; do
+      printf '%s\t%s\t%s\t0\n' "${f#"$dir"/}" "$f" "$f"
+    done
+    ;;
+  glyph)
+    printf '%s\t%s\t\t0\t%s\n' "$(t "⚡ Test notification sweep  (p)")" "test:normal" \
+      "$(t "Run a single perimeter Glyph light sweep around the screen.")"
+    printf '%s\t%s\t\t0\t%s\n' "$(t "🔴 Test critical alert sweep")" "test:critical" \
+      "$(t "Run a double signal-red perimeter Glyph sweep around the screen.")"
+    printf '%s\t%s\t\t0\t%s\n' "$(t "🔋 Test charger rising beams")" "test:charge" \
+      "$(t "Run dual rising light beams from the bottom corners.")"
+    list_tweaks GLYPH_TWEAKS "$GLYPH_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    ;;
+  launcher)
+    local cur sk
+    cur=$(launcher_current)
+    printf '%s\t%s\t\t0\t%s\n' "$(t "🚀 Open launcher  (p)")" "open" \
+      "$(t "Open the application launcher with the active skin.")"
+    list_tweaks LAUNCHER_TWEAKS "$MENU_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "Skins")" "section:Skins"
+    launcher_skins | awk '!seen[$0]++' | while read -r sk; do
+      [[ -n $sk ]] || continue
+      printf '%s\t%s\t\t%s\t%s\n' "$sk" "skin:$sk" "$([[ $sk == "$cur" ]] && echo 1 || echo 0)" \
+        "$(launcher_skin_desc "$sk")"'\n\n'"$(t "⏎ — select · p — open launcher")"
+    done
+    ;;
   anims)
     # Snapshot what is in use (empty file = nothing picked yet, Hyprland's own config);
     # previews overwrite it until anim-restore.
@@ -895,8 +1707,13 @@ list() {
     done
     ;;
   bar-tweaks) list_tweaks TWEAKS "$BAR_SKIN" ;;
+  bar-widgets) list_bar_widgets ;;
   lock-tweaks) list_tweaks LOCK_TWEAKS "$LOCK_CFG" ;;
-  widgets) list_tweaks WIDGET_TWEAKS "$WIDGET_CFG" ;;
+  widgets)
+    list_tweaks WIDGET_TWEAKS "$WIDGET_CFG"
+    list_tweaks NIHIL_TWEAKS "$NIHIL_CFG"
+    list_font_profile
+    ;;
   dashboard) list_tweaks DASH_TWEAKS "$WIDGET_CFG" ;;
   osd) list_tweaks OSD_TWEAKS "$OSD_CFG" ;;
   notifications)
@@ -906,7 +1723,7 @@ list() {
     ;;
   wallpaper-fx)
     # Сначала настройки (строки tweak:<key>), потом эффекты.
-    list_tweaks FX_TWEAKS "$FX_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { $2 = "tweak:" $2; print }'
+    list_tweaks FX_TWEAKS "$FX_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     local cur e desc
     cur=$(jq -r '.type // "slant"' "$FX_CFG" 2>/dev/null || echo slant)
     while IFS='|' read -r e desc; do
@@ -943,7 +1760,7 @@ EFFECTS
       "$(t "Make thumbnails for the theme switcher (all themes) and for the current theme's wallpapers ahead of time, so the pickers open instantly.")"'\n\n'"$(t "Cache: %s" "$PICKER_CACHE ($(command du -sh "$PICKER_CACHE" 2>/dev/null | cut -f1))")"
     printf '%s\t%s\t\t0\t%s\n' "$(t "🧹 Clean up unused thumbnails")" "prune" \
       "$(t "Delete thumbnails of images that are gone or have changed. Thumbnails of existing images stay.")"'\n\n'"$(picker_prune --dry-run 2>/dev/null)"
-    list_tweaks PICKER_TWEAKS "$PICKER_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { $2 = "tweak:" $2; print }'
+    list_tweaks PICKER_TWEAKS "$PICKER_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     local cur st desc
     cur=$(jq -r '.style // "slices"' "$PICKER_CFG" 2>/dev/null || echo slices)
     while IFS='|' read -r st desc; do
@@ -1081,6 +1898,62 @@ STYLES
 apply() {
   local category=$1 value=$2
   case "$category" in
+  presets)
+    case "$value" in
+    save) save_user_preset ;;
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    geometry-reset) geometry_reset ;;
+    *) apply_preset "$value" ;;
+    esac
+    ;;
+  dotify)
+    local picked
+    case "$value" in
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    current)
+      picked=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
+      [[ -f $picked ]] || { notify-send -u critical "Dotify" "$(t "No active wallpaper found")"; exit 1; }
+      dotify_files "$picked"
+      ;;
+    arch) dotify_glyph "󰣇" "arch" ;;
+    pick-dir)
+      picked=$(zenity --file-selection --directory --title="$(t "Folder to dotify")" \
+        --filename="$(walls_dir)/" 2>/dev/null) || exit 0
+      local -a dfiles
+      mapfile -t dfiles < <(images_in "$picked" 1)
+      dotify_files "${dfiles[@]}"
+      ;;
+    pick-files)
+      picked=$(zenity --file-selection --multiple --separator=$'\n' --title="$(t "Image(s) to dotify")" \
+        --filename="$(walls_dir)/" \
+        --file-filter="Images | *.jpg *.jpeg *.png *.webp *.JPG *.JPEG *.PNG *.WEBP" 2>/dev/null) || exit 0
+      local -a list
+      mapfile -t list <<<"$picked"
+      dotify_files "${list[@]}"
+      ;;
+    *) dotify_files "$value" ;;
+    esac
+    ;;
+  glyph)
+    case "$value" in
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    test:normal) omarchy-shell -q glyph test false >/dev/null 2>&1 ;;
+    test:critical) omarchy-shell -q glyph test true >/dev/null 2>&1 ;;
+    test:charge) omarchy-shell -q glyph charge >/dev/null 2>&1 ;;
+    esac
+    ;;
+  launcher)
+    case "$value" in
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    open) setsid -f omarchy-menu toggle apps >/dev/null 2>&1 ;;
+    skin:*)
+      mkdir -p "$(dirname "$MENU_CFG")"
+      TW_FILE="$MENU_CFG"
+      skin_edit --arg s "${value#skin:}" '.skin = $s'
+      notify-send -t 2000 "Launcher" "$(t "Skin: %s" "${value#skin:}")"
+      ;;
+    esac
+    ;;
   anims)
     cp "$value" "$ANIM_ACTIVE"
     cp "$value" "$ANIM_BACKUP"
@@ -1090,8 +1963,8 @@ apply() {
   bar-layouts)
     if [[ $value == save ]]; then save_user_layout; exit 0; fi
     # shell.json перечитывается на лету, рестарт шелла не нужен (он убил бы и overlay).
-    # Остальное (plugins, idle, bar.id, transparent) не трогаем.
-    shell_edit --slurpfile p "$value" '.bar += ($p[0] | del(.note))'
+    # Остальное (idle, bar.id, transparent) не трогаем; клоны страхуем в .plugins.
+    shell_apply_layout "$value"
     notify-send -t 2000 "Bar Layout" "$(t "Applied %s" "$(basename "$value" .json)")"
     ;;
   bar-skins)
@@ -1189,7 +2062,7 @@ thumbs() {
   mkdir -p "$THUMB_DIR"
   export THUMB_DIR
   export -f thumb_one
-  list "$1" "${2:-}" | cut -f3 | grep -v '^$' | xargs -d '\n' -P "$(nproc)" -I{} bash -c 'thumb_one "$1"' _ {}
+  list "$1" "${2:-}" | awk -F'\t' '$2 !~ /^(tweak:|section:)/ && $3 != "" { print $3 }' | xargs -d '\n' -P "$(nproc)" -I{} bash -c 'thumb_one "$1"' _ {}
 }
 
 status() {
@@ -1198,17 +2071,20 @@ status() {
   while read -r f; do
     cmp -s "$f" "$ANIM_ACTIVE" && { anim=$(basename "$f" .lua); break; }
   done < <(anim_files)
+  printf 'preset\t%s\n' "$(current_preset_label)"
   printf 'theme\t%s\n' "$(theme_name)"
   printf 'wallpaper\t%s\n' "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)"
   printf 'anims\t%s\n' "$anim"
   printf 'shader\t%s\n' "$(current_shader)"
   printf 'opacity\t%s\n' "$("$OPACITY" current 2>/dev/null)"
   printf 'blur\t%s\n' "$("$BLUR" current 2>/dev/null)"
+  printf 'glyph\t%s\n' "$(glyph_status)"
   printf 'bar-skin\t%s\n' "$(current_skin)"
   printf 'bar-layout\t%s\n' "$(current_layout)"
   printf 'lock\t%s\n' "$(lock_current)"
   printf 'fx\t%s\n' "$(jq -r '.type // "slant"' "$FX_CFG" 2>/dev/null || echo slant)"
   printf 'picker\t%s\n' "$(jq -r '.style // "slices"' "$PICKER_CFG" 2>/dev/null || echo slices)"
+  printf 'launcher\t%s\n' "$(launcher_current)"
   # Для макетов в превью: вторые обои темы и 7 превью тем вокруг текущей.
   local cur_bg
   cur_bg=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)
@@ -1229,6 +2105,14 @@ restore() {
   [[ -s $ANIM_ACTIVE ]] && hyprctl eval "$(<"$ANIM_ACTIVE")" >/dev/null
   [[ -s $hypr_state/opacity ]] && "$OPACITY" restore
   [[ -s $hypr_state/blur ]] && "$BLUR" restore
+  # Omarchy's "no gaps" toggle (omarchy-hyprland-window-gaps-toggle) wins while it is on.
+  if [[ -s $hypr_state/geometry && ! -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]]; then
+    local _gn gi go bs r shd
+    read -r _gn gi go bs r shd <"$hypr_state/geometry" || true
+    if [[ -n ${shd:-} ]]; then
+      hyprctl eval "hl.config({ general = { gaps_in = $gi, gaps_out = $go, border_size = $bs }, decoration = { rounding = $r, shadow = { enabled = $([[ $shd -gt 0 ]] && echo true || echo false) } } })" >/dev/null
+    fi
+  fi
   "$TOGGLE" restore
   # Блюр под самим оверлеем.
   hyprctl eval 'hl.layer_rule({ match = { namespace = "omarchy-customizer" }, blur = true, ignore_alpha = 0.6 })' >/dev/null
@@ -1238,20 +2122,26 @@ restore() {
 # Что есть на этой машине: категории, которым нужны плагины-компаньоны или программы, без них скрыты.
 available() {
   local plugins="$HOME/.config/omarchy/plugins"
+  echo presets
   echo themes
   echo theme-walls
   command -v lutgen >/dev/null && command -v zenity >/dev/null && echo walls
+  python3 -c 'import numpy, PIL' 2>/dev/null && echo dotify
   echo anims
   echo opacity
   echo blur
+  echo glyph
   echo shaders
   if [[ -f $BAR_DIR/manifest.json ]]; then printf '%s\n' bar-skins bar-layouts bar-tweaks; fi
+  # Виджеты бара правят shell.json — работает и со стоковым баром.
+  echo bar-widgets
   if [[ -f $LOCK_PLUGIN/manifest.json ]]; then printf '%s\n' lock lock-tweaks; fi
   [[ -f $plugins/kamradsmeshnyavy.background/manifest.json ]] && echo wallpaper-fx
   [[ -f $plugins/kamradsmeshnyavy.widgets/manifest.json ]] && printf '%s\n' widgets dashboard
   [[ -f $plugins/kamradsmeshnyavy.osd/manifest.json ]] && echo osd
   [[ -f $plugins/kamradsmeshnyavy.notifications/manifest.json ]] && echo notifications
   [[ -f $plugins/kamradsmeshnyavy.image-picker/manifest.json ]] && echo theme-switcher
+  [[ -f $MENU_PLUGIN/manifest.json ]] && echo launcher
   command -v zenity >/dev/null && echo has:zenity
   return 0
 }
@@ -1276,10 +2166,13 @@ tweak)
 lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
 layout-delete) delete_user_layout "${2:-}" ;;
+preset-delete) delete_user_preset "${2:-}" ;;
 lock-thumbs) lock_thumbs ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;
 picker-cache) picker_cache ;;
 picker-open) setsid -f omarchy-theme-switcher >/dev/null 2>&1 ;;
+launcher-open) setsid -f omarchy-menu toggle apps >/dev/null 2>&1 ;;
+glyph-test) omarchy-shell -q glyph test "${2:-false}" >/dev/null 2>&1 ;;
 anim-preview)
   cp "$2" "$ANIM_ACTIVE"
   hyprctl reload >/dev/null 2>&1
