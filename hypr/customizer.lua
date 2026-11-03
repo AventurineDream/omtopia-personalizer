@@ -93,6 +93,29 @@ do
 	end
 end
 
+-- Window corners (Customizer → Presets → Window corners, ~/.config/omarchy/customizer/windows.json).
+-- A window rule, not decoration.rounding: rules beat the global value and Omarchy's "no gaps"
+-- toggle, and tiled windows can stay square so the grid stays seamless (the bar's screen frame
+-- already rounds their outer corners). "float" = floating and popped windows, "all", "off".
+do
+	local f = io.open(home .. "/.config/omarchy/customizer/windows.json", "r")
+	local json = f and f:read("*a") or ""
+	if f then
+		f:close()
+	end
+	local mode = json:match('"windowRounding"%s*:%s*"(%a+)"') or "float"
+	local radius = tonumber(json:match('"windowRadius"%s*:%s*([%d.]+)')) or 16
+	local power = tonumber(json:match('"windowRoundingPower"%s*:%s*([%d.]+)')) or 2.5
+	if mode ~= "off" then
+		hl.config({ decoration = { rounding_power = power } })
+		if mode == "all" then
+			hl.window_rule({ match = { class = ".*" }, rounding = radius })
+		else
+			hl.window_rule({ match = { float = true }, rounding = radius })
+		end
+	end
+end
+
 -- The animation preset picked in the Customizer.
 local anims = state .. "/omarchy-customizer/animations.lua"
 if exists(anims) then

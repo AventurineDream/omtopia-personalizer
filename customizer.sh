@@ -36,6 +36,8 @@ LAST_PRESET="$STATE_DIR/last-preset.json"
 ACTIVE_PRESET="$STATE_DIR/active-preset"
 # Что применять из пресета (PRESET_TWEAKS): тема, обои, геометрия окон и т. д.
 PRESET_CFG="$HOME/.config/omarchy/customizer/preset-apply.json"
+# Углы окон: правило окон Hyprland из hypr/customizer.lua (действует и при «без отступов»).
+WINDOW_CFG="$HOME/.config/omarchy/customizer/windows.json"
 # Бар (плагин kamradsmeshnyavy.bar): пресеты лежат в самом плагине, активный скин и shell.json — в ~/.config.
 # Плагины берём по ссылкам в ~/.config/omarchy/plugins: они — сабмодули и могут жить где угодно.
 BAR_DIR="$HOME/.config/omarchy/plugins/kamradsmeshnyavy.bar"
@@ -603,9 +605,19 @@ PRESET_TWEAKS=(
   "presetGlyph|bool|true|Presets: apply Glyph"
 )
 
+# Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
+# переключателя Omarchy «без отступов», и тайловую сетку можно оставить сплошной (её внешние углы и так
+# скругляет рамка экрана). float — плавающие и pop-окна, all — все, off — как в конфиге Hyprland.
+WINDOW_TWEAKS=(
+  "#Window corners"
+  "windowRounding|enum|float all off|Rounded windows: floating only · all · off"
+  "windowRadius|num|0 32 2 16|Window corner radius"
+  "windowRoundingPower|num|2 4 0.5 2.5|Corner shape: 2 — circle, 4 — squircle"
+)
+
 tweak_spec() {
   local t
-  for t in "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
   return 1
 }
 
@@ -623,6 +635,7 @@ tweak_file() {
   for t in "${DOTIFY_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$DOTIFY_CFG"; return; }; done
   for t in "${LAUNCHER_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$MENU_CFG"; return; }; done
   for t in "${PRESET_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$PRESET_CFG"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$WINDOW_CFG"; return; }; done
   for t in "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NIHIL_CFG"; return; }; done
   echo "$BAR_SKIN"
 }
@@ -1616,6 +1629,7 @@ list() {
         "$(preset_summary "$f")"
     done
     list_tweaks PRESET_TWEAKS "$PRESET_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    list_tweaks WINDOW_TWEAKS "$WINDOW_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
       "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
     ;;
@@ -1901,6 +1915,7 @@ apply() {
   presets)
     case "$value" in
     save) save_user_preset ;;
+    tweak:window*) tweak "${value#tweak:}" pick; hyprctl reload >/dev/null 2>&1 ;;
     tweak:*) tweak "${value#tweak:}" pick ;;
     geometry-reset) geometry_reset ;;
     *) apply_preset "$value" ;;
@@ -2162,6 +2177,8 @@ bar-skins-preview) bar_skin_preview "$2" ;;
 bar-skins-restore) bar_skin_restore ;;
 tweak)
   if [[ ${3:-} == set ]]; then tweak_set "$2" "${4-}"; else tweak "$2" "${3:-+}"; fi
+  # Углы окон — правило окон: снять старое можно только перезагрузкой конфига (hypr/customizer.lua).
+  [[ $2 == window* ]] && hyprctl reload >/dev/null 2>&1
   ;;
 lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
