@@ -124,6 +124,10 @@ style" in the **Style** tab). The switches below the list (`~/.config/omarchy/cu
 choose what a style applies. A preset may reference a style with `"style": "<id>"`: the style is applied first,
 then the preset's own fields on top. Rollback is the same "Restore previous setup" row in **Presets**.
 
+A style's `look` block goes to `~/.config/omarchy/style.json` with the style id — panel tokens (shadows, animation
+speed, material, corners, typeface) for `BarStyle.qml` in omarchy-desktop-widgets, omarchy-edge-osd and
+omarchy-drawer-notifications.
+
 Every style sets every form knob (the bundled ones share one key set), so switching between any two styles is
 complete. `hyprGeometry.noGaps` drives Omarchy's "no gaps" toggle (it also removes window borders): NIHIL turns it
 on so windows sit flush against the bezel frame, every other style — and a preset with `"hyprGeometry": null` —

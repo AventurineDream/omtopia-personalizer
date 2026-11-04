@@ -165,5 +165,13 @@
     "glyphThickness": 2.5,
     "glyphInsetMode": "auto"
   },
-  "fonts": "pixel"
+  "fonts": "pixel",
+  "look": {
+    "elevation": 0,
+    "motion": 1,
+    "material": "solid",
+    "cornerScale": 1,
+    "typeface": "profile",
+    "texture": ""
+  }
 }

@@ -83,5 +83,13 @@
     "glyphThickness": 2.5,
     "glyphInsetMode": "auto"
   },
-  "fonts": "stock"
+  "fonts": "stock",
+  "look": {
+    "texture": "",
+    "elevation": 1,
+    "motion": 1.25,
+    "material": "glass",
+    "cornerScale": 1.2,
+    "typeface": "shell"
+  }
 }

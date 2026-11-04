@@ -500,5 +500,7 @@
   "Styles: apply widgets and dashboard": "Стили: виджеты и дашборд",
   "Styles: apply window geometry (gaps, borders, rounding, shadow)": "Стили: геометрия окон (отступы, рамки, скругления, тень)",
   "Your style: %s": "Свой стиль: %s",
-  "💾 Save current look as a style…": "💾 Сохранить текущий вид как стиль…"
+  "💾 Save current look as a style…": "💾 Сохранить текущий вид как стиль…",
+  "Styles: apply panel surfaces (shadows, motion, material, corners, typeface)": "Стили: поверхности панелей (тени, анимации, материал, углы, шрифт)",
+  "Presets: apply panel surfaces (shadows, motion, material, corners, typeface)": "Пресеты: поверхности панелей (тени, анимации, материал, углы, шрифт)"
 }

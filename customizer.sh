@@ -42,6 +42,8 @@ STYLE_DIR="$CUSTOMIZER_DIR/styles"
 USER_STYLES="$HOME/.config/omarchy/customizer/styles"
 ACTIVE_STYLE="$STATE_DIR/active-style"
 STYLE_CFG="$HOME/.config/omarchy/customizer/style-apply.json"
+# Токены стиля для панелей (BarStyle.qml в widgets / osd / notifications): тени, анимации, материал, углы, шрифт.
+LOOK_CFG="$HOME/.config/omarchy/style.json"
 # Углы окон: правило окон Hyprland из hypr/customizer.lua (действует и при «без отступов»).
 WINDOW_CFG="$HOME/.config/omarchy/customizer/windows.json"
 # Бар (плагин kamradsmeshnyavy.bar): пресеты лежат в самом плагине, активный скин и shell.json — в ~/.config.
@@ -610,6 +612,7 @@ PRESET_TWEAKS=(
   "presetSounds|bool|true|Presets: apply sounds"
   "presetGlyph|bool|true|Presets: apply Glyph"
   "presetFonts|bool|true|Presets: apply system fonts of the preset's style"
+  "presetLook|bool|true|Presets: apply panel surfaces (shadows, motion, material, corners, typeface)"
 )
 
 # Что применять при смене стиля — style-apply.json. Ключи — как у пресетов, с префиксом style.
@@ -629,6 +632,7 @@ STYLE_TWEAKS=(
   "styleSounds|bool|true|Styles: apply sounds"
   "styleGlyph|bool|true|Styles: apply Glyph"
   "styleFonts|bool|true|Styles: apply system fonts (terminals, GTK, browser)"
+  "styleLook|bool|true|Styles: apply panel surfaces (shadows, motion, material, corners, typeface)"
 )
 
 # Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
@@ -1410,6 +1414,7 @@ snapshot_preset() {
     --argjson notifications "$(read_json_or_empty "$NOTIFY_CFG")" \
     --argjson sounds "$(read_json_or_empty "$SOUND_CFG")" \
     --argjson glyph "$(read_json_or_empty "$GLYPH_CFG")" \
+    --argjson look "$(read_json_or_empty "$LOOK_CFG")" \
     '(if $name != "" then {name: $name} else {} end)
      + (if $note != "" then {note: $note} else {} end)
      + {theme: $theme}
@@ -1434,7 +1439,8 @@ snapshot_preset() {
        osd: $osd,
        notifications: $notifications,
        sounds: $sounds,
-       glyph: $glyph
+       glyph: $glyph,
+       look: $look
      }' >"$out.tmp" && cp "$out.tmp" "$out"
 }
 
@@ -1470,8 +1476,14 @@ apply_preset() {
   style_ref=$(jq -r '.style // ""' "$file")
   if [[ -n $style_ref ]] && style_file=$(style_file_of "$style_ref"); then
     apply_form_sections "$style_file" "$PRESET_CFG" preset "$is_backup" merge
+    # id стиля для панелей: у пресета префикс preset, поэтому id дописываем здесь.
+    if [[ -s $LOOK_CFG ]] && { $is_backup || preset_on presetLook; }; then
+      write_json_inplace "$LOOK_CFG" "$(jq --arg id "$style_ref" '. + {id: $id}' "$LOOK_CFG")"
+    fi
     if $is_backup || preset_on presetFonts; then apply_style_fonts "$style_file"; fi
   fi
+  FORM_KEEP_LOOK=false
+  [[ -n $style_ref ]] && FORM_KEEP_LOOK=true
   apply_form_sections "$file" "$PRESET_CFG" preset "$is_backup" replace
 
   # Theme & wallpaper (тема уже проверена и отфильтрована выше)
@@ -1601,6 +1613,16 @@ apply_form_sections() {
     "$TOGGLE" off >/dev/null 2>&1 || true
   elif [[ -n $sh ]]; then
     "$TOGGLE" on "$sh" >/dev/null 2>&1 || true
+  fi
+  # Токены панелей: стиль пишет свой блок look с id стиля; пресет без look и без стиля — вид по умолчанию.
+  if _form_on Look; then
+    if jq -e '.look | type == "object"' "$file" >/dev/null 2>&1; then
+      local look_id=""
+      [[ $prefix == style ]] && look_id=$(basename "$file" .json)
+      write_json_inplace "$LOOK_CFG" "$(jq --arg id "$look_id" '.look + (if $id != "" then {id: $id} else {} end)' "$file")"
+    elif [[ $mode == replace && ${FORM_KEEP_LOOK:-false} != true ]]; then
+      write_json_inplace "$LOOK_CFG" '{}'
+    fi
   fi
   unset -f _form_on
 }
@@ -1732,7 +1754,7 @@ save_user_style() {
       .widgets.clock, .widgets.media, .widgets.visualizer, .widgets.sysinfo, .widgets.edgeHover,
       .widgets.dashMedia, .widgets.dashCalendar, .widgets.dashWeather, .widgets.dashStats,
       .lock.clock24, .lock.showSeconds, .lock.showDate, .sounds.sounds, .sounds.soundVolume,
-      .imagePicker.autoCache, .glyph.glyphCharger, .glyph.glyphCriticalRed, .osd.osdShowValue)
+      .imagePicker.autoCache, .glyph.glyphCharger, .glyph.glyphCriticalRed, .osd.osdShowValue, .look.id)
     + (if $fonts != "" then {fonts: $fonts} else {} end)' "$tmp" >"$tmp.out" \
     && cp "$tmp.out" "$file"
   basename "$file" .json >"$ACTIVE_STYLE"

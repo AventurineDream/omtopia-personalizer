@@ -83,5 +83,13 @@
     "glyphThickness": 2.5,
     "glyphInsetMode": "auto"
   },
-  "fonts": "nothing"
+  "fonts": "nothing",
+  "look": {
+    "texture": "",
+    "elevation": 2,
+    "motion": 1,
+    "material": "auto",
+    "cornerScale": 0.8,
+    "typeface": "profile"
+  }
 }
