@@ -546,5 +546,18 @@
   "Favorites": "Избранные",
   "All themes": "Все темы",
   "omarchy theme set · f — favorite": "omarchy theme set · f — в избранное",
-  "favorite": "в избранное"
+  "favorite": "в избранное",
+  "Todo": "Todo",
+  "Todo / notes (click — done, right click — delete, + — add)": "Todo / заметки (клик — сделано, правый клик — удалить, + — добавить)",
+  "Todo: position": "Todo: позиция",
+  "Todo: items shown": "Todo: сколько пунктов показывать",
+  "Quote of the day": "Цитата дня",
+  "Quote of the day (click — next; your own: ~/.config/omarchy/widgets-quotes.txt)": "Цитата дня (клик — следующая; свои — ~/.config/omarchy/widgets-quotes.txt)",
+  "Quote: position": "Цитата: позиция",
+  "Photo frame": "Фото-рамка",
+  "Photo frame (click — next picture)": "Фото-рамка (клик — следующая картинка)",
+  "Photo: position": "Фото: позиция",
+  "Photo: folder (empty — the current wallpaper)": "Фото: папка (пусто — текущие обои)",
+  "Photo: change every, minutes": "Фото: смена каждые, минут",
+  "Widgets: look (style — follows the Customizer style)": "Виджеты: вид (style — по стилю Customizer)"
 }

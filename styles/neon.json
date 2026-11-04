@@ -39,7 +39,7 @@
     "dim": 0.5
   },
   "widgets": {
-    "widgetStyle": "default",
+    "widgetStyle": "style",
     "clockStyle": "big",
     "dashStyle": "default",
     "dashFollowBar": true,
