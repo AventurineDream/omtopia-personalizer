@@ -502,5 +502,21 @@
   "Your style: %s": "Свой стиль: %s",
   "💾 Save current look as a style…": "💾 Сохранить текущий вид как стиль…",
   "Styles: apply panel surfaces (shadows, motion, material, corners, typeface)": "Стили: поверхности панелей (тени, анимации, материал, углы, шрифт)",
-  "Presets: apply panel surfaces (shadows, motion, material, corners, typeface)": "Пресеты: поверхности панелей (тени, анимации, материал, углы, шрифт)"
+  "Presets: apply panel surfaces (shadows, motion, material, corners, typeface)": "Пресеты: поверхности панелей (тени, анимации, материал, углы, шрифт)",
+  "Theme %s is not installed — the style is applied without it.": "Тема %s не установлена — стиль применён без неё.",
+  "Fonts": "Шрифты",
+  "System font profiles, by style": "Профили шрифтов системы по стилям",
+  "Without a style": "Без стиля",
+  "Paper": "Бумага",
+  "Retro": "Ретро",
+  "Interface": "Интерфейс",
+  "Code": "Код",
+  "Titles": "Заголовки",
+  "Good ideas take time": "Good ideas take time",
+  "System as stock; handwritten Caveat only in the shell (bar, panels)": "Система как в stock; рукописный Caveat только в оболочке (бар, панели)",
+  "Readable handwritten Pangolin for the interface, Caveat for titles; terminal and code stay Maple": "Читаемый рукописный Pangolin в интерфейсе, Caveat в заголовках; терминал и код остаются Maple",
+  "Handwritten Caveat everywhere except the terminal and code": "Рукописный Caveat везде, кроме терминала и кода",
+  "Pixel interface (Pixelify Sans), pixel terminal and code (Nihil Pixel)": "Пиксельный интерфейс (Pixelify Sans), пиксельные терминал и код (Nihil Pixel)",
+  "Styles: theme (current — same brightness as the theme now · off · dark · light)": "Стили: тема (как сейчас — той же яркости, что текущая · выкл · тёмная · светлая)",
+  "Absolutely everything in Caveat, terminal and code included (not monospaced)": "Абсолютно всё в Caveat, включая терминал и код (шрифт не моноширинный)"
 }

@@ -73,7 +73,7 @@
     "notifyWidth": 380
   },
   "sounds": {
-    "soundPack": "classic",
+    "soundPack": "glass",
     "windowSounds": true
   },
   "glyph": {
@@ -92,5 +92,9 @@
     "material": "glass",
     "cornerScale": 1.2,
     "typeface": "shell"
+  },
+  "theme": {
+    "dark": "catppuccin",
+    "light": "catppuccin-latte"
   }
 }

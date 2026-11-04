@@ -521,7 +521,7 @@ NOTIFY_TWEAKS=(
 SOUND_TWEAKS=(
   "#Sounds"
   "sounds|bool|true|Sounds: on"
-  "soundPack|enum|theme nihil classic|Sounds: pack"
+  "soundPack|enum|theme nihil classic flat glass fluent paper neumorph brutal retro neon|Sounds: pack"
   "soundVolume|num|0.1 1 0.1 0.6|Sounds: volume"
   "windowSounds|bool|false|Sounds: window & workspace events"
 )
@@ -633,6 +633,7 @@ STYLE_TWEAKS=(
   "styleGlyph|bool|true|Styles: apply Glyph"
   "styleFonts|bool|true|Styles: apply system fonts (terminals, GTK, browser)"
   "styleLook|bool|true|Styles: apply panel surfaces (shadows, motion, material, corners, typeface)"
+  "styleTheme|enum|current off dark light|Styles: theme (current — same brightness as the theme now · off · dark · light)"
 )
 
 # Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
@@ -1175,6 +1176,16 @@ font_profile_step() {
   omarchy-font-profile "$next" >/dev/null 2>&1 || true
 }
 
+font_group_title() {
+  case "$1" in
+  base) echo "Without a style" ;;
+  nihil) echo "NIHIL" ;;
+  paper) echo "Paper" ;;
+  retro) echo "Retro" ;;
+  *) echo "$1" ;;
+  esac
+}
+
 list_font_profile() {
   command -v omarchy-font-profile >/dev/null || return 0
   local cur desc
@@ -1657,6 +1668,34 @@ apply_style_fonts() {
   omarchy-font-profile "$fonts" >/dev/null 2>&1 || true
 }
 
+# Светлая ли тема: luma фона из colors.toml (как theme_palette.py: > 0.5 — светлая).
+theme_is_light() {
+  local d bg
+  for d in "$HOME/.config/omarchy/themes/$1" "${OMARCHY_PATH:-/usr/share/omarchy}/themes/$1"; do
+    [[ -f $d/colors.toml ]] || continue
+    bg=$(grep -m1 -E '^\s*background\s*=' "$d/colors.toml" | grep -oE '#[0-9a-fA-F]{6}')
+    [[ -n $bg ]] || return 1
+    (( (299 * 16#${bg:1:2} + 587 * 16#${bg:3:2} + 114 * 16#${bg:5:2}) / 1000 > 128 ))
+    return
+  done
+  return 1
+}
+
+# Тема стиля по переключателю styleTheme: off — пусто; dark / light — своя из пары (нет светлой — тёмная);
+# current — вариант той же яркости, что у темы сейчас.
+style_theme_for() {
+  local file=$1 mode dark light
+  mode=$(jq -r '.styleTheme // "current"' "$STYLE_CFG" 2>/dev/null || echo current)
+  dark=$(jq -r '.theme.dark // ""' "$file" 2>/dev/null)
+  light=$(jq -r '.theme.light // ""' "$file" 2>/dev/null)
+  [[ -n $light ]] || light=$dark
+  case "$mode" in
+  dark) echo "$dark" ;;
+  light) echo "$light" ;;
+  current) if theme_is_light "$(theme_name)"; then echo "$light"; else echo "$dark"; fi ;;
+  esac
+}
+
 style_summary() {
   jq -r '[
     (if .hyprGeometry then "corners " + (.hyprGeometry.rounding | tostring) + (if .hyprGeometry.shadow then " · shadow" else "" end) else empty end),
@@ -1666,7 +1705,8 @@ style_summary() {
     (if .opacity then "opacity: " + .opacity else empty end),
     (if .blur then "blur: " + .blur else empty end),
     (if .anims and .anims != "" then "anims: " + .anims else empty end),
-    (if .fonts then "fonts: " + .fonts else empty end)
+    (if .fonts then "fonts: " + .fonts else empty end),
+    (if (.theme | type) == "object" then "themes: " + .theme.dark + " / " + (.theme.light // .theme.dark) else empty end)
   ] | join("  ·  ")' "$1" 2>/dev/null
 }
 
@@ -1726,6 +1766,16 @@ apply_style() {
   if [[ ! -s $LAST_PRESET ]] || [[ $(current_preset_stem) == custom && $(current_style_stem) == custom ]]; then
     snapshot_preset "$LAST_PRESET" "$(t "Previous setup")" \
       "$(t "Automatic backup before applying %s (%s)" "$label" "$(date '+%F %H:%M')")"
+  fi
+  # Тема — первой: её хуки пересобирают GTK / Firefox / терминалы, форма стиля ложится поверх.
+  local theme
+  theme=$(style_theme_for "$file")
+  if [[ -n $theme && $theme != "$(theme_name)" ]]; then
+    if theme_exists "$theme"; then
+      omarchy theme set "$theme"
+    else
+      notify-send -u critical "Styles" "$(t "Theme %s is not installed — the style is applied without it." "$theme")"
+    fi
   fi
   apply_form_sections "$file" "$STYLE_CFG" style false merge
   style_on styleFonts && apply_style_fonts "$file"
@@ -1858,6 +1908,21 @@ list() {
     printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
       "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
     ;;
+  fonts)
+    # Профили omarchy-font-profile, сгруппированные по стилям. sub — «sans · mono · title» (по нему
+    # сцена шрифтов рисует образцы).
+    command -v omarchy-font-profile >/dev/null || return 0
+    local cur name desc group sans mono title last=""
+    cur=$(omarchy-font-profile)
+    while IFS=$'\t' read -r name desc group sans mono title; do
+      if [[ $group != "$last" ]]; then
+        printf '%s\t%s\t\t0\t\theader\n' "$(t "$(font_group_title "$group")")" "section:$group"
+        last=$group
+      fi
+      printf '%s\t%s\t\t%s\t%s\t%s\n' "$name" "$name" "$([[ $name == "$cur" ]] && echo 1 || echo 0)" \
+        "$(t "$desc")" "$sans · $mono · ${title:-$sans}"
+    done < <(omarchy-font-profile list)
+    ;;
   styles)
     local f cur stem label
     cur=$(current_style_stem)
@@ -1976,7 +2041,6 @@ list() {
   widgets)
     list_tweaks WIDGET_TWEAKS "$WIDGET_CFG"
     list_tweaks NIHIL_TWEAKS "$NIHIL_CFG"
-    list_font_profile
     ;;
   dashboard) list_tweaks DASH_TWEAKS "$WIDGET_CFG" ;;
   osd) list_tweaks OSD_TWEAKS "$OSD_CFG" ;;
@@ -2171,6 +2235,9 @@ apply() {
     *) apply_preset "$value" ;;
     esac
     ;;
+  fonts)
+    [[ $value == section:* ]] || omarchy-font-profile "$value" >/dev/null 2>&1 || true
+    ;;
   styles)
     case "$value" in
     save) save_user_style ;;
@@ -2345,6 +2412,7 @@ status() {
   done < <(anim_files)
   printf 'preset\t%s\n' "$(current_preset_label)"
   printf 'style\t%s\n' "$(current_style_label)"
+  command -v omarchy-font-profile >/dev/null && printf 'fonts\t%s\n' "$(omarchy-font-profile)"
   printf 'theme\t%s\n' "$(theme_name)"
   printf 'wallpaper\t%s\n' "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)"
   printf 'anims\t%s\n' "$anim"
@@ -2397,6 +2465,7 @@ available() {
   local plugins="$HOME/.config/omarchy/plugins"
   echo presets
   echo styles
+  command -v omarchy-font-profile >/dev/null && echo fonts
   echo themes
   echo theme-walls
   command -v lutgen >/dev/null && command -v zenity >/dev/null && echo walls

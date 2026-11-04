@@ -73,8 +73,8 @@
     "notifyWidth": 380
   },
   "sounds": {
-    "soundPack": "classic",
-    "windowSounds": false
+    "soundPack": "flat",
+    "windowSounds": true
   },
   "glyph": {
     "glyphEnabled": false,
@@ -92,5 +92,9 @@
     "material": "solid",
     "cornerScale": 0,
     "typeface": "shell"
+  },
+  "theme": {
+    "dark": "matte-black",
+    "light": "white"
   }
 }

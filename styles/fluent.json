@@ -73,7 +73,7 @@
     "notifyWidth": 380
   },
   "sounds": {
-    "soundPack": "theme",
+    "soundPack": "fluent",
     "windowSounds": true
   },
   "glyph": {
@@ -92,5 +92,9 @@
     "material": "auto",
     "cornerScale": 0.8,
     "typeface": "profile"
+  },
+  "theme": {
+    "dark": "tokyo-night",
+    "light": "rose-pine"
   }
 }

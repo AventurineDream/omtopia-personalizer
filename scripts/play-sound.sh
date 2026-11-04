@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Interface sound player for Omarchy Customizer.
 # Supports sound packs in ~/.config/omarchy/sounds.json:
-#   {"sounds": true, "soundPack": "theme|nihil|classic", "soundVolume": 0.6, "windowSounds": false}
+#   {"sounds": true, "soundPack": "theme|nihil|<каталог в sounds/>", "soundVolume": 0.6, "windowSounds": false}
 #
 # Events: open close switch special fullscreen lock power menu notify critical volume
 #         (plus freedesktop aliases: message-new-instant, dialog-warning, audio-volume-change,
@@ -63,20 +63,22 @@ nihil)
   )
   names=("$short" "$event" "$fdo")
   ;;
-classic)
-  dirs=(
-    "$CUSTOMIZER_DIR/sounds/classic"
-    "$CUSTOMIZER_DIR/sounds/nihil"
-    /usr/share/sounds/freedesktop/stereo
-  )
-  names=("$short" "$event" "$fdo")
-  ;;
 *)
-  dirs=(
-    "$HOME/.local/state/omarchy/current/theme/apps/sounds"
-    /usr/share/sounds/freedesktop/stereo
-  )
-  names=("$event" "$fdo" "$short")
+  if [[ $pack != theme && $pack =~ ^[a-z0-9-]+$ && -d $CUSTOMIZER_DIR/sounds/$pack ]]; then
+    # Пакет стиля (classic, flat, glass, paper, …): чего в нём нет — из nihil, потом freedesktop.
+    dirs=(
+      "$CUSTOMIZER_DIR/sounds/$pack"
+      "$CUSTOMIZER_DIR/sounds/nihil"
+      /usr/share/sounds/freedesktop/stereo
+    )
+    names=("$short" "$event" "$fdo")
+  else
+    dirs=(
+      "$HOME/.local/state/omarchy/current/theme/apps/sounds"
+      /usr/share/sounds/freedesktop/stereo
+    )
+    names=("$event" "$fdo" "$short")
+  fi
   ;;
 esac
 

@@ -174,5 +174,9 @@
     "cornerScale": 1,
     "typeface": "profile",
     "texture": ""
+  },
+  "theme": {
+    "dark": "nothing-steel",
+    "light": "nothing-ashlight"
   }
 }

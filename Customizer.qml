@@ -30,6 +30,7 @@ Item {
   readonly property var allCategories: [
     { group: "presets", key: "presets",   icon: "󰆓", title: "Presets",      hint: "Full desktop snapshots · D — delete",   image: false, live: false, presetStage: true },
     { group: "presets", key: "styles",    icon: "󰉦", title: "Style",        hint: "Form on any theme · D — delete",         image: false, live: false, presetStage: true },
+    { group: "presets", key: "fonts",     icon: "󰛖", title: "Fonts",        hint: "System font profiles, by style",          image: false, live: false },
     { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
     { group: "desk", key: "theme-walls",  icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
     { group: "desk", key: "walls",        icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
@@ -57,7 +58,7 @@ Item {
   // Вкладки сверху: группы категорий (1–6, Tab / Shift+Tab); chips — какие чипы
   // статуса показывать в шапке, пока группа открыта.
   readonly property var allGroups: [
-    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "style", "theme", "bar-skin", "lock", "launcher"] },
+    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "style", "fonts", "theme", "bar-skin", "lock"] },
     { id: "desk", icon: "󰧨", title: "Desktop",  chips: ["theme", "wallpaper", "fx"] },
     { id: "bar",  icon: "󰕮", title: "Bar",      chips: ["bar-skin", "bar-layout"] },
     { id: "win",  icon: "󱂬", title: "Windows",  chips: ["anims", "opacity", "blur", "glyph", "shader"] },
@@ -77,6 +78,7 @@ Item {
   readonly property var allStatusChips: [
     { key: "preset",     icon: "󰆓", title: "Preset",       category: "presets" },
     { key: "style",      icon: "󰉦", title: "Style",        category: "styles" },
+    { key: "fonts",      icon: "󰛖", title: "Fonts",        category: "fonts" },
     { key: "theme",      icon: "󰏘", title: "Theme",        category: "themes" },
     { key: "wallpaper",  icon: "󰸉", title: "Wallpaper",    category: "theme-walls" },
     { key: "fx",         icon: "󰗘", title: "Transition",   category: "wallpaper-fx" },
@@ -692,7 +694,7 @@ Item {
   }
 
   function randomPick() {
-    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "glyph") return
+    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "fonts" || root.category.key === "glyph") return
     if (root.category.tweak) return
     if (root.pane === 0) { root.pane = 1 }
     var c = root.randomCandidates()
@@ -2572,13 +2574,72 @@ Item {
                 }
               }
 
+              // Fonts: образцы текста шрифтами профиля — заголовок (title), интерфейс (sans), код (mono).
+              Item {
+                id: fontStage
+                anchors.fill: parent
+                anchors.margins: Style.space(18)
+                visible: root.category.key === "fonts" && root.selectedRow !== null && !root.isHeader(root.selectedRow)
+                readonly property var faces: visible ? String(root.selectedRow.sub).split(" · ") : []
+                readonly property string sans: faces.length > 0 ? faces[0] : Style.font.family
+                readonly property string mono: faces.length > 1 ? faces[1] : Style.font.family
+                readonly property string title: faces.length > 2 ? faces[2] : sans
+
+                Column {
+                  width: parent.width
+                  spacing: Style.space(14)
+                  Text {
+                    width: parent.width
+                    text: root.tr("Good ideas take time") + " · Хорошие идеи"
+                    font.family: fontStage.title
+                    font.pixelSize: Math.round(Style.font.title * 2)
+                    wrapMode: Text.Wrap
+                    color: root.foreground
+                  }
+                  Text {
+                    width: parent.width
+                    text: "Съешь же ещё этих мягких французских булок, да выпей чаю.\nThe quick brown fox jumps over the lazy dog. 0123456789"
+                    font.family: fontStage.sans
+                    font.pixelSize: Math.round(Style.font.body * 1.15)
+                    wrapMode: Text.Wrap
+                    lineHeight: 1.2
+                    color: root.foreground
+                    opacity: 0.9
+                  }
+                  Rectangle {
+                    width: parent.width
+                    height: codeSample.implicitHeight + Style.space(16)
+                    radius: root.innerRadius
+                    color: root.faint
+                    Text {
+                      id: codeSample
+                      anchors { fill: parent; margins: Style.space(8) }
+                      text: "fn main() -> Result<()> {  // != >= => ->\n    println!(\"привет, мир\");\n}"
+                      font.family: fontStage.mono
+                      font.pixelSize: Style.font.body
+                      color: root.foreground
+                    }
+                  }
+                  Text {
+                    width: parent.width
+                    text: fontStage.visible ? root.selectedRow.note + "\n\n" + root.tr("Interface") + ": " + fontStage.sans
+                      + "\n" + root.tr("Code") + ": " + fontStage.mono + "\n" + root.tr("Titles") + ": " + fontStage.title : ""
+                    wrapMode: Text.Wrap
+                    color: root.foreground
+                    opacity: 0.7
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                  }
+                }
+              }
+
               // Text previews (animations, layouts, shaders) as a code block.
               Flickable {
                 id: previewFlick
                 anchors.fill: parent
                 anchors.margins: Style.space(14)
                 visible: (!root.category.image || (root.selectedRow !== null && root.isTweakRow(root.selectedRow)))
-                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible
+                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible && !fontStage.visible
                 contentHeight: previewLabel.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true

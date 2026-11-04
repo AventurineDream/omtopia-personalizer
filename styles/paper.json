@@ -73,8 +73,8 @@
     "notifyWidth": 380
   },
   "sounds": {
-    "soundPack": "classic",
-    "windowSounds": false
+    "soundPack": "paper",
+    "windowSounds": true
   },
   "glyph": {
     "glyphEnabled": false,
@@ -84,7 +84,7 @@
     "glyphThickness": 2.5,
     "glyphInsetMode": "auto"
   },
-  "fonts": "stock",
+  "fonts": "paper-ui",
   "look": {
     "texture": "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/textures/paper.png",
     "elevation": 2,
@@ -92,5 +92,9 @@
     "material": "paper",
     "cornerScale": 0.5,
     "typeface": "hand"
+  },
+  "theme": {
+    "dark": "bad-hand",
+    "light": "kanagawa-lotus"
   }
 }
