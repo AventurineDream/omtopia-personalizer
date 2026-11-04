@@ -24,7 +24,7 @@
     "wallpaperDim": 0.35
   },
   "launcher": {
-    "skin": "constellation",
+    "skin": "drawer-fluent",
     "backdrop": 0.75
   },
   "wallpaperFx": {

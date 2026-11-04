@@ -1900,7 +1900,8 @@ launcher_skins() {
 launcher_skin_desc() {
   case "$1" in
   nihil) t "NIHIL hardware bump with concave fillets, monochrome app grid, > actions and = LED calculator" ;;
-  paper) t "Sketchbook page: polaroid cards on a ruled sheet, pencil circle, tape and a sticky note" ;;
+  sketchbook) t "Sketchbook page: polaroid cards on a ruled sheet, pencil circle, tape and a sticky note" ;;
+  drawer-*) t "NIHIL drawer layout in the %s style finish: search, 7-column grid, > actions, = calculator" "${1#drawer-}" ;;
   list) t "Stock Omarchy compact list card" ;;
   board) t "Tactile keycap board grid" ;;
   constellation) t "Starfield constellation launcher" ;;
