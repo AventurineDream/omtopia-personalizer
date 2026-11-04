@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nihil Dot — Doto с кириллицей.
+"""DotMatrix Dot — Doto с кириллицей.
 
 Doto (OFL 1.1, Reserved Font Name «Doto») рисует буквы точками на сетке: шаг 100 единиц, заглавные 5×7
 (ряды 0–6), строчные 5×5 (ряды 0–4), выносные элементы до ряда 6 и −2, диакритика на ряду 7. Шрифт
@@ -9,9 +9,9 @@ Doto (OFL 1.1, Reserved Font Name «Doto») рисует буквы точкам
 
 Лигатуры == === != !== -> <- => :: нарисованы точками той же сетки (calt, спейсеры как у Fira Code).
 
-Изменённая версия OFL-шрифта не может называться Doto — семейство переименовано в «Nihil Dot».
+Изменённая версия OFL-шрифта не может называться Doto — семейство переименовано в «DotMatrix Dot».
 
-    uv run --with fonttools scripts/nihil-dot.py [Doto.ttf] [NihilDot.ttf]
+    uv run --with fonttools scripts/dotmatrix-dot.py [Doto.ttf] [DotMatrixDot.ttf]
 """
 import copy
 import os
@@ -25,8 +25,8 @@ from fontTools.ttLib.tables.TupleVariation import TupleVariation
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(HERE, "..", "fonts")
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(FONTS, "Doto.ttf")
-DST = sys.argv[2] if len(sys.argv) > 2 else os.path.join(FONTS, "NihilDot.ttf")
-FAMILY = "Nihil Dot"
+DST = sys.argv[2] if len(sys.argv) > 2 else os.path.join(FONTS, "DotMatrixDot.ttf")
+FAMILY = "DotMatrix Dot"
 PITCH = 100
 
 # Кириллица, совпадающая с латиницей по форме, берёт глиф Doto как есть.
@@ -252,10 +252,10 @@ def main():
     for rec in names.names:
         text = rec.toUnicode()
         if "Doto" in text:
-            rec.string = text.replace("Doto", FAMILY if rec.nameID != 6 and rec.nameID != 25 else "NihilDot")
+            rec.string = text.replace("Doto", FAMILY if rec.nameID != 6 and rec.nameID != 25 else "DotMatrixDot")
     names.setName(
-        "Nihil Dot is a modified version of Doto (OFL 1.1, Reserved Font Name \"Doto\") with Cyrillic "
-        "letters and dot ligatures added for the Nihil Omarchy style.", 10, 3, 1, 0x409)
+        "DotMatrix Dot is a modified version of Doto (OFL 1.1, Reserved Font Name \"Doto\") with Cyrillic "
+        "letters and dot ligatures added for the DOT-MATRIX Omarchy style.", 10, 3, 1, 0x409)
     font["OS/2"].ulCodePageRange1 |= 1 << 2  # 1251 Cyrillic
     font["OS/2"].ulUnicodeRange1 |= 1 << 9  # Cyrillic block
     font.save(DST)

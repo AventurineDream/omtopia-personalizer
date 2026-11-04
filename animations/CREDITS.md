@@ -10,7 +10,7 @@ projects licensed under GPL-3.0:
 | `Mahaveer - me-1`, `Mahaveer - me-2` | [HyDE](https://github.com/HyDE-Project/HyDE) (`me-1`, `me-2`, by Mahaveer) |
 | `END-4` | [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) |
 | `ML4W - classic`, `ML4W - dynamic`, `ML4W - fast`, `ML4W - high`, `ML4W - moving`, `ML4W - standard` | [ML4W dotfiles](https://github.com/mylinuxforwork/dotfiles) |
-| `NIHIL` | [Nihil-Shell](https://github.com/poligle/Nihil-Shell) (MIT, by Pol Iglesias) |
+| `DOT-MATRIX` | [Nihil-Shell](https://github.com/poligle/Nihil-Shell) (MIT, by Pol Iglesias) |
 
 Add your own presets to `~/.config/omarchy/customizer/animations/*.lua`: they show up in the list, and a
 file with the same name overrides the bundled one.

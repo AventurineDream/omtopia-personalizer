@@ -17,11 +17,11 @@ This project includes or is based on:
     end-4       https://github.com/end-4/dots-hyprland
   They were converted to Hyprland's Lua config format.
 
-- NIHIL (Nihil-Shell) — https://github.com/poligle/Nihil-Shell
+- DOT-MATRIX (Nihil-Shell) — https://github.com/poligle/Nihil-Shell
   MIT License, Copyright (c) 2026 Pol Iglesias.
   Dot-matrix wallpaper generator (scripts/dotify.py), perimeter Glyph light
-  (GlyphOverlay.qml), interface sound packs (sounds/nihil, sounds/classic),
-  and the NIHIL Hyprland animation preset (animations/NIHIL.lua).
+  (GlyphOverlay.qml), interface sound packs (sounds/dotmatrix, sounds/classic),
+  and the NIHIL Hyprland animation preset (animations/DOT-MATRIX.lua).
 
 - Caveat — https://github.com/googlefonts/caveat
   SIL Open Font License 1.1, Copyright 2014 The Caveat Project Authors (fonts/OFL.txt).

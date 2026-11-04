@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Генератор встроенных стилей styles/*.json: одна таблица на все стили, проверка полноты (у каждого стиля —
-# те же ручки, что у NIHIL) перед записью. NIHIL собирается из пресета-источника (свой пресет в духе Nothing).
+# те же ручки, что у DOT-MATRIX) перед записью. DOT-MATRIX собирается из пресета-источника (свой пресет в духе Nothing).
 #
-#   python3 scripts/gen-styles.py <каталог плагина> <пресет-источник NIHIL.json>
+#   python3 scripts/gen-styles.py <каталог плагина> <пресет-источник DOT-MATRIX.json>
 #   python3 scripts/check-styles.py            # только проверить
 import json, os, sys
 
@@ -21,20 +21,20 @@ CONTENT = {
 }
 
 nh = json.load(open(src))
-nihil = {k: v for k, v in nh.items() if k not in ("theme", "wallpaper", "name", "name_ru", "note", "note_ru")}
+dotmatrix = {k: v for k, v in nh.items() if k not in ("theme", "wallpaper", "name", "name_ru", "note", "note_ru")}
 for sec, keys in CONTENT.items():
     for k in keys:
-        nihil.get(sec, {}).pop(k, None)
-nihil["hyprGeometry"]["noGaps"] = True
-nihil["notifications"].setdefault("notifyAttach", "auto")
-nihil["fonts"] = "pixel"
+        dotmatrix.get(sec, {}).pop(k, None)
+dotmatrix["hyprGeometry"]["noGaps"] = True
+dotmatrix["notifications"].setdefault("notifyAttach", "auto")
+dotmatrix["fonts"] = "pixel"
 # Nothing: плоское «железо» — без теней, сплошные поверхности, шрифт профиля.
-nihil["look"] = {"elevation": 0, "motion": 1, "material": "solid", "cornerScale": 1, "typeface": "profile", "texture": ""}
-nihil = {
-    "name": "NIHIL", "name_ru": "NIHIL",
+dotmatrix["look"] = {"elevation": 0, "motion": 1, "material": "solid", "cornerScale": 1, "typeface": "profile", "texture": ""}
+dotmatrix = {
+    "name": "DOT-MATRIX", "name_ru": "DOT-MATRIX",
     "note": "Nothing-inspired hardware shell on any theme: bezel frame with windows flush against it, vertical LED bar, dot-matrix typography, signal colour strictly for alerts, perimeter Glyph lighting, LED dashboard/OSD/launcher/lock and a tactile sound pack.",
     "note_ru": "Аппаратная оболочка в духе Nothing на любой теме: рамка-бортик с окнами вплотную, вертикальный LED-бар, матричная типографика, сигнальный цвет строго для тревог, контурная подсветка Glyph, LED-дашборд/OSD/лаунчер/локскрин и тактильный звуковой пакет.",
-    **nihil,
+    **dotmatrix,
 }
 
 
@@ -72,7 +72,7 @@ def plain(name, name_ru, note, note_ru, *, geom, bar, opacity, blur, anims, lock
 
 
 styles = {
-    "nihil": nihil,
+    "dotmatrix": dotmatrix,
     "flat": plain(
         "Flat", "Плоский",
         "Flat / Metro: square corners, solid surfaces, no shadows or blur, quick motion, quiet. Typography and colour do all the work.",
@@ -153,12 +153,12 @@ styles = {
 
 }
 
-# Полнота: каждый стиль задаёт те же ручки, что и NIHIL, иначе переход между стилями будет неполным.
+# Полнота: каждый стиль задаёт те же ручки, что и DOT-MATRIX, иначе переход между стилями будет неполным.
 def shape(d):
     return {k: (sorted(v) if isinstance(v, dict) else None) for k, v in d.items()
             if k not in ("name", "name_ru", "note", "note_ru", "barSkin", "barSkinData", "barLayout", "barLayoutData")}
 
-ref = shape(styles["nihil"])
+ref = shape(styles["dotmatrix"])
 bad = False
 for name, st in styles.items():
     sh = shape(st)
@@ -170,7 +170,7 @@ for name, st in styles.items():
 if bad:
     sys.exit(1)
 # Тема стиля (переключатель styleTheme): пара тёмная / светлая.
-THEMES = {"nihil": ("nothing-steel", "nothing-ashlight"), "flat": ("matte-black", "white"),
+THEMES = {"dotmatrix": ("nothing-steel", "nothing-ashlight"), "flat": ("matte-black", "white"),
           "glass": ("catppuccin", "catppuccin-latte"), "fluent": ("tokyo-night", "rose-pine"),
           "paper": ("kanagawa", "kanagawa-lotus"), "neumorph": ("nord", "bliss"),
           "brutal": ("gruvbox-material", "flexoki-light"), "retro": ("ibm", "bliss"), "neon": ("cyber-aura", "")}

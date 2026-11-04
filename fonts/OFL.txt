@@ -5,8 +5,8 @@ Copyright 2014 The Caveat Project Authors (https://github.com/googlefonts/caveat
 Copyright 2016 The Pangolin Project Authors (https://github.com/googlefonts/pangolin)
 Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
 
-NihilDot.ttf ("Nihil Dot") is a Modified Version of Doto with Cyrillic letters added
-(scripts/nihil-dot.py). It is renamed because "Doto" is a Reserved Font Name.
+DotMatrixDot.ttf ("DotMatrix Dot") is a Modified Version of Doto with Cyrillic letters added
+(scripts/dotmatrix-dot.py). It is renamed because "Doto" is a Reserved Font Name.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

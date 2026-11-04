@@ -1,9 +1,0 @@
-{
-  "name": "NIHIL",
-  "name_ru": "NIHIL",
-  "note": "Nothing-inspired hardware shell: frame bezel, Doto LED dot-matrix typography, Space Grotesk & Space Mono, the signal colour strictly for alerts, perimeter Glyph lighting, LED bar/dashboard/OSD/launcher/lock and a tactile sound pack. Colours follow the omarchy theme; Desktop → Widgets → Nihil palette = mono gives the original black & white.",
-  "note_ru": "Аппаратная оболочка в духе Nothing: рамка-бортик, матричный шрифт Doto, Space Grotesk и Space Mono, сигнальный цвет строго для тревог, контурная подсветка Glyph, LED-бар/дашборд/OSD/лаунчер/локскрин и тактильный звуковой пакет. Цвета следуют теме omarchy; Рабочий стол → Виджеты → Палитра Nihil = mono даёт оригинальный чёрно-белый вид.",
-  "theme": "nihil",
-  "wallpaper": "~/.config/omarchy/themes/nihil/backgrounds/01-night.png",
-  "style": "nihil"
-}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nihil Pixel — Terminess Nerd Font (Terminus, OFL 1.1) с русскими строчными, курсивом в ячейке
+"""DotMatrix Pixel — Terminess Nerd Font (Terminus, OFL 1.1) с русскими строчными, курсивом в ячейке
 и пиксельными лигатурами.
 
 Terminess — это Terminus: контуры, обведённые по битмапу 16×32 (em 1000 = 32 пикселя по 31.25 ед.,
@@ -20,11 +20,11 @@ Terminess — это Terminus: контуры, обведённые по бит�
    «>», ≠ — перечёркнутое «==», ≤ ≥, сближенные «::» «//» «||». Только контурами: во встроенных
    битмапах метрики постоянные, глиф не может рисовать в соседних ячейках.
 
-Изменённую версию нельзя называть Terminus/Terminess — семейство «Nihil Pixel».
+Изменённую версию нельзя называть Terminus/Terminess — семейство «DotMatrix Pixel».
 
-    uv run --with fonttools scripts/nihil-pixel.py <Terminess-Regular.ttf> <Terminess-Bold.ttf> <каталог вывода>
+    uv run --with fonttools scripts/dotmatrix-pixel.py <Terminess-Regular.ttf> <Terminess-Bold.ttf> <каталог вывода>
 
-Исходники Terminus скачиваются с SourceForge (sha256 сверяется) в ~/.cache/nihil-fonts.
+Исходники Terminus скачиваются с SourceForge (sha256 сверяется) в ~/.cache/dotmatrix-fonts.
 """
 import copy
 import hashlib
@@ -39,12 +39,12 @@ from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 
-FAMILY = "Nihil Pixel"
+FAMILY = "DotMatrix Pixel"
 PX = 31.25
 BASE = 20  # y базовой линии контуров в единицах шрифта
 TERMINUS = ("https://downloads.sourceforge.net/project/terminus-font/terminus-font-4.49/terminus-font-4.49.1.tar.gz",
             "d961c1b781627bf417f9b340693d64fc219e0113ad3a3af1a3424c7aa373ef79")
-CACHE = os.path.expanduser("~/.cache/nihil-fonts")
+CACHE = os.path.expanduser("~/.cache/dotmatrix-fonts")
 
 # Где курсив уместен: буквы, цифры, знаки. Псевдографика и значки Nerd Font — нет.
 TEXT_RANGES = ((0x21, 0x24F), (0x370, 0x52F), (0x1E00, 0x1EFF), (0x2010, 0x205E), (0x20A0, 0x20C0),
@@ -429,14 +429,14 @@ def add_ligatures(font):
 def rename(font, style):
     names = font["name"]
     full = FAMILY if style == "Regular" else f"{FAMILY} {style}"
-    ps = f"NihilPixel-{style.replace(' ', '')}"
+    ps = f"DotMatrixPixel-{style.replace(' ', '')}"
     for nid in (16, 17, 21, 22, 25):
         names.removeNames(nameID=nid)
-    for nid, text in ((1, FAMILY), (2, style), (3, f"{ps};nihil"), (4, full), (6, ps)):
+    for nid, text in ((1, FAMILY), (2, style), (3, f"{ps};dotmatrix"), (4, full), (6, ps)):
         names.setName(text, nid, 3, 1, 0x409)
         names.setName(text, nid, 1, 0, 0)
-    names.setName("Nihil Pixel is a modified version of Terminess Nerd Font / Terminus (OFL 1.1): Russian "
-                  "lowercase forms, cell-bound italics and pixel ligatures for the Nihil Omarchy style.",
+    names.setName("DotMatrix Pixel is a modified version of Terminess Nerd Font / Terminus (OFL 1.1): Russian "
+                  "lowercase forms, cell-bound italics and pixel ligatures for the DOT-MATRIX Omarchy style.",
                   10, 3, 1, 0x409)
     italic, bold = "Italic" in style, "Bold" in style
     os2 = font["OS/2"]
@@ -462,7 +462,7 @@ def build(path, src, weight, dst):
         if italic:
             italicize(font)
         rename(font, style)
-        target = os.path.join(dst, f"NihilPixel-{style.replace(' ', '')}.ttf")
+        target = os.path.join(dst, f"DotMatrixPixel-{style.replace(' ', '')}.ttf")
         font.save(target)
         out.append(target)
     return out

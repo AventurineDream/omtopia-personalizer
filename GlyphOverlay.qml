@@ -6,7 +6,7 @@ import QtQuick 6.11
 import QtQuick.Shapes
 import qs.Commons
 import "Geometry.js" as Geometry
-import "nihil" as Nihil
+import "dotmatrix" as DotMatrix
 
 // Nothing-inspired perimeter Glyph lighting for Omarchy.
 // Ported from home/shell/frame/GlyphLight.qml and services/Glyph.qml in NIHIL
@@ -43,13 +43,13 @@ Item {
     if (s === "accent") return Color.accent
     if (s === "muted") return Color.muted
     if (s === "urgent") return Color.urgent
-    if (s.indexOf("nihil.") === 0 && Nihil.Palette[s.slice(6)] !== undefined) return Nihil.Palette[s.slice(6)]
+    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice(6)] !== undefined) return DotMatrix.Palette[s.slice(6)]
     if (root.palette && root.palette[s]) return root.palette[s]
     return fallback
   }
 
-  readonly property color normalColor: resolveColor(cfg.glyphColor || "nihil.fg", Nihil.Palette.fg)
-  readonly property color alertColor: resolveColor(cfg.glyphCriticalColor || "nihil.danger", Nihil.Palette.danger)
+  readonly property color normalColor: resolveColor(cfg.glyphColor || "dotmatrix.fg", DotMatrix.Palette.fg)
+  readonly property color alertColor: resolveColor(cfg.glyphCriticalColor || "dotmatrix.danger", DotMatrix.Palette.danger)
 
   readonly property bool useFrame: insetMode === "frame" || (insetMode === "auto" && activeSkin && activeSkin.shape === "frame")
   readonly property string barPos: String((activeBar && activeBar.position) || "top")
@@ -218,7 +218,7 @@ Item {
         property string route: ""
         property real reach: 0
         property real total: 1
-        property color tint: Nihil.Palette.fg
+        property color tint: DotMatrix.Palette.fg
         property real length: 0
         property real thick: 2.5
         property real alpha: 1

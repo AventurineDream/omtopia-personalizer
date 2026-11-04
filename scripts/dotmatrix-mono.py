@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nihil Mono — Geist Mono с включёнными лигатурами.
+"""DotMatrix Mono — Geist Mono с включёнными лигатурами.
 
 В официальном Geist Mono (OFL 1.1, Vercel) лигатуры (-> => != === :: …) уже нарисованы, но
 включаются только набором ss11 — терминалы и редакторы без настройки их не показывают. Здесь те же
@@ -7,9 +7,9 @@
 Кириллица — Geist Mono как есть. Значки Nerd Font терминалы берут из Symbols Nerd Font
 (пакет ttf-nerd-fonts-symbols) — встраивать их не нужно.
 
-Изменённую версию нельзя называть так же — семейство переименовано в «Nihil Mono».
+Изменённую версию нельзя называть так же — семейство переименовано в «DotMatrix Mono».
 
-    uv run --with fonttools scripts/nihil-mono.py <каталог GeistMono/ttf> <каталог вывода>
+    uv run --with fonttools scripts/dotmatrix-mono.py <каталог GeistMono/ttf> <каталог вывода>
 """
 import os
 import sys
@@ -17,7 +17,7 @@ import sys
 from fontTools.ttLib import TTFont
 from fontTools.ttLib.tables import otTables
 
-FAMILY = "Nihil Mono"
+FAMILY = "DotMatrix Mono"
 STYLES = {"Regular": "Regular", "Bold": "Bold", "Italic": "Italic", "BoldItalic": "Bold Italic"}
 
 
@@ -60,11 +60,11 @@ def rename(font, style):
         if rec.nameID in (16, 17, 21, 22, 25):
             names.removeNames(nameID=rec.nameID)
     legacy_style = style if style in ("Regular", "Bold", "Italic", "Bold Italic") else "Regular"
-    for nid, text in ((1, FAMILY), (2, legacy_style), (3, f"{ps};nihil"), (4, full), (6, ps)):
+    for nid, text in ((1, FAMILY), (2, legacy_style), (3, f"{ps};dotmatrix"), (4, full), (6, ps)):
         names.setName(text, nid, 3, 1, 0x409)
         names.setName(text, nid, 1, 0, 0)
-    names.setName("Nihil Mono is a modified version of Geist Mono (OFL 1.1) with ligatures enabled through "
-                  "calt, for the Nihil Omarchy style.", 10, 3, 1, 0x409)
+    names.setName("DotMatrix Mono is a modified version of Geist Mono (OFL 1.1) with ligatures enabled through "
+                  "calt, for the DOT-MATRIX Omarchy style.", 10, 3, 1, 0x409)
 
 
 def main():
@@ -74,7 +74,7 @@ def main():
         font = TTFont(os.path.join(src, f"GeistMono-{file_style}.ttf"))
         add_calt(font)
         rename(font, style)
-        out = os.path.join(dst, f"NihilMono-{file_style}.ttf")
+        out = os.path.join(dst, f"DotMatrixMono-{file_style}.ttf")
         font.save(out)
         print(out)
 

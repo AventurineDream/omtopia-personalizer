@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Dotify: renders an image as an LED dot matrix (NIHIL wallpapers).
+# Dotify: renders an image as an LED dot matrix (DOT-MATRIX wallpapers).
 #
 # Based on theme/dotmatrix.py from NIHIL by Pol Iglesias (poligle), MIT —
 # https://github.com/poligle/Nihil-Shell. See NOTICE.

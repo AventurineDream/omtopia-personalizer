@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Interface sound player for Omarchy Customizer.
 # Supports sound packs in ~/.config/omarchy/sounds.json:
-#   {"sounds": true, "soundPack": "theme|nihil|<каталог в sounds/>", "soundVolume": 0.6, "windowSounds": false}
+#   {"sounds": true, "soundPack": "theme|dotmatrix|<каталог в sounds/>", "soundVolume": 0.6, "windowSounds": false}
 #
 # Events: open close switch special fullscreen lock power menu notify critical volume
 #         (plus freedesktop aliases: message-new-instant, dialog-warning, audio-volume-change,
@@ -36,8 +36,8 @@ audio-volume-change | volume | open | close | switch | special | fullscreen)
   ;;
 esac
 
-# Map between NIHIL short names and freedesktop sound-theme names.
-declare -A NIHIL_MAP=(
+# Map between DOT-MATRIX short names and freedesktop sound-theme names.
+declare -A DOTMATRIX_MAP=(
   [message-new-instant]=notify
   [dialog-warning]=critical
   [battery-low]=critical
@@ -53,13 +53,13 @@ declare -A FDO_MAP=(
   [power]=service-login
 )
 
-short=${NIHIL_MAP[$event]:-$event}
+short=${DOTMATRIX_MAP[$event]:-$event}
 fdo=${FDO_MAP[$event]:-$event}
 
 case "$pack" in
-nihil)
+dotmatrix)
   dirs=(
-    "$CUSTOMIZER_DIR/sounds/nihil"
+    "$CUSTOMIZER_DIR/sounds/dotmatrix"
     "$HOME/.local/state/omarchy/current/theme/apps/sounds"
     /usr/share/sounds/freedesktop/stereo
   )
@@ -67,10 +67,10 @@ nihil)
   ;;
 *)
   if [[ $pack != theme && $pack =~ ^[a-z0-9-]+$ && -d $CUSTOMIZER_DIR/sounds/$pack ]]; then
-    # Пакет стиля (classic, flat, glass, paper, …): чего в нём нет — из nihil, потом freedesktop.
+    # Пакет стиля (classic, flat, glass, paper, …): чего в нём нет — из dotmatrix, потом freedesktop.
     dirs=(
       "$CUSTOMIZER_DIR/sounds/$pack"
-      "$CUSTOMIZER_DIR/sounds/nihil"
+      "$CUSTOMIZER_DIR/sounds/dotmatrix"
       /usr/share/sounds/freedesktop/stereo
     )
     names=("$short" "$event" "$fdo")

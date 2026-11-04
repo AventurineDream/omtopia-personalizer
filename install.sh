@@ -59,10 +59,10 @@ ask() { # prompt -> 0 for yes
 
 add omarchy-customizer kamradsmeshnyavy.customizer
 
-# Fonts of the Nihil (dot-matrix) style — Doto, Space Grotesk, Space Mono (SIL OFL 1.1).
-# Without them the Nihil skins fall back to the Omarchy font.
+# Fonts of the DOT-MATRIX (dot-matrix) style — Doto, Space Grotesk, Space Mono (SIL OFL 1.1).
+# Without them the DOT-MATRIX skins fall back to the Omarchy font.
 fonts_src="$PLUGINS/kamradsmeshnyavy.customizer/fonts"
-fonts_dst="$HOME/.local/share/fonts/nihil"
+fonts_dst="$HOME/.local/share/fonts/dotmatrix"
 if [[ -d $fonts_src && ! -e $fonts_dst ]]; then
   mkdir -p "$(dirname "$fonts_dst")"
   ln -s "$fonts_src" "$fonts_dst"

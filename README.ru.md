@@ -10,7 +10,7 @@
 
 | Группа | Что внутри |
 |---|---|
-| **Пресеты** | Полные снимки окружения (встроенный пресет **NIHIL** + свои пресеты в `~/.config/omarchy/customizer/presets/*.json` со ★, удаление по `D` и автоматический откат к предыдущим настройкам) и **Стиль** — форма окружения на любой теме: Flat, Стекло, Fluent, NIHIL или свой (геометрия окон, бар, локскрин, лаунчер, виджеты, OSD, уведомления, анимации, прозрачность, блюр, звуки, Glyph, шрифты; какие разделы применять — выбирается) |
+| **Пресеты** | Полные снимки окружения (встроенный пресет **DOT-MATRIX** + свои пресеты в `~/.config/omarchy/customizer/presets/*.json` со ★, удаление по `D` и автоматический откат к предыдущим настройкам) и **Стиль** — форма окружения на любой теме: Flat, Стекло, Fluent, DOT-MATRIX или свой (геометрия окон, бар, локскрин, лаунчер, виджеты, OSD, уведомления, анимации, прозрачность, блюр, звуки, Glyph, шрифты; какие разделы применять — выбирается) |
 | **Рабочий стол** | Тема (палитра + превью), Обои (категории как в переключателе обоев), Recolor (перекраска любой картинки в цвета темы через lutgen), Dotify (генератор матричных LED-обоев и логотипа Arch), Wallpaper FX*, Виджеты*, Дашборд* |
 | **Бар*** | Bar Skin (и «💾 Сохранить текущий скин» в `~/.config/omarchy/bar-skins/`, со ★ в списке; `D` удаляет после подтверждения), Bar Layout (свои раскладки так же — в `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 параметр, у каждого виден дефолт и живой предпросмотр |
 | **Окна** | Анимации (18 пресетов), Прозрачность, Блюр, OSD*, Уведомления* (со звуковыми пакетами и озвучкой событий окон/воркспейсов Hyprland), Glyph (контурная подсветка экрана и лучи зарядки в духе Nothing), Шейдер (CRT / TFT) |
@@ -58,14 +58,14 @@ o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle ka
 
 | Плагин | Что добавляет в Customizer |
 |---|---|
-| [omarchy-bar-skins](https://github.com/KamradSmeshnyavy/omarchy-bar-skins) | группа **Бар**: 20 скинов (вкл. `nihil`), 10 раскладок, compact, LED и символьные стили workspaces |
-| [omarchy-lock-designs](https://github.com/KamradSmeshnyavy/omarchy-lock-designs) | группа **Блокировка**: 22 дизайна (вкл. `nihil`) |
+| [omarchy-bar-skins](https://github.com/KamradSmeshnyavy/omarchy-bar-skins) | группа **Бар**: 20 скинов (вкл. `dotmatrix`), 10 раскладок, compact, LED и символьные стили workspaces |
+| [omarchy-lock-designs](https://github.com/KamradSmeshnyavy/omarchy-lock-designs) | группа **Блокировка**: 22 дизайна (вкл. `dotmatrix`) |
 | [omarchy-wallpaper-fx](https://github.com/KamradSmeshnyavy/omarchy-wallpaper-fx) | **Wallpaper FX**: 24 перехода с превью |
 | [omarchy-image-picker-styles](https://github.com/KamradSmeshnyavy/omarchy-image-picker-styles) | группа **Пикеры**: шесть стилей |
-| [omarchy-launcher-skins](https://github.com/KamradSmeshnyavy/omarchy-launcher-skins) | **Лаунчер** в Пикерах: полноэкранные скины и аппаратный выступ `nihil` |
-| [omarchy-desktop-widgets](https://github.com/KamradSmeshnyavy/omarchy-desktop-widgets) | **Виджеты** и **Дашборд** на Рабочем столе: карточки, LED-дашборд NIHIL и шторка быстрых настроек |
-| [omarchy-edge-osd](https://github.com/KamradSmeshnyavy/omarchy-edge-osd) | **OSD** в Окнах: громкость и яркость у края экрана (вкл. LED-шкалу NIHIL) |
-| [omarchy-drawer-notifications](https://github.com/KamradSmeshnyavy/omarchy-drawer-notifications) | **Уведомления** в Окнах: шторка или аппаратные карточки NIHIL + запуск подсветки Glyph |
+| [omarchy-launcher-skins](https://github.com/KamradSmeshnyavy/omarchy-launcher-skins) | **Лаунчер** в Пикерах: полноэкранные скины и аппаратный выступ `dotmatrix` |
+| [omarchy-desktop-widgets](https://github.com/KamradSmeshnyavy/omarchy-desktop-widgets) | **Виджеты** и **Дашборд** на Рабочем столе: карточки, LED-дашборд DOT-MATRIX и шторка быстрых настроек |
+| [omarchy-edge-osd](https://github.com/KamradSmeshnyavy/omarchy-edge-osd) | **OSD** в Окнах: громкость и яркость у края экрана (вкл. LED-шкалу DOT-MATRIX) |
+| [omarchy-drawer-notifications](https://github.com/KamradSmeshnyavy/omarchy-drawer-notifications) | **Уведомления** в Окнах: шторка или аппаратные карточки DOT-MATRIX + запуск подсветки Glyph |
 
 ### Необязательные программы
 
@@ -148,7 +148,7 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 `python3 scripts/check-styles.py` проверяет, что все стили задают одинаковый набор ручек.
 
 Каждый стиль задаёт все ручки формы (у встроенных один набор ключей), поэтому переход между любыми двумя стилями
-полный. `hyprGeometry.noGaps` управляет тогглом Omarchy «без отступов» (он же снимает рамки окон): NIHIL включает
+полный. `hyprGeometry.noGaps` управляет тогглом Omarchy «без отступов» (он же снимает рамки окон): DOT-MATRIX включает
 его — окна вплотную к рамке-бортику, остальные стили и пресет с `"hyprGeometry": null` выключают, рамки возвращаются.
 
 ## Язык
@@ -160,9 +160,9 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 
 GPL-3.0 — см. [LICENSE](LICENSE) и [NOTICE](NOTICE). Пресеты анимаций — из
 [HyDE](https://github.com/HyDE-Project/HyDE), [ML4W](https://github.com/mylinuxforwork/dotfiles),
-[end-4](https://github.com/end-4/dots-hyprland) и [NIHIL](https://github.com/poligle/Nihil-Shell)
-([авторы](animations/CREDITS.md)); Dotify, подсветка Glyph и звуковые пакеты NIHIL портированы из
-[NIHIL](https://github.com/poligle/Nihil-Shell) (MIT, Pol Iglesias); оверлей сделан в стиле
+[end-4](https://github.com/end-4/dots-hyprland) и [DOT-MATRIX](https://github.com/poligle/Nihil-Shell)
+([авторы](animations/CREDITS.md)); Dotify, подсветка Glyph и звуковые пакеты DOT-MATRIX портированы из
+[DOT-MATRIX](https://github.com/poligle/Nihil-Shell) (MIT, Pol Iglesias); оверлей сделан в стиле
 собственных плагинов шелла [Omarchy](https://github.com/basecamp/omarchy) (MIT).
 
 Часть [моих dotfiles](https://github.com/KamradSmeshnyavy/dotfiles).

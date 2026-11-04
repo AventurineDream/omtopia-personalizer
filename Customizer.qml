@@ -73,7 +73,7 @@ Item {
     "background", "gradient", "border", "text", "active", "moduleBackground", "wsActiveColor",
     "ownerMessage", "avatar", "tint", "osdBackground", "notifyBackground", "dashBackground",
     "weatherCity", "dotTint", "dotBackground", "glyphColor", "glyphCriticalColor",
-    "nihilBg", "nihilFg", "nihilDim", "nihilMuted", "nihilLine", "nihilSurface", "nihilLit", "nihilSignal", "nihilDanger"
+    "dotmatrixBg", "dotmatrixFg", "dotmatrixDim", "dotmatrixMuted", "dotmatrixLine", "dotmatrixSurface", "dotmatrixLit", "dotmatrixSignal", "dotmatrixDanger"
   ]
 
   // Header chips: status key -> category key it opens.

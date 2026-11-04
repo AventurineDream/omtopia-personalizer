@@ -1,10 +1,10 @@
--- NIHIL motion: decisive deceleration, no bounce (from poligle/Nihil-Shell, MIT).
+-- DOT-MATRIX motion: decisive deceleration, no bounce (from poligle/Nihil-Shell, MIT).
 hl.config({ animations = { enabled = true } })
 hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
 hl.curve("nihilOut", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1.0 } } })
-hl.curve("nihilInOut", { type = "bezier", points = { { 0.4, 0.0 }, { 0.2, 1.0 } } })
+hl.curve("dotmatrixInOut", { type = "bezier", points = { { 0.4, 0.0 }, { 0.2, 1.0 } } })
 hl.animation({ leaf = "windows", enabled = true, speed = 2.6, bezier = "nihilOut", style = "popin 94%" })
 hl.animation({ leaf = "windowsMove", enabled = true, speed = 2.4, bezier = "nihilOut", style = "slide" })
 hl.animation({ leaf = "border", enabled = true, speed = 4.0, bezier = "linear" })
 hl.animation({ leaf = "fade", enabled = true, speed = 2.0, bezier = "nihilOut" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3.0, bezier = "nihilInOut", style = "slide" })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3.0, bezier = "dotmatrixInOut", style = "slide" })

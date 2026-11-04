@@ -22,7 +22,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/i18n.sh"
 PRESETS=(
     "off      0  1 0.00 0.000"
     "light    3  2 0.10 0.010"
-    "nihil    4  2 0.00 0.000"
+    "dotmatrix    4  2 0.00 0.000"
     "medium   6  3 0.17 0.012"
     "strong  10  4 0.20 0.015"
     "frosted 14  4 0.30 0.030"

@@ -64,8 +64,8 @@ OSD_CFG="$HOME/.config/omarchy/osd.json"
 NOTIFY_CFG="$HOME/.config/omarchy/notify-style.json"
 SOUND_CFG="$HOME/.config/omarchy/sounds.json"
 GLYPH_CFG="$HOME/.config/omarchy/glyph.json"
-# Палитра стиля Nihil во всех плагинах (nihil/Palette.qml): theme | mono.
-NIHIL_CFG="$HOME/.config/omarchy/nihil.json"
+# Палитра стиля DOT-MATRIX во всех плагинах (dotmatrix/Palette.qml): theme | mono.
+DOTMATRIX_CFG="$HOME/.config/omarchy/dotmatrix.json"
 DOTIFY_CFG="$HOME/.config/omarchy/dotify.json"
 MENU_PLUGIN="$HOME/.config/omarchy/plugins/kamradsmeshnyavy.menu"
 MENU_CFG="$HOME/.config/omarchy/extensions/menu-skin.json"
@@ -392,7 +392,7 @@ default_label() {
   height:0) t "auto" ;;
   ownerMessage:) t "Hello, %s" "$USER" ;;
   wsActiveColor:default) t "as in the style (omarchy — text colour, otherwise accent)" ;;
-  nihil*:default) t "auto (theme or mono palette)" ;;
+  dotmatrix*:default) t "auto (theme or mono palette)" ;;
   avatar:) t "~/.face (or the first letter of the name)" ;;
   wallpaperBlur:1) t "1 (stock)" ;;
   expandedWidth:0 | expandedHeight:0 | sliceWidth:0 | sliceHeight:0) t "from the style" ;;
@@ -462,7 +462,7 @@ PICKER_TWEAKS=(
 WIDGET_TWEAKS=(
   "#General"
   "desktopWidgets|bool|true|Desktop widgets: on / off (off — none of them is drawn)"
-  "widgetStyle|enum|style default nihil|Widgets: look (style — follows the Customizer style)"
+  "widgetStyle|enum|style default dotmatrix|Widgets: look (style — follows the Customizer style)"
   "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
   "edgeMargin|num|0 200 8 56|Margin from the screen edges"
   "tint|color|accent|Accent colour"
@@ -503,7 +503,7 @@ WIDGET_TWEAKS=(
 # OSD (клон kamradsmeshnyavy.osd): громкость/яркость у края экрана или стоковой карточкой — osd.json.
 OSD_TWEAKS=(
   "#Style"
-  "osdStyle|enum|edge nihil stock|OSD: style (edge — slides out of the screen edge / frame)"
+  "osdStyle|enum|edge dotmatrix stock|OSD: style (edge — slides out of the screen edge / frame)"
   "osdFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
   "osdAttach|enum|auto attached floating|Attach to the edge (auto — only to a solid bar / frame)"
   "osdBackground|color|background|Background"
@@ -526,7 +526,7 @@ NOTIFY_TWEAKS=(
   "notifyBackground|color|background|Background"
   "notifyAlpha|num|0.3 1 0.05 0.94|Background alpha"
   "notifyRadius|num|0 40 2 18|Corner radius"
-  "notifyCards|enum|flat bordered nihil|Cards"
+  "notifyCards|enum|flat bordered dotmatrix|Cards"
   "#Size & position"
   "notifyCorner|enum|top-right top-left top-center|Corner"
   "notifyWidth|num|280 600 20 380|Width"
@@ -536,14 +536,14 @@ NOTIFY_TWEAKS=(
 SOUND_TWEAKS=(
   "#Sounds"
   "sounds|bool|true|Sounds: on"
-  "soundPack|enum|theme nihil classic flat glass fluent paper neumorph brutal retro neon|Sounds: pack"
+  "soundPack|enum|theme dotmatrix classic flat glass fluent paper neumorph brutal retro neon|Sounds: pack"
   "soundVolume|num|0.1 1 0.1 0.6|Sounds: volume"
   "windowSounds|bool|false|Sounds: window & workspace events"
 )
 # Дашборд (плагин kamradsmeshnyavy.widgets) — тот же widgets.json.
 DASH_TWEAKS=(
   "#Look"
-  "dashStyle|enum|default nihil|Dashboard: style"
+  "dashStyle|enum|default dotmatrix|Dashboard: style"
   "dashFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
   "dashAttach|enum|auto attached floating|Attach to the bar (auto — only to a solid bar at the edge)"
   "dashBackground|color|background|Background"
@@ -592,20 +592,20 @@ LAUNCHER_TWEAKS=(
   "backdrop|num|0.2 1 0.05 0.94|Background dim"
 )
 
-# Стиль Nihil (dot-matrix) — nihil.json, его читает nihil/Palette.qml в каждом плагине.
-NIHIL_TWEAKS=(
-  "#Nihil palette"
-  "palette|enum|theme mono|Nihil: palette (theme — omarchy colours, mono — original black & white)"
-  "#Nihil colours"
-  "nihilBg|color|default|Nihil: background (bar, drawers, cards)"
-  "nihilFg|color|default|Nihil: text"
-  "nihilDim|color|default|Nihil: secondary text"
-  "nihilMuted|color|default|Nihil: labels and app names"
-  "nihilLine|color|default|Nihil: hairlines and card borders"
-  "nihilSurface|color|default|Nihil: raised surfaces (rows, fields)"
-  "nihilLit|color|default|Nihil: lit LEDs, sliders, active toggles"
-  "nihilSignal|color|default|Nihil: signal (accent marks and indicators)"
-  "nihilDanger|color|default|Nihil: danger (critical, confirmations)"
+# Стиль DOT-MATRIX (dot-matrix) — dotmatrix.json, его читает dotmatrix/Palette.qml в каждом плагине.
+DOTMATRIX_TWEAKS=(
+  "#DOT-MATRIX palette"
+  "palette|enum|theme mono|DOT-MATRIX: palette (theme — omarchy colours, mono — original black & white)"
+  "#DOT-MATRIX colours"
+  "dotmatrixBg|color|default|DOT-MATRIX: background (bar, drawers, cards)"
+  "dotmatrixFg|color|default|DOT-MATRIX: text"
+  "dotmatrixDim|color|default|DOT-MATRIX: secondary text"
+  "dotmatrixMuted|color|default|DOT-MATRIX: labels and app names"
+  "dotmatrixLine|color|default|DOT-MATRIX: hairlines and card borders"
+  "dotmatrixSurface|color|default|DOT-MATRIX: raised surfaces (rows, fields)"
+  "dotmatrixLit|color|default|DOT-MATRIX: lit LEDs, sliders, active toggles"
+  "dotmatrixSignal|color|default|DOT-MATRIX: signal (accent marks and indicators)"
+  "dotmatrixDanger|color|default|DOT-MATRIX: danger (critical, confirmations)"
 )
 
 # Что применять из пресета — preset-apply.json. Выключенный раздел пресет не трогает.
@@ -681,7 +681,7 @@ WINDOW_TWEAKS=(
 
 tweak_spec() {
   local t
-  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${STYLE_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}" "${WINDOW_LAYOUT_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${STYLE_TWEAKS[@]}" "${DOTMATRIX_TWEAKS[@]}" "${WINDOW_LAYOUT_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
   return 1
 }
 
@@ -701,7 +701,7 @@ tweak_file() {
   for t in "${PRESET_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$PRESET_CFG"; return; }; done
   for t in "${STYLE_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$STYLE_CFG"; return; }; done
   for t in "${WINDOW_TWEAKS[@]}" "${WINDOW_LAYOUT_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$WINDOW_CFG"; return; }; done
-  for t in "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NIHIL_CFG"; return; }; done
+  for t in "${DOTMATRIX_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$DOTMATRIX_CFG"; return; }; done
   echo "$BAR_SKIN"
 }
 
@@ -709,8 +709,8 @@ tweak_file() {
 color_roles() {
   local colors="$HOME/.local/state/omarchy/current/theme/colors.toml"
   printf '%s\n' bar background foreground accent muted urgent
-  # Палитра Nihil (nihil/Palette.qml): тема или монохром — по nihil.json.
-  printf '%s\n' nihil.bg nihil.fg nihil.dim nihil.line nihil.surface nihil.signal nihil.danger
+  # Палитра DOT-MATRIX (dotmatrix/Palette.qml): тема или монохром — по dotmatrix.json.
+  printf '%s\n' dotmatrix.bg dotmatrix.fg dotmatrix.dim dotmatrix.line dotmatrix.surface dotmatrix.signal dotmatrix.danger
   awk -F'=' '/^[a-z_]+ *= *"#/ { gsub(/ /, "", $1); print $1 }' "$colors" 2>/dev/null |
     grep -vxE 'background|foreground|accent|muted'
 }
@@ -829,7 +829,7 @@ tweak() {
       # zenity отдаёт rgb(r,g,b) — переводим в #rrggbb.
       next=$(sed -E 's/rgba?\(([0-9]+),([0-9]+),([0-9]+).*/\1 \2 \3/' <<<"$picked" | xargs printf '#%02x%02x%02x')
     else
-      mapfile -t list < <( [[ $key == gradient ]] && echo none; [[ $key == wsActiveColor || $key == nihil* ]] && echo default; [[ $args == '#'* ]] && echo "$args"; color_roles)
+      mapfile -t list < <( [[ $key == gradient ]] && echo none; [[ $key == wsActiveColor || $key == dotmatrix* ]] && echo default; [[ $args == '#'* ]] && echo "$args"; color_roles)
       next=$(cycle "$(tweak_value "$key" "$args")" "$dir" "${list[@]}")
     fi
     if [[ $next == none || $next == default ]]; then
@@ -901,7 +901,7 @@ tweak_set() {
     skin_edit --arg k "$key" --argjson v "$value" '.[$k] = $v'
     ;;
   color)
-    if [[ ($key == gradient && $value == none) || (($key == wsActiveColor || $key == nihil*) && $value == default) ]]; then
+    if [[ ($key == gradient && $value == none) || (($key == wsActiveColor || $key == dotmatrix*) && $value == default) ]]; then
       skin_edit --arg k "$key" 'del(.[$k])'
     elif [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || color_roles | grep -qxF -- "$value"; then
       skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'
@@ -1149,7 +1149,7 @@ BAR_HIDDEN="$HOME/.config/omarchy/customizer/bar-hidden.json"
 # Человеческие имена qml-модулей бара (у плагинов имя — из манифеста).
 widget_label() {
   case "$1" in
-  nihil-mark) t "Nihil logo" ;;
+  dotmatrix-mark) t "DOT-MATRIX logo" ;;
   active-app) t "Active app" ;;
   battery-gauge) t "Battery (LED)" ;;
   dot-clock) t "Clock (Doto)" ;;
@@ -1213,7 +1213,7 @@ widget_step() {
   omarchy-shell shell moveBarWidget "$id" "$place" >/dev/null
 }
 
-# Шрифты системы: omarchy-font-profile (dotfiles) — терминалы, fontconfig, GTK, VS Code, браузер, Nihil.
+# Шрифты системы: omarchy-font-profile (dotfiles) — терминалы, fontconfig, GTK, VS Code, браузер, DotMatrix.
 font_profile_step() {
   command -v omarchy-font-profile >/dev/null || return 0
   local -a list
@@ -1235,7 +1235,7 @@ sound_packs() {
 sound_pack_desc() {
   case "$1" in
   theme) t "Sounds of the current Omarchy theme (apps/sounds), then the freedesktop theme" ;;
-  nihil) t "NIHIL: tactile hardware clicks and LED blips" ;;
+  dotmatrix) t "DOT-MATRIX: tactile hardware clicks and LED blips" ;;
   classic) t "Classic: soft neutral system sounds" ;;
   flat) t "Flat: short clean sine ticks" ;;
   glass) t "Glass: glassy inharmonic bells with a long ring" ;;
@@ -1254,7 +1254,7 @@ SOUND_EVENTS=(open close switch menu notify critical lock power volume)
 font_group_title() {
   case "$1" in
   base) echo "Without a style" ;;
-  nihil) echo "NIHIL" ;;
+  dotmatrix) echo "DOT-MATRIX" ;;
   paper) echo "Paper" ;;
   retro) echo "Retro" ;;
   *) echo "$1" ;;
@@ -1268,7 +1268,7 @@ list_font_profile() {
   desc=$(omarchy-font-profile list | awk -F'\t' -v c="$cur" '$1 == c { print $2 }')
   printf '%s\t%s\t\t0\t\theader\n' "$(t "System fonts")" "section:System fonts"
   printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "Font profile"):  $cur" "fontProfile" \
-    "$(t "$desc")"'\n\n'"$(t "h/l — stock · nothing · dot · pixel. Applies to terminals, GTK, VS Code, browser (Dark Reader, Stylus) and the Nihil shell. x — back to stock.")" \
+    "$(t "$desc")"'\n\n'"$(t "h/l — stock · nothing · dot · pixel. Applies to terminals, GTK, VS Code, browser (Dark Reader, Stylus) and the DOT-MATRIX shell. x — back to stock.")" \
     "$(t "$desc")"
 }
 
@@ -1710,7 +1710,7 @@ apply_form_sections() {
         windowDecoRounding: ($g.rounding // 12), windowShadow: ($g.shadow == true), windowNoGaps: ($g.noGaps == true) }' \
         <<<"$(read_json_or_empty "$WINDOW_CFG")")"
       # «Без отступов» Omarchy (Super+Shift+Backspace) снимает и рамки окон: включён только там, где
-      # геометрия просит noGaps (рамка-бортик Nihil — окна вплотную к ней), иначе рамки возвращаются.
+      # геометрия просит noGaps (рамка-бортик DOT-MATRIX — окна вплотную к ней), иначе рамки возвращаются.
       set_no_gaps "$(jq -r '.hyprGeometry.noGaps // false' "$file")"
     elif [[ $mode == replace ]] && jq -e 'has("hyprGeometry")' "$file" >/dev/null 2>&1; then
       : >"$hypr_state/geometry"
@@ -1777,7 +1777,7 @@ style_file_of() {
   return 1
 }
 
-# Профиль шрифтов стиля (omarchy-font-profile из dotfiles): терминалы, fontconfig, GTK, браузер, Nihil.
+# Профиль шрифтов стиля (omarchy-font-profile из dotfiles): терминалы, fontconfig, GTK, браузер, DotMatrix.
 apply_style_fonts() {
   local fonts
   fonts=$(jq -r '.fonts // ""' "$1" 2>/dev/null)
@@ -1990,9 +1990,9 @@ launcher_skins() {
 
 launcher_skin_desc() {
   case "$1" in
-  nihil) t "NIHIL hardware bump with concave fillets, monochrome app grid, > actions and = LED calculator" ;;
+  dotmatrix) t "DOT-MATRIX hardware bump with concave fillets, monochrome app grid, > actions and = LED calculator" ;;
   sketchbook) t "Sketchbook page: polaroid cards on a ruled sheet, pencil circle, tape and a sticky note" ;;
-  drawer-*) t "NIHIL drawer layout in the %s style finish: search, 7-column grid, > actions, = calculator" "${1#drawer-}" ;;
+  drawer-*) t "DOT-MATRIX drawer layout in the %s style finish: search, 7-column grid, > actions, = calculator" "${1#drawer-}" ;;
   list) t "Stock Omarchy compact list card" ;;
   board) t "Tactile keycap board grid" ;;
   constellation) t "Starfield constellation launcher" ;;
@@ -2193,7 +2193,7 @@ list() {
   lock-tweaks) list_tweaks LOCK_TWEAKS "$LOCK_CFG" ;;
   widgets)
     list_tweaks WIDGET_TWEAKS "$WIDGET_CFG"
-    list_tweaks NIHIL_TWEAKS "$NIHIL_CFG"
+    list_tweaks DOTMATRIX_TWEAKS "$DOTMATRIX_CFG"
     ;;
   dashboard) list_tweaks DASH_TWEAKS "$WIDGET_CFG" ;;
   osd) list_tweaks OSD_TWEAKS "$OSD_CFG" ;;

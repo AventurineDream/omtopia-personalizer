@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
 import qs.Commons
-import "nihil" as Nihil
+import "dotmatrix" as DotMatrix
 
 // Макет бара для превью Customizer: форма, цвета и раскладка рисуются по тем же
 // правилам, что и в kamradsmeshnyavy.bar (BarSkin.qml / SkinFrame.qml), только
@@ -36,7 +36,7 @@ Item {
     if (s === "accent") return Color.accent
     if (s === "muted") return Color.muted
     if (s === "urgent") return Color.urgent
-    if (s.indexOf("nihil.") === 0 && Nihil.Palette[s.slice(6)] !== undefined) return Nihil.Palette[s.slice(6)]
+    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice(6)] !== undefined) return DotMatrix.Palette[s.slice(6)]
     return palette && palette[s] ? palette[s] : fallback
   }
   function alpha(c, a) {
@@ -124,7 +124,7 @@ Item {
     var short = String(id || "").replace(/^[a-z]+\./, "")
     if (short === "workspaces") return mock.workspacesText()
     var map = {
-      "menu": "󰣇", "nihil-mark": "󰣇", "active-app": "󰆍", "workspaces": "1 2 3 4 5",
+      "menu": "󰣇", "dotmatrix-mark": "󰣇", "active-app": "󰆍", "workspaces": "1 2 3 4 5",
       "clock": "12:34", "dot-clock": mock.vertical ? "12\n34" : "12:34",
       "tray": "󰅁", "indicators": "󰂚", "privacy-led": "•",
       "system-update": "󰚰", "agents": "󰚩", "network": "󰖩",
