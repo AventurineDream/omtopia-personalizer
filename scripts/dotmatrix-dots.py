@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""DotMatrix Dots — «точки везде»: каждый знак DotMatrix Pixel (Terminus) набран круглыми точками.
+"""Точечные шрифты «точки везде»: каждый знак DotMatrix Pixel (Terminus) набран круглыми точками.
+
+Два шрифта с разной сеткой:
+  * DotMatrix LED — Terminus 8×16: штрих в одну крупную точку, как у светодиодного табло;
+  * DotMatrix Halftone — Terminus 16×32: мелкие точки, штрих в два ряда — как полутон в печати.
+Точка — 94 % шага сетки (у жирных 99 %): при меньших точках текст на обычном кегле выходил бледным,
+и на тёмной теме весь экран казался темнее.
+
+Дальше — про LED; Halftone устроен так же, только на 32 px.
 
 DotMatrix Pixel (Terminus) покрывает латиницу, кириллицу, греческий, символы, псевдографику и значки
 Nerd Font. Здесь каждый глиф растеризуется FreeType на 16 px — размере Terminus 8×16, где штрих в один
@@ -17,7 +25,7 @@ Nerd Font. Здесь каждый глиф растеризуется FreeType 
 Производная Terminus (OFL 1.1) — не называется Terminus / Terminess.
 
     uv run --with fonttools --with freetype-py scripts/dotmatrix-dots.py <каталог с DotMatrixPixel-*.ttf> <каталог вывода> \
-        [DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf]
+        [DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf]          # собирает оба: DotMatrixLED-*.ttf, DotMatrixHalftone-*.ttf
 """
 import math
 import os
@@ -28,17 +36,22 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 from fontTools.ttLib.tables._g_l_y_f import GlyphComponent, Glyph
 
-PPEM = 16           # Terminus 8×16: штрих в один пиксель
-STEP = 1000 / PPEM  # 62.5 ед. на пиксель
-CELL = 8            # ширина ячейки в пикселях (advance 500)
-STYLES = {          # файл DotMatrix Pixel → (стиль, радиус точки в единицах, запасной шрифт: 0 обычный / 1 жирный)
-    "Regular": ("Regular", 21, 0),
-    "Bold": ("Bold", 25, 1),
-    "Italic": ("Italic", 21, 0),
-    "BoldItalic": ("Bold Italic", 25, 1),
+# Варианты: (семейство, PostScript-имя, размер растра Terminus в px).
+VARIANTS = [("DotMatrix LED", "DotMatrixLED", 16), ("DotMatrix Halftone", "DotMatrixHalftone", 32)]
+DOT, DOT_BOLD = 0.47, 0.495  # радиус точки в долях шага сетки (диаметр 94 % / 99 %)
+STYLES = {          # файл DotMatrix Pixel → (стиль, жирный ли — радиус и запасной шрифт: 0 обычный / 1 жирный)
+    "Regular": ("Regular", 0),
+    "Bold": ("Bold", 1),
+    "Italic": ("Italic", 0),
+    "BoldItalic": ("Bold Italic", 1),
 }
-FAMILY_OLD, FAMILY_NEW = "DotMatrix Pixel", "DotMatrix Dots"
-PS_OLD, PS_NEW = "DotMatrixPixel", "DotMatrixDots"
+FAMILY_OLD, PS_OLD = "DotMatrix Pixel", "DotMatrixPixel"
+PPEM, STEP, CELL = 16, 62.5, 8  # задаются set_grid()
+
+
+def set_grid(ppem):
+    global PPEM, STEP, CELL
+    PPEM, STEP, CELL = ppem, 1000 / ppem, ppem // 2  # ячейка — advance 500 = пол-em
 DROP = ("EBDT", "EBLC", "EBSC", "hdmx", "LTSH", "VDMX", "fpgm", "prep", "cvt ", "gasp")
 
 
@@ -54,7 +67,7 @@ def dot_glyph(r):
 
 
 def pixels(face, gid):
-    """Закрашенные пиксели глифа на 32 px: [(x, y)] в пикселях от начала глифа и базовой линии."""
+    """Закрашенные пиксели глифа на PPEM px: [(x, y)] в пикселях от начала глифа и базовой линии."""
     try:
         face.load_glyph(gid, freetype.FT_LOAD_RENDER | freetype.FT_LOAD_TARGET_MONO)
     except freetype.FT_Exception:
@@ -99,7 +112,7 @@ def dots_glyph(points, dx=0.0):
     return g, len(comps)
 
 
-def build(src, dst, style, radius, extra=None):
+def build(src, dst, style, radius, family, ps, extra=None):
     font = TTFont(src)
     for tag in DROP:
         if tag in font:
@@ -149,13 +162,13 @@ def build(src, dst, style, radius, extra=None):
                         t.cmap[cp] = name
         added = len(new)
 
-    # Имена: семейство DotMatrix Dots, PostScript DotMatrixDots-<стиль>.
+    # Имена: семейство и PostScript-имя варианта (DotMatrix LED / DotMatrixLED-<стиль> и т.д.).
     for rec in font["name"].names:
         try:
             s = rec.toUnicode()
         except UnicodeDecodeError:
             continue
-        s2 = s.replace(FAMILY_OLD, FAMILY_NEW).replace(PS_OLD, PS_NEW)
+        s2 = s.replace(FAMILY_OLD, family).replace(PS_OLD, ps)
         if s2 != s:
             rec.string = s2
     font["maxp"].maxComponentElements = max(len(glyf[n].components) if glyf[n].isComposite() else 0
@@ -169,14 +182,17 @@ def main():
     src_dir, out_dir = sys.argv[1], sys.argv[2]
     fallbacks = sys.argv[3:5]
     os.makedirs(out_dir, exist_ok=True)
-    for key, (style, radius, fbi) in STYLES.items():
-        src = os.path.join(src_dir, f"DotMatrixPixel-{key}.ttf")
-        if not os.path.isfile(src):
-            sys.exit(f"нет {src} — сначала omarchy-font-profile build-fonts")
-        dst = os.path.join(out_dir, f"DotMatrixDots-{key}.ttf")
-        extra = fallbacks[fbi] if len(fallbacks) > fbi and os.path.isfile(fallbacks[fbi]) else None
-        n, dots = build(src, dst, style, radius, extra)
-        print(f"{os.path.basename(dst)}: {n} глифов, {dots} точек, {os.path.getsize(dst) // 1024} КБ")
+    for family, ps, ppem in VARIANTS:
+        set_grid(ppem)
+        for key, (style, bold) in STYLES.items():
+            src = os.path.join(src_dir, f"DotMatrixPixel-{key}.ttf")
+            if not os.path.isfile(src):
+                sys.exit(f"нет {src} — сначала omarchy-font-profile build-fonts")
+            dst = os.path.join(out_dir, f"{ps}-{key}.ttf")
+            extra = fallbacks[bold] if len(fallbacks) > bold and os.path.isfile(fallbacks[bold]) else None
+            radius = round((DOT_BOLD if bold else DOT) * STEP, 1)
+            n, dots = build(src, dst, style, radius, family, ps, extra)
+            print(f"{os.path.basename(dst)}: {n} глифов, {dots} точек, {os.path.getsize(dst) // 1024} КБ")
 
 
 if __name__ == "__main__":

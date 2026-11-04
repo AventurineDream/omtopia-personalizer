@@ -600,5 +600,6 @@
   "Network: interface, ↓ / ↑ and a dot scope": "Сеть: интерфейс, ↓ / ↑ и точечный осциллограф",
   "Network: position": "Сеть: положение",
   "Network": "Сеть",
-  "Dots everywhere: every character in DotMatrix Dots — interface, sites, titles, terminal and code": "Точки везде: каждый знак — DotMatrix Dots: интерфейс, сайты, заголовки, терминал и код"
+  "Dots everywhere, LED: every character in large single dots (DotMatrix LED) — interface, sites, titles, terminal and code": "Точки везде, LED: каждый знак крупными одиночными точками (DotMatrix LED) — интерфейс, сайты, заголовки, терминал и код",
+  "Dots everywhere, halftone: every character in fine double-row dots (DotMatrix Halftone)": "Точки везде, полутон: каждый знак мелкими точками в два ряда (DotMatrix Halftone)"
 }
