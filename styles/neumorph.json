@@ -1,0 +1,100 @@
+{
+  "name": "Neumorphism",
+  "name_ru": "Неоморфизм",
+  "note": "Neumorphism: soft extruded plastic — no borders, panels in the background colour with a light and a dark shadow, generous round corners, muted soft sounds.",
+  "note_ru": "Неоморфизм: мягкий выдавленный пластик — без рамок, панели цвета фона со светлой и тёмной тенью, крупные скругления, приглушённые мягкие звуки.",
+  "anims": "HYDE - minimal-1",
+  "opacity": "solid",
+  "blur": "off",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 10,
+    "gapsOut": 22,
+    "borderSize": 0,
+    "rounding": 18,
+    "shadow": true,
+    "noGaps": false
+  },
+  "barSkin": "soft",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "card",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "orrery",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 550,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 20,
+    "selectedBorder": 2,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "minimal",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "background",
+    "dashAlpha": 1,
+    "dashRadius": 20,
+    "dashBorder": false,
+    "dashAnimation": "grow",
+    "dashDuration": 375
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "background",
+    "osdAlpha": 1,
+    "osdRadius": 20,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyAttach": "floating",
+    "notifyBackground": "background",
+    "notifyAlpha": 1,
+    "notifyRadius": 20,
+    "notifyCards": "flat",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "neumorph",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "nothing",
+  "look": {
+    "texture": "",
+    "elevation": 1,
+    "motion": 1.0,
+    "material": "soft",
+    "cornerScale": 1.3,
+    "typeface": "profile"
+  },
+  "theme": {
+    "dark": "nord",
+    "light": "bliss"
+  }
+}

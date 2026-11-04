@@ -128,6 +128,10 @@ A style's `look` block goes to `~/.config/omarchy/style.json` with the style id 
 speed, material, corners, typeface) for `BarStyle.qml` in omarchy-desktop-widgets, omarchy-edge-osd and
 omarchy-drawer-notifications.
 
+**Neumorphism, Brutalism, Retro 9x, Neon** — panels drawn with their own material (soft relief, thick border
+with a hard shadow, 3D bevel, accent glow), matching bar skins (`soft`, `brutal`, `bevel`, `neon`), theme pairs, sound packs,
+GTK / Firefox looks; Neon adds the `neon` scanline shader, Retro the `retro` pixel font profile.
+
 **Paper** — sheets of paper instead of panels (torn bottom edge, grain, a strip of tape in the accent colour),
 handwritten [Caveat](https://github.com/googlefonts/caveat) (OFL, bundled in `fonts/`), the `paper` bar skin and the
 `paper` screen shader (static grain over the whole screen, windows included; no `time` uniform, cheapest damage

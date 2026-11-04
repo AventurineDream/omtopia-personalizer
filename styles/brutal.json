@@ -1,0 +1,100 @@
+{
+  "name": "Brutalism",
+  "name_ru": "Брутализм",
+  "note": "Brutalism: square everything, thick ink borders, hard offset shadows without blur, no transparency, fast motion and hard clicks.",
+  "note_ru": "Брутализм: всё прямоугольное, толстые рамки цвета текста, жёсткие смещённые тени без размытия, никакой прозрачности, быстрые анимации и жёсткие клики.",
+  "anims": "ML4W - fast",
+  "opacity": "solid",
+  "blur": "off",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 8,
+    "gapsOut": 16,
+    "borderSize": 3,
+    "rounding": 0,
+    "shadow": false,
+    "noGaps": false
+  },
+  "barSkin": "brutal",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "poster",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "metro",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 250,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "slices",
+    "cardRadius": 0,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "background",
+    "dashAlpha": 1,
+    "dashRadius": 0,
+    "dashBorder": true,
+    "dashAnimation": "fade",
+    "dashDuration": 225
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "background",
+    "osdAlpha": 1,
+    "osdRadius": 0,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyAttach": "floating",
+    "notifyBackground": "background",
+    "notifyAlpha": 1,
+    "notifyRadius": 0,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "brutal",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "stock",
+  "look": {
+    "texture": "",
+    "elevation": 0,
+    "motion": 0.6,
+    "material": "brutal",
+    "cornerScale": 0,
+    "typeface": "shell"
+  },
+  "theme": {
+    "dark": "black_arch",
+    "light": "flexoki-light"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "Neon / Cyber",
+  "name_ru": "Неон",
+  "note": "Neon / cyber: dark glass, borders and panels glowing in the accent colour, a light scanline shader over the screen and synth sounds with a filter sweep.",
+  "note_ru": "Неон / кибер: тёмное стекло, рамки и панели светятся цветом акцента, лёгкий шейдер строк развёртки на экране и синт-звуки с проходом фильтра.",
+  "anims": "END-4",
+  "opacity": "glass",
+  "blur": "strong",
+  "shader": "neon",
+  "hyprGeometry": {
+    "gapsIn": 6,
+    "gapsOut": 14,
+    "borderSize": 2,
+    "rounding": 8,
+    "shadow": true,
+    "noGaps": false
+  },
+  "barSkin": "neon",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "neon",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "matrix",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 500,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 10,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "background",
+    "dashAlpha": 0.9,
+    "dashRadius": 10,
+    "dashBorder": true,
+    "dashAnimation": "slide",
+    "dashDuration": 350
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "background",
+    "osdAlpha": 0.9,
+    "osdRadius": 10,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyAttach": "floating",
+    "notifyBackground": "background",
+    "notifyAlpha": 0.9,
+    "notifyRadius": 10,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "neon",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "stock",
+  "look": {
+    "texture": "",
+    "elevation": 1,
+    "motion": 1.1,
+    "material": "glow",
+    "cornerScale": 0.8,
+    "typeface": "shell"
+  },
+  "theme": {
+    "dark": "cyber-aura",
+    "light": "cyber-aura"
+  }
+}

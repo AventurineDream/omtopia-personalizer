@@ -1,0 +1,100 @@
+{
+  "name": "Retro 9x",
+  "name_ru": "Ретро 9x",
+  "note": "Retro desktop of the nineties: grey panels with a 3D bevel, square windows, pixel interface font, no animations and chiptune sounds.",
+  "note_ru": "Ретро-десктоп девяностых: серые панели с объёмным кантом, квадратные окна, пиксельный шрифт интерфейса, без анимаций и чиптюн-звуки.",
+  "anims": "03- Disable Animation",
+  "opacity": "solid",
+  "blur": "off",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 3,
+    "gapsOut": 6,
+    "borderSize": 2,
+    "rounding": 0,
+    "shadow": false,
+    "noGaps": false
+  },
+  "barSkin": "bevel",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "terminal",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "matrix-hack",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 200,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "slices",
+    "cardRadius": 0,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "background",
+    "dashAlpha": 1,
+    "dashRadius": 0,
+    "dashBorder": true,
+    "dashAnimation": "fade",
+    "dashDuration": 200
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "background",
+    "osdAlpha": 1,
+    "osdRadius": 0,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyAttach": "floating",
+    "notifyBackground": "background",
+    "notifyAlpha": 1,
+    "notifyRadius": 0,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "retro",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "retro",
+  "look": {
+    "texture": "",
+    "elevation": 0,
+    "motion": 0,
+    "material": "bevel",
+    "cornerScale": 0,
+    "typeface": "profile"
+  },
+  "theme": {
+    "dark": "ibm",
+    "light": "bliss"
+  }
+}

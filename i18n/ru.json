@@ -518,5 +518,7 @@
   "Handwritten Caveat everywhere except the terminal and code": "Рукописный Caveat везде, кроме терминала и кода",
   "Pixel interface (Pixelify Sans), pixel terminal and code (Nihil Pixel)": "Пиксельный интерфейс (Pixelify Sans), пиксельные терминал и код (Nihil Pixel)",
   "Styles: theme (current — same brightness as the theme now · off · dark · light)": "Стили: тема (как сейчас — той же яркости, что текущая · выкл · тёмная · светлая)",
-  "Absolutely everything in Caveat, terminal and code included (not monospaced)": "Абсолютно всё в Caveat, включая терминал и код (шрифт не моноширинный)"
+  "Absolutely everything in Caveat, terminal and code included (not monospaced)": "Абсолютно всё в Caveat, включая терминал и код (шрифт не моноширинный)",
+  "Readable handwritten Pangolin for the interface, Caveat for titles, handwritten monospaced Monaspace Radon for the terminal and code": "Читаемый рукописный Pangolin в интерфейсе, Caveat в заголовках, рукописный моноширинный Monaspace Radon в терминале и коде",
+  "Handwritten Caveat everywhere; the terminal and code in handwritten monospaced Monaspace Radon": "Рукописный Caveat везде; терминал и код — рукописный моноширинный Monaspace Radon"
 }

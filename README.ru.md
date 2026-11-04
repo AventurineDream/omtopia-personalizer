@@ -127,6 +127,10 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 Блок `look` стиля пишется в `~/.config/omarchy/style.json` с id стиля — это токены панелей (тени, скорость анимаций,
 материал, углы, шрифт) для `BarStyle.qml` в omarchy-desktop-widgets, omarchy-edge-osd и omarchy-drawer-notifications.
 
+**Неоморфизм, Брутализм, Ретро 9x, Неон** — панели своим материалом (мягкий рельеф, толстая рамка с жёсткой
+тенью, объёмный кант, свечение акцента), свои скины бара (`soft`, `brutal`, `bevel`, `neon`), пары тем, звуковые пакеты,
+вид GTK / Firefox; у Неона шейдер строк развёртки `neon`, у Ретро пиксельный профиль шрифтов `retro`.
+
 **Бумага** — листы бумаги вместо панелей (рваный нижний край, зерно, полоска скотча цветом акцента), рукописный
 [Caveat](https://github.com/googlefonts/caveat) (OFL, лежит в `fonts/`), скин бара `paper` и шейдер экрана `paper`
 (статичное зерно на весь экран вместе с окнами; без `time`, самый дешёвый режим damage tracking). Цвета остаются от
