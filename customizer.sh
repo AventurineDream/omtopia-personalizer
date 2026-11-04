@@ -1514,6 +1514,7 @@ apply_preset() {
 
   hyprctl reload >/dev/null 2>&1 || true
   restore
+  { $is_backup || preset_on presetLook; } && refresh_app_looks
 
   if $is_backup; then
     : >"$ACTIVE_PRESET"
@@ -1668,6 +1669,18 @@ apply_style_fonts() {
   omarchy-font-profile "$fonts" >/dev/null 2>&1 || true
 }
 
+# Вид приложений под стиль: GTK, терминалы (omarchy-app-themes) и Firefox (omarchy-firefox-chrome) читают
+# ~/.config/omarchy/style.json. Скрипты — из dotfiles (omarchy-themes/scripts) или из PATH; нет — шаг пропускается.
+refresh_app_looks() {
+  local name path
+  for name in omarchy-app-themes omarchy-firefox-chrome; do
+    path=$(command -v "$name" 2>/dev/null || true)
+    [[ -n $path ]] || path="$HOME/dotfiles/omarchy-themes/scripts/$name"
+    [[ -x $path ]] && "$path" >/dev/null 2>&1 &
+  done
+  wait
+}
+
 # Светлая ли тема: luma фона из colors.toml (как theme_palette.py: > 0.5 — светлая).
 theme_is_light() {
   local d bg
@@ -1779,6 +1792,7 @@ apply_style() {
   fi
   apply_form_sections "$file" "$STYLE_CFG" style false merge
   style_on styleFonts && apply_style_fonts "$file"
+  style_on styleLook && refresh_app_looks
   hyprctl reload >/dev/null 2>&1 || true
   restore
   basename "$file" .json >"$ACTIVE_STYLE"
