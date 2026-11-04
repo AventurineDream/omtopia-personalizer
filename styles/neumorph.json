@@ -41,6 +41,10 @@
   "widgets": {
     "widgetStyle": "style",
     "clockStyle": "minimal",
+    "network": false,
+    "networkAnchor": "top-left",
+    "media": true,
+    "mediaAnchor": "bottom-left",
     "dashStyle": "default",
     "dashFollowBar": true,
     "dashAttach": "floating",

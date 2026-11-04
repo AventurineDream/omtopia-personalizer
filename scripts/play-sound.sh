@@ -3,7 +3,7 @@
 # Supports sound packs in ~/.config/omarchy/sounds.json:
 #   {"sounds": true, "soundPack": "theme|dotmatrix|<каталог в sounds/>", "soundVolume": 0.6, "windowSounds": false}
 #
-# Events: open close switch special fullscreen lock power menu notify critical volume
+# Events: open close switch special fullscreen lock power menu notify critical volume charge
 #         (plus freedesktop aliases: message-new-instant, dialog-warning, audio-volume-change,
 #          service-login, battery-low, screen-capture)
 set -u
@@ -44,6 +44,7 @@ declare -A DOTMATRIX_MAP=(
   [audio-volume-change]=volume
   [service-login]=power
   [screen-capture]=open
+  [power-plug]=charge
 )
 declare -A FDO_MAP=(
   [notify]=message-new-instant
@@ -51,10 +52,16 @@ declare -A FDO_MAP=(
   [battery-low]=dialog-warning
   [volume]=audio-volume-change
   [power]=service-login
+  [charge]=power-plug
+)
+# Чего нет в пакете — ближайший звук (зарядка → power, как было до charge.ogg).
+declare -A FALLBACK_MAP=(
+  [charge]=power
 )
 
 short=${DOTMATRIX_MAP[$event]:-$event}
 fdo=${FDO_MAP[$event]:-$event}
+alt=${FALLBACK_MAP[$short]:-}
 
 case "$pack" in
 dotmatrix)
@@ -63,7 +70,7 @@ dotmatrix)
     "$HOME/.local/state/omarchy/current/theme/apps/sounds"
     /usr/share/sounds/freedesktop/stereo
   )
-  names=("$short" "$event" "$fdo")
+  names=("$short" "$event" "$fdo" "$alt")
   ;;
 *)
   if [[ $pack != theme && $pack =~ ^[a-z0-9-]+$ && -d $CUSTOMIZER_DIR/sounds/$pack ]]; then
@@ -73,7 +80,7 @@ dotmatrix)
       "$CUSTOMIZER_DIR/sounds/dotmatrix"
       /usr/share/sounds/freedesktop/stereo
     )
-    names=("$short" "$event" "$fdo")
+    names=("$short" "$event" "$fdo" "$alt")
   else
     dirs=(
       "$HOME/.local/state/omarchy/current/theme/apps/sounds"

@@ -36,7 +36,7 @@ Item {
     if (s === "accent") return Color.accent
     if (s === "muted") return Color.muted
     if (s === "urgent") return Color.urgent
-    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice(6)] !== undefined) return DotMatrix.Palette[s.slice(6)]
+    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice("dotmatrix.".length)] !== undefined) return DotMatrix.Palette[s.slice("dotmatrix.".length)]
     return palette && palette[s] ? palette[s] : fallback
   }
   function alpha(c, a) {

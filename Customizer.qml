@@ -304,9 +304,12 @@ Item {
       root.items = []
       root.rebuild()
       root.loading = true
-      lister.running = false
-      lister.category = key
-      lister.running = true
+      // A busy lister is not killed (running=false/true in one tick never restarts it): its exit
+      // starts the run for the tab that is open by then.
+      if (!lister.running) {
+        lister.category = key
+        lister.running = true
+      }
     }
   }
 
@@ -330,7 +333,11 @@ Item {
     root.cache = next
     // Fill the thumbnail cache in the background; rows fall back to the source until then.
     var cat = categories[root.categoryIndexOf(key)]
-    if (cat && cat.image) Quickshell.execDetached([root.script, "thumbs", key, key === "theme-walls" ? root.wallPath : ""])
+    if (cat && cat.image) {
+      thumbsProc.running = false
+      thumbsProc.command = [root.script, "thumbs", key, key === "theme-walls" ? root.wallPath : ""]
+      thumbsProc.running = true
+    }
     if (key !== root.category.key) return
     root.loading = false
     root.items = rows
@@ -536,7 +543,7 @@ Item {
     itemList.currentIndex = root.selectedIndex
     var row = root.selectedIndex >= 0 && root.selectedIndex < displayModel.count
       ? displayModel.get(root.selectedIndex) : null
-    root.selectedRow = row ? { label: row.label, value: row.value, preview: row.preview, current: row.current, note: row.note } : null
+    root.selectedRow = row ? { label: row.label, value: row.value, preview: row.preview, current: row.current, note: row.note, sub: row.sub } : null
     var rowHasImage = root.category.image && row !== null && !root.isTweakRow(row)
     previewFile.path = (row && !rowHasImage) ? row.preview : ""
     if (!row || rowHasImage || !row.preview) root.previewText = ""
@@ -763,6 +770,11 @@ Item {
   }
 
   // Sounds: p — послушать пакет под курсором (не выбирая) или событие текущим пакетом; оверлей не закрывается.
+  function hasRow(value) {
+    for (var i = 0; i < displayModel.count; i++) if (displayModel.get(i).value === value) return true
+    return false
+  }
+
   function listenSound() {
     var v = root.selectedRow ? String(root.selectedRow.value) : ""
     if (v.indexOf("pack:") === 0) Quickshell.execDetached([root.script, "sound-preview", v.slice(5), "notify"])
@@ -775,6 +787,13 @@ Item {
     root.dismiss()
     Quickshell.execDetached(["bash", "-c", (effect ? '"$0" apply wallpaper-fx "$1" && ' : "") + 'sleep 0.3; "$0" fx-replay',
       root.script, effect])
+  }
+
+  // Миниатюры дописались — строки, ушедшие на полную картинку, возвращаются к лёгкой миниатюре.
+  property int thumbVersion: 0
+  Process {
+    id: thumbsProc
+    onExited: root.thumbVersion++
   }
 
   function thumbUrl(path) {
@@ -864,9 +883,24 @@ Item {
   Process {
     id: lister
     property string category: ""
-    command: [root.script, "list", category, category === "theme-walls" ? root.wallPath : ""]
+    // The first output line is the category the run was started for: a finished run of a previous
+    // tab (fast tab / group switching) must not be filed under the tab that is open now.
+    command: ["sh", "-c", 'printf "%s\\n" "$1"; shift; exec "$@"', "sh", category,
+      root.script, "list", category, category === "theme-walls" ? root.wallPath : ""]
     stdout: StdioCollector {
-      onStreamFinished: root.loadRows(lister.category, text)
+      onStreamFinished: {
+        var raw = String(text || "")
+        var nl = raw.indexOf("\n")
+        if (nl < 0) return
+        root.loadRows(raw.slice(0, nl), raw.slice(nl + 1))
+      }
+    }
+    onExited: {
+      var key = root.category.key
+      if (root.loading && lister.category !== key && !root.cache[key] && !lister.running) {
+        lister.category = key
+        lister.running = true
+      }
     }
   }
 
@@ -1237,7 +1271,8 @@ Item {
           else if (!ctrl && root.pane === 1 && t === "[") root.jumpSection(-1)
           else if (!ctrl && root.pane === 1 && t === "]") root.jumpSection(1)
           else if (!ctrl && t === "p" && (root.category.key === "lock" || root.category.key === "lock-tweaks")) root.previewLock()
-          else if (!ctrl && t === "T" && root.category.key === "lock") root.run("regen-thumbs")
+          // T: недостающие снимки, если такие есть, иначе — все.
+          else if (!ctrl && t === "T" && root.category.key === "lock") root.run(root.hasRow("missing-thumbs") ? "missing-thumbs" : "regen-thumbs")
           else if (!ctrl && t === "p" && root.category.key === "wallpaper-fx") root.playFx()
           else if (!ctrl && t === "p" && root.category.key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
           else if (!ctrl && t === "p" && root.category.key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
@@ -1911,12 +1946,17 @@ Item {
                   color: root.faint
 
                   Image {
+                    id: thumbImg
                     // Cached thumbnail first; the full image only while the cache fills.
                     property bool fallback: false
                     anchors.fill: parent
                     source: !thumb.visible || !itemRow.preview ? ""
                       : fallback ? root.fileUrl(itemRow.preview) : root.thumbUrl(itemRow.preview)
                     onStatusChanged: if (status === Image.Error && !fallback) fallback = true
+                    Connections {
+                      target: root
+                      function onThumbVersionChanged() { thumbImg.fallback = false }
+                    }
                     sourceSize.width: Math.max(1, thumb.width * 2)
                     sourceSize.height: Math.max(1, thumb.height * 2)
                     fillMode: Image.PreserveAspectCrop
@@ -2199,6 +2239,21 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 200 } }
               }
 
+              // Картинки нет (снимок лока ещё не снят, файл удалён) — подсказка вместо пустого поля.
+              Text {
+                anchors.centerIn: parent
+                width: parent.width - Style.space(40)
+                visible: previewImage.showImage && !!root.selectedRow.preview && previewImage.status === Image.Error
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
+                  : root.tr("No preview for this item.")
+                color: root.foreground
+                opacity: 0.6
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+              }
+
               // Theme palette strip along the bottom edge.
               Row {
                 id: paletteStrip
@@ -2232,7 +2287,9 @@ Item {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   wrapMode: Text.WordWrap
-                  text: root.selectedRow && root.selectedRow.note ? root.selectedRow.note : "No preview image"
+                  text: root.selectedRow && root.selectedRow.note ? root.selectedRow.note
+                    : root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
+                    : root.tr("No preview image")
                   color: root.muted
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.title
@@ -2547,6 +2604,7 @@ Item {
                 anchors.fill: parent
                 visible: root.category.presetStage === true && root.selectedRow !== null
                 readonly property var presetData: visible && root.previewText ? root.parseJson(root.previewText) : ({})
+                onPresetDataChanged: presetHeroImage.missing = false
                 readonly property string presetWallPath: {
                   var w = String(presetData.wallpaper || "")
                   if (!w) return ""
@@ -2563,8 +2621,13 @@ Item {
                   color: root.faint
 
                   Image {
+                    id: presetHeroImage
                     anchors.fill: parent
-                    source: presetStage.visible && presetStage.presetWallPath ? root.fileUrl(presetStage.presetWallPath) : ""
+                    // Файла уже нет (пресет снят со старым путём) — показать текущие обои, а не пустое поле.
+                    property bool missing: false
+                    onStatusChanged: if (status === Image.Error && !missing) missing = true
+                    source: !presetStage.visible || !presetStage.presetWallPath ? ""
+                      : (missing && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : root.fileUrl(presetStage.presetWallPath))
                     sourceSize.width: Math.max(1, presetHero.width)
                     sourceSize.height: Math.max(1, presetHero.height)
                     fillMode: Image.PreserveAspectCrop
@@ -2776,6 +2839,7 @@ Item {
                 // Имя, ключ включения, якорь по умолчанию, размер на экране 1440 px (примерно как у виджетов).
                 readonly property var defs: [
                   { key: "clock", title: "Clock", on: true, anchor: "top-left", w: 280, h: 130 },
+                  { key: "network", title: "Network", on: false, anchor: "top-left", w: 320, h: 90 },
                   { key: "media", title: "Now playing", on: true, anchor: "bottom-left", w: 400, h: 120 },
                   { key: "sysinfo", title: "System rings", on: true, anchor: "top-right", w: 380, h: 110 },
                   { key: "todo", title: "Todo", on: false, anchor: "right", w: 300, h: 170 },
@@ -2788,19 +2852,31 @@ Item {
                   return v.indexOf("visualizer") === 0 ? "visualizer" : ""
                 }
                 readonly property real k: deskBox.width / 1440
-                readonly property real margin: (cfg.edgeMargin !== undefined ? Number(cfg.edgeMargin) : 56) * k
+                readonly property real margin: (cfg.edgeMargin !== undefined ? Number(cfg.edgeMargin) : 24) * k
+                // Как place() в Widgets.qml: виджеты с одним якорем встают колонкой с зазором 14 px.
                 readonly property var boxes: {
                   var out = []
-                  var W = deskBox.width, H = deskBox.height
+                  var W = deskBox.width, H = deskBox.height, gap = 14 * k
+                  var groups = ({})
                   for (var i = 0; i < defs.length; i++) {
                     var d = defs[i]
                     var on = cfg[d.key] === undefined ? d.on : cfg[d.key] === true
                     if (!on) continue
                     var a = String(cfg[d.key + "Anchor"] || d.anchor)
-                    var w = d.w * k, h = d.h * k
-                    var x = a.indexOf("left") !== -1 ? margin : a.indexOf("right") !== -1 ? W - w - margin : (W - w) / 2
-                    var y = a.indexOf("top") !== -1 ? margin : a.indexOf("bottom") !== -1 ? H - h - margin : (H - h) / 2
-                    out.push({ key: d.key, title: d.title, x: x, y: y, w: w, h: h })
+                    if (!groups[a]) groups[a] = []
+                    groups[a].push({ key: d.key, title: d.title, w: d.w * k, h: d.h * k })
+                  }
+                  for (var a2 in groups) {
+                    var g = groups[a2], total = 0
+                    for (var j = 0; j < g.length; j++) total += g[j].h + (j < g.length - 1 ? gap : 0)
+                    var off = 0
+                    for (var j2 = 0; j2 < g.length; j2++) {
+                      var b = g[j2]
+                      b.x = a2.indexOf("left") !== -1 ? margin : a2.indexOf("right") !== -1 ? W - b.w - margin : (W - b.w) / 2
+                      b.y = a2.indexOf("top") !== -1 ? margin + off : a2.indexOf("bottom") !== -1 ? H - margin - total + off : (H - total) / 2 + off
+                      off += b.h + gap
+                      out.push(b)
+                    }
                   }
                   for (var p = 0; p < out.length; p++) {
                     out[p].clash = false

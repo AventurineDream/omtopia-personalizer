@@ -123,6 +123,7 @@
   "widgets": {
     "widgetStyle": "dotmatrix",
     "clockStyle": "big",
+    "media": true,
     "dashStyle": "dotmatrix",
     "dashFollowBar": true,
     "dashAttach": "attached",
@@ -131,7 +132,10 @@
     "dashRadius": 14,
     "dashBorder": true,
     "dashAnimation": "slide",
-    "dashDuration": 240
+    "dashDuration": 240,
+    "network": true,
+    "networkAnchor": "top-left",
+    "mediaAnchor": "top-left"
   },
   "osd": {
     "osdStyle": "dotmatrix",

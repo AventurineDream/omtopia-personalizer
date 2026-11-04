@@ -585,5 +585,19 @@
   "Pick a folder": "Выбери папку",
   "default (current wallpaper)": "по умолчанию (текущие обои)",
   "Photo: folder (default — the current wallpaper)": "Фото: папка (по умолчанию — текущие обои)",
-  "Desktop widgets: on / off (off — none of them is drawn)": "Виджеты рабочего стола: вкл / выкл (выкл — не рисуется ни один)"
+  "Desktop widgets: on / off (off — none of them is drawn)": "Виджеты рабочего стола: вкл / выкл (выкл — не рисуется ни один)",
+  "Folder not found: %s": "Папка не найдена: %s",
+  "This setting cannot be typed in — use h/l or ⏎": "Это значение нельзя ввести — используй h/l или ⏎",
+  "📸 Capture missing previews (%s)  (T)": "📸 Снять недостающие превью (%s)  (T)",
+  "Only designs without a preview show on screen in turn (≈1.5 s each) and are captured.": "Только дизайны без превью по очереди показываются на экране (≈1,5 с каждый) и снимаются.",
+  "🔄 Refresh previews of all designs": "🔄 Обновить превью всех дизайнов",
+  "No preview yet — T captures the missing ones, p shows the design live.": "Превью ещё нет — T снимет недостающие, p покажет дизайн вживую.",
+  "No preview for this item.": "Для этого пункта нет превью.",
+  "No preview image": "Нет картинки превью",
+  "File not found: %s": "Файл не найден: %s",
+  "Dotify needs python3 with numpy and Pillow": "Dotify нужен python3 с numpy и Pillow",
+  "Margin from the bar / frame to the cards": "Отступ от бара / рамки до карточек",
+  "Network: interface, ↓ / ↑ and a dot scope": "Сеть: интерфейс, ↓ / ↑ и точечный осциллограф",
+  "Network: position": "Сеть: положение",
+  "Network": "Сеть"
 }

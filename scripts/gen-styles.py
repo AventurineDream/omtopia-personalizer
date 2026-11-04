@@ -12,7 +12,7 @@ out = os.path.join(plugin, "styles")
 
 # «Содержимое», а не форма: что видно и в каком формате — остаётся за пользователем.
 CONTENT = {
-    "widgets": ["clock", "media", "visualizer", "sysinfo", "edgeHover", "dashMedia", "dashCalendar", "dashWeather", "dashStats"],
+    "widgets": ["clock", "visualizer", "sysinfo", "edgeHover", "dashMedia", "dashCalendar", "dashWeather", "dashStats"],
     "lock": ["clock24", "showSeconds", "showDate"],
     "sounds": ["sounds", "soundVolume"],
     "imagePicker": ["autoCache"],
@@ -28,6 +28,8 @@ for sec, keys in CONTENT.items():
 dotmatrix["hyprGeometry"]["noGaps"] = True
 dotmatrix["notifications"].setdefault("notifyAttach", "auto")
 dotmatrix["fonts"] = "pixel"
+# Как рабочий стол NIHIL: часы, сеть и плеер одной колонкой карточек в левом верхнем углу.
+dotmatrix["widgets"].update(network=True, networkAnchor="top-left", media=True, mediaAnchor="top-left")
 # Nothing: плоское «железо» — без теней, сплошные поверхности, шрифт профиля.
 dotmatrix["look"] = {"elevation": 0, "motion": 1, "material": "solid", "cornerScale": 1, "typeface": "profile", "texture": ""}
 dotmatrix = {
@@ -51,6 +53,7 @@ def plain(name, name_ru, note, note_ru, *, geom, bar, opacity, blur, anims, lock
         "imagePicker": {"style": picker, "cardRadius": radius, "selectedBorder": 2 if cards == "flat" else 1, "dim": 0.5},
         "widgets": {
             "widgetStyle": "style", "clockStyle": "big" if cards != "flat" else "minimal",
+            "network": False, "networkAnchor": "top-left", "media": True, "mediaAnchor": "bottom-left",
             "dashStyle": "default", "dashFollowBar": True, "dashAttach": attach, "dashBackground": "background",
             "dashAlpha": alpha, "dashRadius": radius, "dashBorder": cards != "flat",
             "dashAnimation": dash_anim, "dashDuration": fx["duration"] // 2 + 100,

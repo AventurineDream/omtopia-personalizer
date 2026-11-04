@@ -43,7 +43,7 @@ Item {
     if (s === "accent") return Color.accent
     if (s === "muted") return Color.muted
     if (s === "urgent") return Color.urgent
-    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice(6)] !== undefined) return DotMatrix.Palette[s.slice(6)]
+    if (s.indexOf("dotmatrix.") === 0 && DotMatrix.Palette[s.slice("dotmatrix.".length)] !== undefined) return DotMatrix.Palette[s.slice("dotmatrix.".length)]
     if (root.palette && root.palette[s]) return root.palette[s]
     return fallback
   }
@@ -121,7 +121,7 @@ Item {
     if (batteryCharging && chargerArmed) {
       root.triggerCharge(false)
       // Charger sound belongs to the Glyph effect: off together with it.
-      if (root.enabled && root.chargerEnabled && root.soundScript) Quickshell.execDetached([root.soundScript, "power"])
+      if (root.enabled && root.chargerEnabled && root.soundScript) Quickshell.execDetached([root.soundScript, "charge"])
     }
   }
 

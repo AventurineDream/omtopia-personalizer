@@ -83,6 +83,15 @@ OPACITY="$CUSTOMIZER_DIR/scripts/opacity.sh"
 BLUR="$CUSTOMIZER_DIR/scripts/blur.sh"
 RECOLOR="$CUSTOMIZER_DIR/scripts/recolor-wallpapers"
 DOTIFY="$CUSTOMIZER_DIR/scripts/dotify.py"
+# Python для Dotify — с numpy и Pillow. В окружении shell первым в PATH может стоять python3 из mise
+# (без этих пакетов): тогда вкладка пропадала, а скрипт падал. Пробуем по порядку, первый подходящий.
+dotify_python() {
+  local py
+  for py in /usr/bin/python3 python3; do
+    command -v "$py" >/dev/null && "$py" -I -c 'import numpy, PIL' 2>/dev/null && { echo "$py"; return 0; }
+  done
+  return 1
+}
 PLAY_SOUND="$CUSTOMIZER_DIR/scripts/play-sound.sh"
 RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/omarchy-customizer"
 ANIM_BACKUP="$RUN_DIR/active_animations.lua"
@@ -193,7 +202,8 @@ dotify_opts() {
 }
 
 dotify_files() {
-  local dest out stem base count=0 last_out=""
+  local dest out stem base count=0 last_out="" py
+  py=$(dotify_python) || { notify-send -u critical "Dotify" "$(t "Dotify needs python3 with numpy and Pillow")"; exit 1; }
   dest=$(dotify_dest_dir)
   local -a opts
   mapfile -t opts < <(dotify_opts)
@@ -212,7 +222,7 @@ dotify_files() {
     stem=${base%.*}
     [[ $stem == dot-* ]] || stem="dot-$stem"
     out="$dest/$stem.png"
-    if ! "$DOTIFY" "$src" "$out" "${opts[@]}" >/dev/null; then
+    if ! "$py" -I "$DOTIFY" "$src" "$out" "${opts[@]}" >/dev/null; then
       notify-send -u critical "Dotify" "$(t "Dotify failed on %s" "$base")"
       exit 1
     fi
@@ -228,13 +238,14 @@ dotify_files() {
 }
 
 dotify_glyph() {
-  local glyph=${1:-󰣇} slug=${2:-arch} dest out
+  local glyph=${1:-󰣇} slug=${2:-arch} dest out py
+  py=$(dotify_python) || { notify-send -u critical "Dotify" "$(t "Dotify needs python3 with numpy and Pillow")"; exit 1; }
   dest=$(dotify_dest_dir)
   out="$dest/dot-$slug.png"
   local -a opts
   mapfile -t opts < <(dotify_opts)
   notify-send -t 3000 "Dotify" "$(t "Rendering Arch Linux LED dot-matrix wallpaper…")"
-  if ! "$DOTIFY" --glyph "$glyph" "$out" "${opts[@]}" >/dev/null; then
+  if ! "$py" -I "$DOTIFY" --glyph "$glyph" "$out" "${opts[@]}" >/dev/null; then
     notify-send -u critical "Dotify" "$(t "Dotify failed")"
     exit 1
   fi
@@ -464,7 +475,7 @@ WIDGET_TWEAKS=(
   "desktopWidgets|bool|true|Desktop widgets: on / off (off — none of them is drawn)"
   "widgetStyle|enum|style default dotmatrix|Widgets: look (style — follows the Customizer style)"
   "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
-  "edgeMargin|num|0 200 8 56|Margin from the screen edges"
+  "edgeMargin|num|0 200 4 24|Margin from the bar / frame to the cards"
   "tint|color|accent|Accent colour"
   "screens|enum|all primary|Screens"
   "#Clock"
@@ -486,6 +497,8 @@ WIDGET_TWEAKS=(
   "#System rings"
   "sysinfo|bool|true|System rings"
   "sysinfoAnchor|enum|top-right left center right bottom-left bottom bottom-right top-left top|System rings: position"
+  "network|bool|false|Network: interface, ↓ / ↑ and a dot scope"
+  "networkAnchor|enum|top-left top top-right left center right bottom-left bottom bottom-right|Network: position"
   "#Todo"
   "todo|bool|false|Todo / notes (click — done, right click — delete, + — add)"
   "todoAnchor|enum|right top-right top-left top left center bottom-left bottom bottom-right|Todo: position"
@@ -712,7 +725,7 @@ color_roles() {
   # Палитра DOT-MATRIX (dotmatrix/Palette.qml): тема или монохром — по dotmatrix.json.
   printf '%s\n' dotmatrix.bg dotmatrix.fg dotmatrix.dim dotmatrix.line dotmatrix.surface dotmatrix.signal dotmatrix.danger
   awk -F'=' '/^[a-z_]+ *= *"#/ { gsub(/ /, "", $1); print $1 }' "$colors" 2>/dev/null |
-    grep -vxE 'background|foreground|accent|muted'
+    grep -vxE 'background|foreground|accent|muted' || true
 }
 
 font_list() {
@@ -903,19 +916,38 @@ tweak_set() {
   color)
     if [[ ($key == gradient && $value == none) || (($key == wsActiveColor || $key == dotmatrix*) && $value == default) ]]; then
       skin_edit --arg k "$key" 'del(.[$k])'
-    elif [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || color_roles | grep -qxF -- "$value"; then
+    elif [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || color_roles | grep -xF -- "$value" >/dev/null; then
       skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'
     else
       fail "$(t "%s is not #rrggbb or a theme colour role" "$value")"
     fi
     ;;
   font)
-    [[ -z $value ]] || font_list | grep -qxF -- "$value" || fail "$(t "Font not found: %s" "$value")"
+    [[ -z $value ]] || font_list | grep -xF -- "$value" >/dev/null || fail "$(t "Font not found: %s" "$value")"
     if [[ -z $value ]]; then skin_edit --arg k "$key" 'del(.[$k])'; else skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'; fi
     ;;
-  text | file)
+  text)
     if [[ -z $value ]]; then skin_edit --arg k "$key" 'del(.[$k])'; else skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'; fi
     ;;
+  file)
+    if [[ -z $value ]]; then skin_edit --arg k "$key" 'del(.[$k])'; else
+      [[ -f ${value/#\~/$HOME} ]] || fail "$(t "File not found: %s" "$value")"
+      skin_edit --arg k "$key" --arg v "$value" '.[$k] = $v'
+    fi
+    ;;
+  dir)
+    # Пусто или «по умолчанию» (так подпись строки попадает в поле ввода) — вернуть по умолчанию.
+    local deflabel full
+    deflabel=$(t "default (current wallpaper)")
+    if [[ -z $value || $value == "$deflabel" || $value == "${deflabel%% (*}" || ${value,,} == default || $value == "по умолчанию"* ]]; then
+      skin_edit --arg k "$key" 'del(.[$k])'
+    else
+      full=${value/#\~/$HOME}
+      [[ -d $full ]] || fail "$(t "Folder not found: %s" "$value")"
+      skin_edit --arg k "$key" --arg v "${full/#$HOME/\~}" '.[$k] = $v'
+    fi
+    ;;
+  *) fail "$(t "This setting cannot be typed in — use h/l or ⏎")" ;;
   esac
 }
 
@@ -979,14 +1011,26 @@ lock_edit() {
 }
 
 # Снимает каждый дизайн через превью экрана блокировки (без блокировки).
+lock_all_ids() {
+  jq -r '.[].id' "$LOCK_PLUGIN/designs/designs.json" 2>/dev/null
+  local f
+  for f in "$LOCK_USER_DIR"/*.qml; do [[ -f $f ]] && echo "my:$(basename "$f")"; done
+}
+
+# Дизайны без снимка превью (новые или переименованные).
+lock_missing_ids() {
+  local id
+  lock_all_ids | while read -r id; do
+    [[ -f $LOCK_THUMBS/$(lock_thumb_name "$id").jpg ]] || echo "$id"
+  done
+}
+
+# lock_thumbs [missing]: снять превью всех дизайнов или только недостающих.
 lock_thumbs() {
   mkdir -p "$LOCK_THUMBS"
   notify-send -t 3000 "Lock" "$(t "Capturing design previews…")"
   local id
-  {
-    jq -r '.[].id' "$LOCK_PLUGIN/designs/designs.json"
-    for f in "$LOCK_USER_DIR"/*.qml; do [[ -f $f ]] && echo "my:$(basename "$f")"; done
-  } | while read -r id; do
+  if [[ ${1:-} == missing ]]; then lock_missing_ids; else lock_all_ids; fi | while read -r id; do
     omarchy-shell lock previewDesign "$id" >/dev/null
     sleep 1.5
     grim -s 1 -t jpeg -q 90 "$LOCK_THUMBS/$(lock_thumb_name "$id").jpg"
@@ -1425,6 +1469,22 @@ geometry_reset() {
   notify-send -t 2000 "Windows" "$(t "Window geometry: Hyprland config")"
 }
 
+# Обои для пресета — путь, который переживёт смену темы. Omarchy держит копию темы в
+# ~/.local/state/omarchy/current/theme, и current/background указывает внутрь неё: после смены темы такого
+# файла уже нет. Путь внутри копии переводится в исходную тему (своя ~/.config/omarchy/themes/<имя>,
+# потом системная), если файл там есть; иначе остаётся как был.
+stable_wallpaper() {
+  local wp=$1 cur="$HOME/.local/state/omarchy/current/theme/" rel name d
+  if [[ $wp == "$cur"* ]]; then
+    rel=${wp#"$cur"}
+    name=$(theme_name)
+    for d in "$HOME/.config/omarchy/themes/$name" "${OMARCHY_PATH:-/usr/share/omarchy}/themes/$name"; do
+      [[ -f $d/$rel ]] && { echo "$d/$rel"; return; }
+    done
+  fi
+  echo "$wp"
+}
+
 theme_exists() {
   [[ -n $1 && ( -d $HOME/.config/omarchy/themes/$1 || -d ${OMARCHY_PATH:-/usr/share/omarchy}/themes/$1 ) ]]
 }
@@ -1475,7 +1535,7 @@ snapshot_preset() {
   local hypr_state="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
   local theme wp anim="" f op bl sh geom_json="null" skin_name layout_name skin_data="null" layout_data="null" bar_tr
   theme=$(theme_name)
-  wp=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
+  wp=$(stable_wallpaper "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)")
   [[ -n $wp ]] && wp=${wp/#"$HOME/"/"~/"}
   if [[ -s $ANIM_ACTIVE ]]; then
     while read -r f; do
@@ -2255,9 +2315,14 @@ polaroid|Cards in a white frame with a caption
 STYLES
     ;;
   lock)
-    local cur id name file thumb
+    local cur id name file thumb missing
     cur=$(lock_current)
-    printf '%s\t%s\t\t0\t%s\n' "$(t "🔄 Refresh previews of all designs  (T)")" "regen-thumbs" \
+    missing=$(lock_missing_ids | grep -c .)
+    if ((missing > 0)); then
+      printf '%s\t%s\t\t0\t%s\n' "$(t "📸 Capture missing previews (%s)  (T)" "$missing")" "missing-thumbs" \
+        "$(t "Only designs without a preview show on screen in turn (≈1.5 s each) and are captured.")"
+    fi
+    printf '%s\t%s\t\t0\t%s\n' "$(t "🔄 Refresh previews of all designs")" "regen-thumbs" \
       "$(t "Each design shows on screen in turn (≈1.5 s each) and is captured in the current theme's colours.")"
     jq -r --arg l "$UI_LANG" '.[] | [.id, .name, (.["description_" + $l] // .description), (.tags | join(" · "))] | @tsv' "$LOCK_PLUGIN/designs/designs.json" |
       while IFS=$'\t' read -r id name desc tags; do
@@ -2307,7 +2372,7 @@ STYLES
     fi
     while read -r slug; do
       [[ -n $slug ]] || continue
-      printf '%s\n' "${favs[@]}" | grep -qxF -- "$slug" && continue
+      printf '%s\n' "${favs[@]}" | grep -xF -- "$slug" >/dev/null && continue
       theme_row "$slug" ""
     done <<<"$all"
     unset -f theme_row
@@ -2524,6 +2589,7 @@ apply() {
     ;;
   lock)
     if [[ $value == regen-thumbs ]]; then lock_thumbs; exit 0; fi
+    if [[ $value == missing-thumbs ]]; then lock_thumbs missing; exit 0; fi
     lock_edit --arg d "$value" '.design = $d'
     notify-send -t 2000 "Lock" "$(t "Design: %s" "$value")"
     ;;
@@ -2659,7 +2725,7 @@ available() {
   echo themes
   echo theme-walls
   command -v lutgen >/dev/null && command -v zenity >/dev/null && echo walls
-  python3 -c 'import numpy, PIL' 2>/dev/null && echo dotify
+  dotify_python >/dev/null && echo dotify
   echo anims
   echo opacity
   echo blur
@@ -2696,7 +2762,8 @@ bar-skins-restore) bar_skin_restore ;;
 tweak)
   if [[ ${3:-} == set ]]; then tweak_set "$2" "${4-}"; else tweak "$2" "${3:-+}"; fi
   # Углы окон — правило окон: снять старое можно только перезагрузкой конфига (hypr/customizer.lua).
-  [[ $2 == window* ]] && { window_sync; hyprctl reload >/dev/null 2>&1; restore >/dev/null 2>&1; }
+  # Не «[[ … ]] && …» последней строкой: для остальных ключей это давало код 1, и оверлей считал ввод (i) ошибкой.
+  if [[ $2 == window* ]]; then window_sync; hyprctl reload >/dev/null 2>&1; restore >/dev/null 2>&1; fi
   ;;
 lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
@@ -2711,7 +2778,7 @@ theme-fav)
 # Послушать пакет, не выбирая его: sound-preview <пакет> [событие].
 sound-preview) OMARCHY_SOUND_PACK="${2:-theme}" "$PLAY_SOUND" "${3:-notify}" --force ;;
 style-delete) delete_user_style "${2:-}" ;;
-lock-thumbs) lock_thumbs ;;
+lock-thumbs) lock_thumbs "${2:-}" ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;
 picker-cache) picker_cache ;;
 picker-open) setsid -f omarchy-theme-switcher >/dev/null 2>&1 ;;
