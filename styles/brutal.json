@@ -94,7 +94,7 @@
     "typeface": "shell"
   },
   "theme": {
-    "dark": "black_arch",
+    "dark": "gruvbox-material",
     "light": "flexoki-light"
   }
 }

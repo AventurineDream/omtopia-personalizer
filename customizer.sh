@@ -42,6 +42,8 @@ STYLE_DIR="$CUSTOMIZER_DIR/styles"
 USER_STYLES="$HOME/.config/omarchy/customizer/styles"
 ACTIVE_STYLE="$STATE_DIR/active-style"
 STYLE_CFG="$HOME/.config/omarchy/customizer/style-apply.json"
+# Избранные темы (Customizer → Тема, f): JSON-массив имён, наверху списка в порядке добавления.
+FAV_THEMES="$HOME/.config/omarchy/customizer/favorite-themes.json"
 # Токены стиля для панелей (BarStyle.qml в widgets / osd / notifications): тени, анимации, материал, углы, шрифт.
 LOOK_CFG="$HOME/.config/omarchy/style.json"
 # Углы окон: правило окон Hyprland из hypr/customizer.lua (действует и при «без отступов»).
@@ -2188,15 +2190,33 @@ STYLES
           "$(t "Build the “dynamic” theme from the current wallpaper with matugen (Material You) and apply it.")"
       done
     fi
-    {
+    # Избранные (f) — отдельным разделом наверху, в порядке добавления; в общем списке их нет.
+    local -a favs=()
+    local all
+    all=$({
       find -L "$HOME/.config/omarchy/themes" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null
       find "$OMARCHY_PATH/themes" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null
-    } | sort -u | while read -r slug; do
+    } | sort -u)
+    mapfile -t favs < <(jq -r '.[]? | strings' "$FAV_THEMES" 2>/dev/null)
+    theme_row() {
+      local slug=$1 star=$2 dir label
       dir="$HOME/.config/omarchy/themes/$slug"
       [[ -d $dir ]] || dir="$OMARCHY_PATH/themes/$slug"
+      [[ -d $dir ]] || return 0
       label=$(sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g' <<<"$slug")
-      printf '%s\t%s\t%s\t%s\t%s\n' "$label" "$slug" "$(theme_preview "$dir")" "$([[ $slug == "$current" ]] && echo 1 || echo 0)" "$(theme_palette "$dir")"
-    done
+      printf '%s\t%s\t%s\t%s\t%s\n' "$star$label" "$slug" "$(theme_preview "$dir")" "$([[ $slug == "$current" ]] && echo 1 || echo 0)" "$(theme_palette "$dir")"
+    }
+    if ((${#favs[@]})); then
+      printf '%s\t%s\t\t0\t\theader\n' "$(t "Favorites")" "section:Favorites"
+      for slug in "${favs[@]}"; do theme_row "$slug" "★ "; done
+      printf '%s\t%s\t\t0\t\theader\n' "$(t "All themes")" "section:All themes"
+    fi
+    while read -r slug; do
+      [[ -n $slug ]] || continue
+      printf '%s\n' "${favs[@]}" | grep -qxF -- "$slug" && continue
+      theme_row "$slug" ""
+    done <<<"$all"
+    unset -f theme_row
     ;;
   theme-walls)
     # Как omarchy-bg-browser (SUPER+CTRL+SPACE): категории — подпапки
@@ -2580,6 +2600,12 @@ lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
 layout-delete) delete_user_layout "${2:-}" ;;
 preset-delete) delete_user_preset "${2:-}" ;;
+# Избранная тема: добавить в конец / убрать (Customizer → Тема, f).
+theme-fav)
+  [[ ${2:-} =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+  write_json_inplace "$FAV_THEMES" "$(jq --arg t "$2" 'if index($t) then map(select(. != $t)) else . + [$t] end' \
+    <<<"$(jq -c 'if type == "array" then . else [] end' "$FAV_THEMES" 2>/dev/null || echo '[]')")"
+  ;;
 # Послушать пакет, не выбирая его: sound-preview <пакет> [событие].
 sound-preview) OMARCHY_SOUND_PACK="${2:-theme}" "$PLAY_SOUND" "${3:-notify}" --force ;;
 style-delete) delete_user_style "${2:-}" ;;

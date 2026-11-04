@@ -32,7 +32,7 @@ Item {
     { group: "presets", key: "styles",    icon: "󰉦", title: "Style",        hint: "Form on any theme · D — delete",         image: false, live: false, presetStage: true },
     { group: "presets", key: "fonts",     icon: "󰛖", title: "Fonts",        hint: "System font profiles, by style",          image: false, live: false },
     { group: "presets", key: "sounds",    icon: "󰕾", title: "Sounds",       hint: "Sound packs · p — listen",               image: false, live: false },
-    { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
+    { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set · f — favorite",      image: true,  live: false },
     { group: "desk", key: "theme-walls",  icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
     { group: "desk", key: "walls",        icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
     { group: "desk", key: "dotify",       icon: "󰇄", title: "Dotify",       hint: "LED dot-matrix · O folder · o image(s)", image: true, live: false },
@@ -747,6 +747,15 @@ Item {
   }
 
   // Wallpaper FX: выбрать эффект строки (если это эффект) и проиграть его на рабочем столе.
+  // Themes: f — в избранное / из избранного; оверлей открыт, список перечитывается, курсор остаётся на теме.
+  function toggleFavoriteTheme() {
+    var row = root.selectedRow
+    if (root.pane !== 1 || !row || root.isHeader(row) || /^dynamic:/.test(String(row.value)) || favProc.running) return
+    favProc.slug = String(row.value)
+    favProc.command = [root.script, "theme-fav", favProc.slug]
+    favProc.running = true
+  }
+
   // Sounds: p — послушать пакет под курсором (не выбирая) или событие текущим пакетом; оверлей не закрывается.
   function listenSound() {
     var v = root.selectedRow ? String(root.selectedRow.value) : ""
@@ -946,6 +955,12 @@ Item {
     id: tweaker
     property string key: ""
     onExited: root.tweakDone()
+  }
+
+  Process {
+    id: favProc
+    property string slug: ""
+    onExited: root.reloadCategory()
   }
 
   Process {
@@ -1259,6 +1274,7 @@ Item {
           else if (t === "q") root.dismiss()
           else if (t === "r") root.randomPick()
           else if (t === "D") root.deletePreset()
+          else if (!ctrl && t === "f" && root.category.key === "themes") root.toggleFavoriteTheme()
           else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "o") root.run("pick-files")
           else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "O") root.run("pick-dir")
           else if (t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)

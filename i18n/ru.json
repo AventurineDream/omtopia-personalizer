@@ -542,5 +542,9 @@
   "Neon: synth saw with a filter sweep": "Неон: синт-пила с проходом фильтра",
   "Sound pack: %s": "Звуковой пакет: %s",
   "Sketchbook page: polaroid cards on a ruled sheet, pencil circle, tape and a sticky note": "Страница скетчбука: карточки-полароиды на линованном листе, карандашный кружок, скотч и стикер",
-  "NIHIL drawer layout in the %s style finish: search, 7-column grid, > actions, = calculator": "Шторка NIHIL в отделке стиля %s: поиск, сетка в 7 колонок, > действия, = калькулятор"
+  "NIHIL drawer layout in the %s style finish: search, 7-column grid, > actions, = calculator": "Шторка NIHIL в отделке стиля %s: поиск, сетка в 7 колонок, > действия, = калькулятор",
+  "Favorites": "Избранные",
+  "All themes": "Все темы",
+  "omarchy theme set · f — favorite": "omarchy theme set · f — в избранное",
+  "favorite": "в избранное"
 }
