@@ -7,6 +7,7 @@ import QtQuick 6.11
 import QtQuick.Effects
 import qs.Commons
 import qs.Ui
+import "dotmatrix" as DotMatrix
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T). Header with what is in use now, then three panes:
@@ -212,6 +213,9 @@ Item {
   readonly property color panelFill: Util.alpha(foreground, 0.045)
   readonly property color panelBorder: Util.alpha(foreground, 0.08)
   property string fontFamily: Style.font.menuFamily
+  // Профиль шрифтов dots («точки везде»): заголовки, вкладки, категории и разделы — DotMatrix Dot.
+  readonly property bool dotHeads: DotMatrix.Palette.dotEverywhere
+  readonly property string headFont: dotHeads ? DotMatrix.Palette.fontDot : fontFamily
   property int contentMargin: Style.spacing.panelPadding
   property int contentSpacing: Style.spacing.md
   property int rowHeight: Math.max(Style.space(30), Style.font.title + Style.spacing.controlPaddingY * 2)
@@ -1366,7 +1370,7 @@ Item {
             Text {
               text: "Customizer"
               color: root.foreground
-              font.family: root.fontFamily
+              font.family: root.headFont
               font.pixelSize: Style.font.display
               font.bold: true
             }
@@ -1434,7 +1438,7 @@ Item {
                       anchors.verticalCenter: parent.verticalCenter
                       text: modelData.title
                       color: active ? root.foreground : root.muted
-                      font.family: root.fontFamily
+                      font.family: root.headFont
                       font.pixelSize: Style.font.body
                       font.bold: active
                       Behavior on color { ColorAnimation { duration: 160 } }
@@ -1601,7 +1605,7 @@ Item {
             Text {
               text: root.group.title.toUpperCase()
               color: root.muted
-              font.family: root.fontFamily
+              font.family: root.headFont
               font.pixelSize: Style.font.caption
               font.bold: true
               font.letterSpacing: 1.4
@@ -1669,7 +1673,7 @@ Item {
                     text: catRow.info.title
                     elide: Text.ElideRight
                     color: catRow.active ? root.selectedText : root.foreground
-                    font.family: root.fontFamily
+                    font.family: root.headFont
                     font.pixelSize: Style.font.title
                     font.bold: catRow.active
                   }
@@ -1917,7 +1921,7 @@ Item {
                     anchors.bottomMargin: Style.space(4)
                     text: itemRow.label
                     color: root.accent
-                    font.family: root.fontFamily
+                    font.family: root.headFont
                     font.pixelSize: Style.font.caption
                     font.bold: true
                     font.capitalization: Font.AllUppercase
@@ -2134,7 +2138,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: stickySection.name
                 color: root.accent
-                font.family: root.fontFamily
+                font.family: root.headFont
                 font.pixelSize: Style.font.caption
                 font.bold: true
                 font.capitalization: Font.AllUppercase
@@ -2200,7 +2204,7 @@ Item {
                 maximumLineCount: 2
                 elide: Text.ElideRight
                 color: root.foreground
-                font.family: root.fontFamily
+                font.family: root.headFont
                 font.pixelSize: Style.font.heading
                 font.bold: true
               }

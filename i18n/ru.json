@@ -599,5 +599,6 @@
   "Margin from the bar / frame to the cards": "Отступ от бара / рамки до карточек",
   "Network: interface, ↓ / ↑ and a dot scope": "Сеть: интерфейс, ↓ / ↑ и точечный осциллограф",
   "Network: position": "Сеть: положение",
-  "Network": "Сеть"
+  "Network": "Сеть",
+  "Dots everywhere: Pixel plus DotMatrix Dot in site headings and controls, bold terminal text and shell labels": "Точки везде: как Pixel, плюс DotMatrix Dot в заголовках и элементах сайтов, жирном тексте терминала и подписях оболочки"
 }
