@@ -72,6 +72,13 @@ fi
 if [[ -d $FONTS/nihil-build ]]; then
   gio trash "$FONTS/nihil-build" && echo "fonts: nihil-build → trash"
 fi
+# Старое правило fontconfig «sans-serif → шрифт профиля»: идёт по алфавиту после 60-dotmatrix-fonts.conf и
+# перебивало текущий профиль (сайты, Arial, интерфейсы расширений получали шрифт прежнего профиля).
+FC_OLD="$HOME/.config/fontconfig/conf.d/60-nihil-fonts.conf"
+if [[ -f $FC_OLD ]]; then
+  gio trash "$FC_OLD" && echo "fontconfig: 60-nihil-fonts.conf → trash"
+fi
+[[ -d $HOME/.cache/nihil-fonts ]] && gio trash "$HOME/.cache/nihil-fonts"
 fc-cache -f "$FONTS" >/dev/null 2>&1 || true
 if command -v omarchy-font-profile >/dev/null; then
   omarchy-font-profile build-fonts >/dev/null 2>&1 && echo "fonts: DotMatrix Mono / Pixel built"
