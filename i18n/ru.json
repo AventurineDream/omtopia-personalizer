@@ -600,5 +600,5 @@
   "Network: interface, ↓ / ↑ and a dot scope": "Сеть: интерфейс, ↓ / ↑ и точечный осциллограф",
   "Network: position": "Сеть: положение",
   "Network": "Сеть",
-  "Dots everywhere: Pixel plus DotMatrix Dot in site headings and controls, bold terminal text and shell labels": "Точки везде: как Pixel, плюс DotMatrix Dot в заголовках и элементах сайтов, жирном тексте терминала и подписях оболочки"
+  "Dots everywhere: every character in DotMatrix Dots — interface, sites, titles, terminal and code": "Точки везде: каждый знак — DotMatrix Dots: интерфейс, сайты, заголовки, терминал и код"
 }
