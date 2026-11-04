@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Точечные шрифты «точки везде»: каждый знак DotMatrix Pixel (Terminus) набран круглыми точками.
 
-Два шрифта с разной сеткой:
-  * DotMatrix LED — Terminus 8×16: штрих в одну крупную точку, как у светодиодного табло;
-  * DotMatrix Halftone — Terminus 16×32: мелкие точки, штрих в два ряда — как полутон в печати.
-Точка — 94 % шага сетки (у жирных 99 %): при меньших точках текст на обычном кегле выходил бледным,
-и на тёмной теме весь экран казался темнее.
+DotMatrix LED — Terminus 8×16: штрих в одну крупную точку, как у светодиодного табло. С --halftone
+дополнительно DotMatrix Halftone — 16×32: мелкие точки в два ряда (по умолчанию не собирается: ~28 МБ
+на начертание).
+
+Точка — скруглённый квадрат, 96 % шага сетки (у жирных 99 %), как ячейка светодиодной матрицы: круглые
+точки закрывали ~65 % того, что закрывает DotMatrix Pixel, текст на обычном кегле выходил бледным, и на
+тёмной теме весь экран казался темнее; скруглённые квадраты — ~85 %, вблизи точки так же раздельные.
 
 Дальше — про LED; Halftone устроен так же, только на 32 px.
 
@@ -25,7 +27,7 @@ Nerd Font. Здесь каждый глиф растеризуется FreeType 
 Производная Terminus (OFL 1.1) — не называется Terminus / Terminess.
 
     uv run --with fonttools --with freetype-py scripts/dotmatrix-dots.py <каталог с DotMatrixPixel-*.ttf> <каталог вывода> \
-        [DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf]          # собирает оба: DotMatrixLED-*.ttf, DotMatrixHalftone-*.ttf
+        [DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf] [--halftone]   # DotMatrixLED-*.ttf (+ DotMatrixHalftone-*.ttf)
 """
 import math
 import os
@@ -37,8 +39,10 @@ from fontTools.ttLib import TTFont
 from fontTools.ttLib.tables._g_l_y_f import GlyphComponent, Glyph
 
 # Варианты: (семейство, PostScript-имя, размер растра Terminus в px).
-VARIANTS = [("DotMatrix LED", "DotMatrixLED", 16), ("DotMatrix Halftone", "DotMatrixHalftone", 32)]
-DOT, DOT_BOLD = 0.47, 0.495  # радиус точки в долях шага сетки (диаметр 94 % / 99 %)
+VARIANTS = [("DotMatrix LED", "DotMatrixLED", 16)]
+HALFTONE = ("DotMatrix Halftone", "DotMatrixHalftone", 32)
+DOT, DOT_BOLD = 0.48, 0.495  # половина стороны точки в долях шага сетки (сторона 96 % / 99 %)
+DOT_CORNER = 0.30            # скругление углов точки — доля стороны
 STYLES = {          # файл DotMatrix Pixel → (стиль, жирный ли — радиус и запасной шрифт: 0 обычный / 1 жирный)
     "Regular": ("Regular", 0),
     "Bold": ("Bold", 1),
@@ -55,8 +59,23 @@ def set_grid(ppem):
 DROP = ("EBDT", "EBLC", "EBSC", "hdmx", "LTSH", "VDMX", "fpgm", "prep", "cvt ", "gasp")
 
 
-def dot_glyph(r):
-    """Круг из 8 внеконтурных точек TrueType (окружность квадратичными кривыми), центр в (0, 0)."""
+def dot_glyph(r, corner=None):
+    """Точка с центром в (0, 0): круг радиуса r или (corner — доля стороны) скруглённый квадрат стороной 2r.
+    Скруглённый квадрат закрывает ячейку плотнее круга (~85 % против ~70 %) — текст на обычном кегле ярче,
+    вблизи точки всё так же раздельные, как у светодиодной матрицы."""
+    if corner is not None:
+        h, c = r, max(1, round(2 * r * corner))
+        pen = TTGlyphPen(None)
+        pen.moveTo((round(h - c), round(-h)))
+        pen.qCurveTo((round(h), round(-h)), (round(h), round(-h + c)))
+        pen.lineTo((round(h), round(h - c)))
+        pen.qCurveTo((round(h), round(h)), (round(h - c), round(h)))
+        pen.lineTo((round(-h + c), round(h)))
+        pen.qCurveTo((round(-h), round(h)), (round(-h), round(h - c)))
+        pen.lineTo((round(-h), round(-h + c)))
+        pen.qCurveTo((round(-h), round(-h)), (round(-h + c), round(-h)))
+        pen.closePath()
+        return pen.glyph()
     k = r / math.cos(math.pi / 8)
     pts = [(round(k * math.cos(math.pi / 8 * (2 * i + 1))), round(k * math.sin(math.pi / 8 * (2 * i + 1))))
            for i in range(8)]
@@ -112,7 +131,7 @@ def dots_glyph(points, dx=0.0):
     return g, len(comps)
 
 
-def build(src, dst, style, radius, family, ps, extra=None):
+def build(src, dst, style, radius, family, ps, extra=None, corner=None):
     font = TTFont(src)
     for tag in DROP:
         if tag in font:
@@ -122,7 +141,7 @@ def build(src, dst, style, radius, family, ps, extra=None):
     face = freetype.Face(src)
     face.set_pixel_sizes(0, PPEM)
 
-    dot = dot_glyph(radius)
+    dot = dot_glyph(radius, corner)
     glyf.glyphs[".dot"] = dot
     font["hmtx"].metrics[".dot"] = (0, -round(radius))
     font.setGlyphOrder(order + [".dot"])
@@ -179,10 +198,12 @@ def build(src, dst, style, radius, family, ps, extra=None):
 
 
 def main():
-    src_dir, out_dir = sys.argv[1], sys.argv[2]
-    fallbacks = sys.argv[3:5]
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    src_dir, out_dir = args[0], args[1]
+    fallbacks = args[2:4]
+    variants = VARIANTS + ([HALFTONE] if "--halftone" in sys.argv else [])
     os.makedirs(out_dir, exist_ok=True)
-    for family, ps, ppem in VARIANTS:
+    for family, ps, ppem in variants:
         set_grid(ppem)
         for key, (style, bold) in STYLES.items():
             src = os.path.join(src_dir, f"DotMatrixPixel-{key}.ttf")
@@ -191,7 +212,7 @@ def main():
             dst = os.path.join(out_dir, f"{ps}-{key}.ttf")
             extra = fallbacks[bold] if len(fallbacks) > bold and os.path.isfile(fallbacks[bold]) else None
             radius = round((DOT_BOLD if bold else DOT) * STEP, 1)
-            n, dots = build(src, dst, style, radius, family, ps, extra)
+            n, dots = build(src, dst, style, radius, family, ps, extra, DOT_CORNER)
             print(f"{os.path.basename(dst)}: {n} глифов, {dots} точек, {os.path.getsize(dst) // 1024} КБ")
 
 
