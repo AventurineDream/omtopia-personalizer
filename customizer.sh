@@ -17,7 +17,7 @@
 #   customizer.sh bar-skins-restore        вернуть скин, который видел `list bar-skins`
 #   customizer.sh tweak <key> <+|-|pick|reset>  шаг / сброс одного параметра скина (Bar Tweaks)
 #
-# Categories: anims bar-layouts bar-skins bar-tweaks themes theme-walls walls shaders opacity blur
+# Categories: presets styles anims bar-layouts bar-skins bar-tweaks themes theme-walls walls shaders opacity blur
 set -uo pipefail
 
 CUSTOMIZER_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
@@ -36,6 +36,12 @@ LAST_PRESET="$STATE_DIR/last-preset.json"
 ACTIVE_PRESET="$STATE_DIR/active-preset"
 # Что применять из пресета (PRESET_TWEAKS): тема, обои, геометрия окон и т. д.
 PRESET_CFG="$HOME/.config/omarchy/customizer/preset-apply.json"
+# Стили — форма без цвета (геометрия, материал, скины, шрифты, анимации, звуки) поверх любой темы.
+# Формат как у пресета, но без theme/wallpaper; разделы вливаются в текущие настройки.
+STYLE_DIR="$CUSTOMIZER_DIR/styles"
+USER_STYLES="$HOME/.config/omarchy/customizer/styles"
+ACTIVE_STYLE="$STATE_DIR/active-style"
+STYLE_CFG="$HOME/.config/omarchy/customizer/style-apply.json"
 # Углы окон: правило окон Hyprland из hypr/customizer.lua (действует и при «без отступов»).
 WINDOW_CFG="$HOME/.config/omarchy/customizer/windows.json"
 # Бар (плагин kamradsmeshnyavy.bar): пресеты лежат в самом плагине, активный скин и shell.json — в ~/.config.
@@ -603,6 +609,26 @@ PRESET_TWEAKS=(
   "presetNotifications|bool|true|Presets: apply notifications"
   "presetSounds|bool|true|Presets: apply sounds"
   "presetGlyph|bool|true|Presets: apply Glyph"
+  "presetFonts|bool|true|Presets: apply system fonts of the preset's style"
+)
+
+# Что применять при смене стиля — style-apply.json. Ключи — как у пресетов, с префиксом style.
+STYLE_TWEAKS=(
+  "#Apply from styles"
+  "styleGeometry|bool|true|Styles: apply window geometry (gaps, borders, rounding, shadow)"
+  "styleAnims|bool|true|Styles: apply animations"
+  "styleOpacity|bool|true|Styles: apply opacity and blur"
+  "styleShader|bool|true|Styles: apply screen shader"
+  "styleBar|bool|true|Styles: apply bar skin and layout"
+  "styleLock|bool|true|Styles: apply lock screen"
+  "styleLauncher|bool|true|Styles: apply launcher"
+  "styleWallpaperFx|bool|true|Styles: apply wallpaper transition and picker"
+  "styleWidgets|bool|true|Styles: apply widgets and dashboard"
+  "styleOsd|bool|true|Styles: apply OSD"
+  "styleNotifications|bool|true|Styles: apply notifications"
+  "styleSounds|bool|true|Styles: apply sounds"
+  "styleGlyph|bool|true|Styles: apply Glyph"
+  "styleFonts|bool|true|Styles: apply system fonts (terminals, GTK, browser)"
 )
 
 # Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
@@ -617,7 +643,7 @@ WINDOW_TWEAKS=(
 
 tweak_spec() {
   local t
-  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${STYLE_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
   return 1
 }
 
@@ -635,6 +661,7 @@ tweak_file() {
   for t in "${DOTIFY_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$DOTIFY_CFG"; return; }; done
   for t in "${LAUNCHER_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$MENU_CFG"; return; }; done
   for t in "${PRESET_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$PRESET_CFG"; return; }; done
+  for t in "${STYLE_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$STYLE_CFG"; return; }; done
   for t in "${WINDOW_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$WINDOW_CFG"; return; }; done
   for t in "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NIHIL_CFG"; return; }; done
   echo "$BAR_SKIN"
@@ -1221,6 +1248,7 @@ preset_name_of() {
 preset_summary() {
   jq -r '[
     (if .theme then "theme: " + .theme else empty end),
+    (if .style then "style: " + .style else empty end),
     (if .barSkin then "bar: " + .barSkin elif .barSkinData then "bar: custom" else empty end),
     (if .barLayout then "layout: " + .barLayout elif .barLayoutData then "layout: custom" else empty end),
     (if .lock.design then "lock: " + .lock.design else empty end),
@@ -1230,10 +1258,12 @@ preset_summary() {
   ] | join("  ·  ")' "$1" 2>/dev/null
 }
 
-# Включён ли раздел пресета (PRESET_TWEAKS, по умолчанию да).
-preset_on() {
-  [[ $(jq -r --arg k "$1" 'if has($k) then .[$k] | tostring else "true" end' "$PRESET_CFG" 2>/dev/null || echo true) != false ]]
+# Включён ли раздел: $1 — файл (preset-apply.json / style-apply.json), $2 — ключ; по умолчанию да.
+section_on() {
+  [[ $(jq -r --arg k "$2" 'if has($k) then .[$k] | tostring else "true" end' "$1" 2>/dev/null || echo true) != false ]]
 }
+preset_on() { section_on "$PRESET_CFG" "$1"; }
+style_on() { section_on "$STYLE_CFG" "$1"; }
 
 # Сравниваются только разделы, которые пресет применяет.
 preset_matches() {
@@ -1335,6 +1365,8 @@ snapshot_preset() {
     if [[ -n ${shd:-} ]]; then
       geom_json=$(jq -cn --argjson gi "$gi" --argjson go "$go" --argjson bs "$bs" --argjson r "$r" --argjson s "$((shd > 0 ? 1 : 0))" \
         '{gapsIn: $gi, gapsOut: $go, borderSize: $bs, rounding: $r, shadow: ($s == 1)}')
+      [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] \
+        && geom_json=$(jq -c '. + {noGaps: true}' <<<"$geom_json")
     fi
   fi
   skin_name=$(current_skin)
@@ -1348,12 +1380,16 @@ snapshot_preset() {
     layout_data=$(jq -c '.bar | {position, centerAnchor, layout}' "$SHELL_JSON" 2>/dev/null || echo 'null')
   fi
   bar_tr=$(jq -r '.bar.transparent // false' "$SHELL_JSON" 2>/dev/null || echo false)
+  local style_id
+  style_id=$(current_style_stem)
+  [[ $style_id == custom ]] && style_id=""
 
   mkdir -p "$(dirname "$out")"
   jq -n \
     --arg name "$title" \
     --arg note "$note" \
     --arg theme "$theme" \
+    --arg style "$style_id" \
     --arg wallpaper "$wp" \
     --arg anims "$anim" \
     --arg opacity "$op" \
@@ -1376,8 +1412,9 @@ snapshot_preset() {
     --argjson glyph "$(read_json_or_empty "$GLYPH_CFG")" \
     '(if $name != "" then {name: $name} else {} end)
      + (if $note != "" then {note: $note} else {} end)
+     + {theme: $theme}
+     + (if $style != "" then {style: $style} else {} end)
      + {
-       theme: $theme,
        wallpaper: $wallpaper,
        anims: $anims,
        opacity: $opacity,
@@ -1428,101 +1465,18 @@ apply_preset() {
       "$(t "Automatic backup before applying %s (%s)" "$label" "$(date '+%F %H:%M')")"
   fi
 
-  # Раздел применяется, если включён в PRESET_TWEAKS; резервная копия — всегда целиком.
-  sect() { $is_backup || preset_on "$1"; }
-
-  local pair key flag target json
-  for pair in \
-    "lock|presetLock|$LOCK_CFG" \
-    "launcher|presetLauncher|$MENU_CFG" \
-    "wallpaperFx|presetWallpaperFx|$FX_CFG" \
-    "imagePicker|presetWallpaperFx|$PICKER_CFG" \
-    "widgets|presetWidgets|$WIDGET_CFG" \
-    "osd|presetOsd|$OSD_CFG" \
-    "notifications|presetNotifications|$NOTIFY_CFG" \
-    "sounds|presetSounds|$SOUND_CFG" \
-    "glyph|presetGlyph|$GLYPH_CFG"; do
-    IFS='|' read -r key flag target <<<"$pair"
-    sect "$flag" || continue
-    if jq -e --arg k "$key" 'has($k) and .[$k] != null' "$file" >/dev/null 2>&1; then
-      json=$(jq --arg k "$key" '.[$k]' "$file")
-      write_json_inplace "$target" "$json"
-    fi
-  done
-
-  # Bar skin & layout
-  local bs bl sfile lfile btr
-  if ! sect presetBar; then
-    :
-  elif jq -e '.barSkinData != null and (.barSkinData | type == "object")' "$file" >/dev/null 2>&1; then
-    write_json_inplace "$BAR_SKIN" "$(jq '.barSkinData' "$file")"
-  else
-    bs=$(jq -r '.barSkin // ""' "$file")
-    if [[ -n $bs ]]; then
-      for sfile in "$USER_SKINS/$bs.json" "$BAR_DIR/skins/$bs.json"; do
-        [[ -f $sfile ]] && { cp "$sfile" "$BAR_SKIN"; break; }
-      done
-    fi
+  # Пресет со ссылкой на стиль: сначала стиль (вливается), затем собственные поля пресета поверх.
+  local style_ref style_file
+  style_ref=$(jq -r '.style // ""' "$file")
+  if [[ -n $style_ref ]] && style_file=$(style_file_of "$style_ref"); then
+    apply_form_sections "$style_file" "$PRESET_CFG" preset "$is_backup" merge
+    if $is_backup || preset_on presetFonts; then apply_style_fonts "$style_file"; fi
   fi
-  if ! sect presetBar; then
-    :
-  elif jq -e '.barLayoutData != null and (.barLayoutData | type == "object")' "$file" >/dev/null 2>&1; then
-    local ltmp="$RUN_DIR/preset-layout.tmp"
-    jq '.barLayoutData' "$file" >"$ltmp"
-    shell_apply_layout "$ltmp"
-  else
-    bl=$(jq -r '.barLayout // ""' "$file")
-    if [[ -n $bl ]]; then
-      for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
-        [[ -f $lfile ]] && { shell_apply_layout "$lfile"; break; }
-      done
-    fi
-  fi
-  if sect presetBar && jq -e 'has("barTransparent")' "$file" >/dev/null 2>&1; then
-    btr=$(jq -r '.barTransparent // false' "$file")
-    set_transparent "$btr"
-  fi
-
-  # Hyprland state (geometry, animations, opacity, blur, shader)
-  local hypr_state="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
-  mkdir -p "$hypr_state"
-  if ! sect presetGeometry; then
-    :
-  elif jq -e '.hyprGeometry != null and (.hyprGeometry | type == "object")' "$file" >/dev/null 2>&1; then
-    jq -r '.hyprGeometry | "preset \(.gapsIn // 4) \(.gapsOut // 8) \(.borderSize // 1) \(.rounding // 12) \(if .shadow == true then 1 else 0 end)"' \
-      "$file" >"$hypr_state/geometry"
-  else
-    : >"$hypr_state/geometry"
-  fi
-
-  local anim afile op blr sh
-  if sect presetAnims && jq -e 'has("anims")' "$file" >/dev/null 2>&1; then
-    anim=$(jq -r '.anims // ""' "$file")
-    if [[ -z $anim ]]; then
-      : >"$ANIM_ACTIVE"
-    else
-      for afile in "$ANIM_USER_DIR/$anim.lua" "$ANIM_DIR/$anim.lua"; do
-        [[ -f $afile ]] && { cp "$afile" "$ANIM_ACTIVE"; cp "$afile" "$ANIM_BACKUP" 2>/dev/null || true; break; }
-      done
-    fi
-  fi
-  if sect presetOpacity; then
-    op=$(jq -r '.opacity // ""' "$file")
-    [[ -n $op ]] && "$OPACITY" set "$op" >/dev/null 2>&1 || true
-    blr=$(jq -r '.blur // ""' "$file")
-    [[ -n $blr ]] && "$BLUR" set "$blr" >/dev/null 2>&1 || true
-  fi
-  sh=""
-  sect presetShader && sh=$(jq -r '.shader // ""' "$file")
-  if [[ $sh == off ]]; then
-    "$TOGGLE" off >/dev/null 2>&1 || true
-  elif [[ -n $sh ]]; then
-    "$TOGGLE" on "$sh" >/dev/null 2>&1 || true
-  fi
+  apply_form_sections "$file" "$PRESET_CFG" preset "$is_backup" replace
 
   # Theme & wallpaper (тема уже проверена и отфильтрована выше)
   wp=""
-  sect presetWallpaper && wp=$(jq -r '.wallpaper // ""' "$file")
+  { $is_backup || preset_on presetWallpaper; } && wp=$(jq -r '.wallpaper // ""' "$file")
   [[ $wp == "~/"* ]] && wp="$HOME/${wp#"~/"}"
   if [[ -n $theme && $theme != "$(theme_name)" ]]; then
     if [[ -n $wp && -f $wp ]]; then
@@ -1543,7 +1497,256 @@ apply_preset() {
   else
     basename "$file" .json >"$ACTIVE_PRESET"
   fi
+  if [[ -n $style_ref ]]; then printf '%s\n' "$style_ref" >"$ACTIVE_STYLE"; else : >"$ACTIVE_STYLE"; fi
   notify-send -t 3000 "Presets" "$(t "Applied preset: %s" "$label")"
+}
+
+# Разделы «формы» из файла пресета или стиля: скины, конфиги плагинов, геометрия, анимации,
+# прозрачность, блюр, шейдер. $1 — файл, $2 — файл переключателей, $3 — префикс ключей (preset/style),
+# $4 — true для резервной копии (применяется целиком), $5 — replace (раздел заменяет файл, как у
+# пресетов) или merge (ключи раздела вливаются в текущий файл — стиль не трогает твои прочие настройки).
+apply_form_sections() {
+  local file=$1 cfg=$2 prefix=$3 is_backup=$4 mode=$5
+  _form_on() { $is_backup || section_on "$cfg" "$prefix$1"; }
+
+  local pair key flag target json
+  for pair in \
+    "lock|Lock|$LOCK_CFG" \
+    "launcher|Launcher|$MENU_CFG" \
+    "wallpaperFx|WallpaperFx|$FX_CFG" \
+    "imagePicker|WallpaperFx|$PICKER_CFG" \
+    "widgets|Widgets|$WIDGET_CFG" \
+    "osd|Osd|$OSD_CFG" \
+    "notifications|Notifications|$NOTIFY_CFG" \
+    "sounds|Sounds|$SOUND_CFG" \
+    "glyph|Glyph|$GLYPH_CFG"; do
+    IFS='|' read -r key flag target <<<"$pair"
+    _form_on "$flag" || continue
+    jq -e --arg k "$key" 'has($k) and .[$k] != null' "$file" >/dev/null 2>&1 || continue
+    if [[ $mode == merge ]]; then
+      json=$(jq --arg k "$key" --argjson cur "$(read_json_or_empty "$target")" '$cur * .[$k]' "$file")
+    else
+      json=$(jq --arg k "$key" '.[$k]' "$file")
+    fi
+    write_json_inplace "$target" "$json"
+  done
+
+  # Bar skin & layout
+  local bs bl sfile lfile btr
+  if _form_on Bar; then
+    if jq -e '.barSkinData != null and (.barSkinData | type == "object")' "$file" >/dev/null 2>&1; then
+      write_json_inplace "$BAR_SKIN" "$(jq '.barSkinData' "$file")"
+    else
+      bs=$(jq -r '.barSkin // ""' "$file")
+      if [[ -n $bs ]]; then
+        for sfile in "$USER_SKINS/$bs.json" "$BAR_DIR/skins/$bs.json"; do
+          [[ -f $sfile ]] && { cp "$sfile" "$BAR_SKIN"; break; }
+        done
+      fi
+    fi
+    if jq -e '.barLayoutData != null and (.barLayoutData | type == "object")' "$file" >/dev/null 2>&1; then
+      local ltmp="$RUN_DIR/preset-layout.tmp"
+      jq '.barLayoutData' "$file" >"$ltmp"
+      shell_apply_layout "$ltmp"
+    else
+      bl=$(jq -r '.barLayout // ""' "$file")
+      if [[ -n $bl ]]; then
+        for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
+          [[ -f $lfile ]] && { shell_apply_layout "$lfile"; break; }
+        done
+      fi
+    fi
+    if jq -e 'has("barTransparent")' "$file" >/dev/null 2>&1; then
+      btr=$(jq -r '.barTransparent // false' "$file")
+      set_transparent "$btr"
+    fi
+  fi
+
+  # Hyprland state (geometry, animations, opacity, blur, shader)
+  local hypr_state="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+  mkdir -p "$hypr_state"
+  if _form_on Geometry; then
+    if jq -e '.hyprGeometry != null and (.hyprGeometry | type == "object")' "$file" >/dev/null 2>&1; then
+      jq -r '.hyprGeometry | "preset \(.gapsIn // 4) \(.gapsOut // 8) \(.borderSize // 1) \(.rounding // 12) \(if .shadow == true then 1 else 0 end)"' \
+        "$file" >"$hypr_state/geometry"
+      # «Без отступов» Omarchy (Super+Shift+Backspace) снимает и рамки окон: включён только там, где
+      # геометрия просит noGaps (рамка-бортик Nihil — окна вплотную к ней), иначе рамки возвращаются.
+      set_no_gaps "$(jq -r '.hyprGeometry.noGaps // false' "$file")"
+    elif [[ $mode == replace ]] && jq -e 'has("hyprGeometry")' "$file" >/dev/null 2>&1; then
+      : >"$hypr_state/geometry"
+      set_no_gaps false
+    fi
+  fi
+
+  local anim afile op blr sh
+  if _form_on Anims && jq -e 'has("anims")' "$file" >/dev/null 2>&1; then
+    anim=$(jq -r '.anims // ""' "$file")
+    if [[ -z $anim ]]; then
+      : >"$ANIM_ACTIVE"
+    else
+      for afile in "$ANIM_USER_DIR/$anim.lua" "$ANIM_DIR/$anim.lua"; do
+        [[ -f $afile ]] && { cp "$afile" "$ANIM_ACTIVE"; cp "$afile" "$ANIM_BACKUP" 2>/dev/null || true; break; }
+      done
+    fi
+  fi
+  if _form_on Opacity; then
+    op=$(jq -r '.opacity // ""' "$file")
+    [[ -n $op ]] && "$OPACITY" set "$op" >/dev/null 2>&1 || true
+    blr=$(jq -r '.blur // ""' "$file")
+    [[ -n $blr ]] && "$BLUR" set "$blr" >/dev/null 2>&1 || true
+  fi
+  sh=""
+  _form_on Shader && sh=$(jq -r '.shader // ""' "$file")
+  if [[ $sh == off ]]; then
+    "$TOGGLE" off >/dev/null 2>&1 || true
+  elif [[ -n $sh ]]; then
+    "$TOGGLE" on "$sh" >/dev/null 2>&1 || true
+  fi
+  unset -f _form_on
+}
+
+# Тоггл Omarchy «без отступов»: true / false; reload сделает вызывающий.
+set_no_gaps() {
+  local flag="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua" want=$1
+  if [[ $want == true && ! -f $flag ]]; then
+    omarchy-hyprland-toggle window-no-gaps on >/dev/null 2>&1 || true
+  elif [[ $want != true && -f $flag ]]; then
+    omarchy-hyprland-toggle window-no-gaps off >/dev/null 2>&1 || true
+  fi
+}
+
+# ── Стили ─────────────────────────────────────────────────────────────
+
+# Файл стиля по id: свой (~/.config/omarchy/customizer/styles) важнее встроенного.
+style_file_of() {
+  local f
+  for f in "$USER_STYLES/$1.json" "$STYLE_DIR/$1.json"; do
+    [[ -f $f ]] && { echo "$f"; return 0; }
+  done
+  return 1
+}
+
+# Профиль шрифтов стиля (omarchy-font-profile из dotfiles): терминалы, fontconfig, GTK, браузер, Nihil.
+apply_style_fonts() {
+  local fonts
+  fonts=$(jq -r '.fonts // ""' "$1" 2>/dev/null)
+  [[ -n $fonts ]] && command -v omarchy-font-profile >/dev/null || return 0
+  [[ $(omarchy-font-profile 2>/dev/null) == "$fonts" ]] && return 0
+  omarchy-font-profile "$fonts" >/dev/null 2>&1 || true
+}
+
+style_summary() {
+  jq -r '[
+    (if .hyprGeometry then "corners " + (.hyprGeometry.rounding | tostring) + (if .hyprGeometry.shadow then " · shadow" else "" end) else empty end),
+    (if .barSkin then "bar: " + .barSkin elif .barSkinData then "bar: custom" else empty end),
+    (if .lock.design then "lock: " + .lock.design else empty end),
+    (if .launcher.skin then "launcher: " + .launcher.skin else empty end),
+    (if .opacity then "opacity: " + .opacity else empty end),
+    (if .blur then "blur: " + .blur else empty end),
+    (if .anims and .anims != "" then "anims: " + .anims else empty end),
+    (if .fonts then "fonts: " + .fonts else empty end)
+  ] | join("  ·  ")' "$1" 2>/dev/null
+}
+
+# Совпадает ли стиль с текущим видом — по разделам, которые он применяет.
+style_matches() {
+  local f=$1 v checked=false
+  if style_on styleBar; then
+    v=$(jq -r '.barSkin // ""' "$f" 2>/dev/null)
+    if [[ -n $v && -f $BAR_DIR/manifest.json ]]; then [[ $v == "$(current_skin)" ]] || return 1; checked=true; fi
+    if jq -e '.barSkinData | type == "object"' "$f" >/dev/null 2>&1; then
+      [[ $(jq -S '.barSkinData | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))' "$f") == "$(skin_canon "$BAR_SKIN")" ]] || return 1
+      checked=true
+    fi
+  fi
+  if style_on styleLock; then
+    v=$(jq -r '.lock.design // ""' "$f" 2>/dev/null)
+    if [[ -n $v && -f $LOCK_PLUGIN/manifest.json ]]; then [[ $v == "$(lock_current)" ]] || return 1; checked=true; fi
+  fi
+  if style_on styleOpacity; then
+    v=$(jq -r '.opacity // ""' "$f" 2>/dev/null)
+    if [[ -n $v ]]; then [[ $v == "$("$OPACITY" current 2>/dev/null)" ]] || return 1; checked=true; fi
+  fi
+  $checked
+}
+
+current_style_stem() {
+  local saved f
+  if [[ -s $ACTIVE_STYLE ]]; then
+    saved=$(<"$ACTIVE_STYLE")
+    if f=$(style_file_of "$saved") && style_matches "$f"; then
+      echo "$saved"
+      return
+    fi
+  fi
+  for f in "$USER_STYLES"/*.json "$STYLE_DIR"/*.json; do
+    [[ -f $f ]] || continue
+    if style_matches "$f"; then
+      basename "$f" .json
+      return
+    fi
+  done
+  echo custom
+}
+
+current_style_label() {
+  local stem f
+  stem=$(current_style_stem)
+  if [[ $stem != custom ]] && f=$(style_file_of "$stem"); then preset_name_of "$f"; else echo custom; fi
+}
+
+apply_style() {
+  local file=$1 label
+  [[ -f $file ]] || { notify-send -u critical "Styles" "$(t "Style not found: %s" "$file")"; exit 1; }
+  label=$(preset_name_of "$file")
+  notify-send -t 3000 "Styles" "$(t "Applying style %s…" "$label")"
+  # Та же резервная копия, что у пресетов: Presets → «Восстановить прежнюю настройку».
+  if [[ ! -s $LAST_PRESET ]] || [[ $(current_preset_stem) == custom && $(current_style_stem) == custom ]]; then
+    snapshot_preset "$LAST_PRESET" "$(t "Previous setup")" \
+      "$(t "Automatic backup before applying %s (%s)" "$label" "$(date '+%F %H:%M')")"
+  fi
+  apply_form_sections "$file" "$STYLE_CFG" style false merge
+  style_on styleFonts && apply_style_fonts "$file"
+  hyprctl reload >/dev/null 2>&1 || true
+  restore
+  basename "$file" .json >"$ACTIVE_STYLE"
+  notify-send -t 3000 "Styles" "$(t "Applied style: %s" "$label")"
+}
+
+save_user_style() {
+  local raw slug file note tmp="$RUN_DIR/style-snapshot.json" fonts=""
+  raw=$(zenity --entry --title="$(t "Save style")" --text="$(t "Style name:")" \
+    --entry-text="My Style" 2>/dev/null) || return 0
+  slug=$(tr '[:upper:] ' '[:lower:]-' <<<"$raw" | tr -cd 'a-z0-9_-')
+  [[ -n $slug ]] || slug="style-$(date +%Y%m%d-%H%M%S)"
+  file="$USER_STYLES/$slug.json"
+  if [[ -e $file ]]; then
+    zenity --question --title="$(t "Save style")" --text="$(t "Style %s already exists. Overwrite?" "$slug")" 2>/dev/null || return 0
+  fi
+  note=$(zenity --entry --title="$(t "Save style")" --text="$(t "Description (optional):")" 2>/dev/null) || note=""
+  command -v omarchy-font-profile >/dev/null && fonts=$(omarchy-font-profile 2>/dev/null)
+  snapshot_preset "$tmp" "$raw" "$note"
+  mkdir -p "$USER_STYLES"
+  # Стиль — только форма: без темы, обоев и «содержимого» (какие виджеты видны, формат часов, громкость).
+  jq --arg fonts "$fonts" 'del(.theme, .wallpaper, .style,
+      .widgets.clock, .widgets.media, .widgets.visualizer, .widgets.sysinfo, .widgets.edgeHover,
+      .widgets.dashMedia, .widgets.dashCalendar, .widgets.dashWeather, .widgets.dashStats,
+      .lock.clock24, .lock.showSeconds, .lock.showDate, .sounds.sounds, .sounds.soundVolume,
+      .imagePicker.autoCache, .glyph.glyphCharger, .glyph.glyphCriticalRed, .osd.osdShowValue)
+    + (if $fonts != "" then {fonts: $fonts} else {} end)' "$tmp" >"$tmp.out" \
+    && cp "$tmp.out" "$file"
+  basename "$file" .json >"$ACTIVE_STYLE"
+  notify-send -t 3000 "Styles" "$(t "Saved %s" "$raw")"
+}
+
+delete_user_style() {
+  local file=$1 name
+  [[ -f $file && $(dirname "$(realpath "$file")") == "$(realpath -m "$USER_STYLES")" && $file == *.json ]] || {
+    notify-send -u critical "Styles" "$(t "Only your own styles (★) can be deleted")"; return 1; }
+  name=$(preset_name_of "$file")
+  zenity --question --title="$(t "Delete style")" \
+    --text="$(t "Delete your style %s? The file goes to the trash." "$name")" 2>/dev/null || return 0
+  gio trash "$file" && notify-send -t 3000 "Styles" "$(t "Deleted %s" "$name")"
 }
 
 save_user_preset() {
@@ -1632,6 +1835,31 @@ list() {
     list_tweaks WINDOW_TWEAKS "$WINDOW_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
       "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
+    ;;
+  styles)
+    local f cur stem label
+    cur=$(current_style_stem)
+    printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save current look as a style…")" "save" \
+      "$(t "Snapshot the form of your desktop without colours — window geometry, bar, lock screen, launcher, widgets, OSD, notifications, animations, opacity, blur, sounds, Glyph and fonts — into %s. It works on any theme." "${USER_STYLES/#$HOME/\~}")"
+    for f in "$USER_STYLES"/*.json; do
+      [[ -f $f ]] || continue
+      stem=$(basename "$f" .json)
+      label=$(preset_name_of "$f")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "★ $label" "$f" "$f" \
+        "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
+        "$(note_of "$f")"'\n\n'"$(style_summary "$f")"'\n\n'"$(t "Your style: %s" "${f/#$HOME/\~}")" \
+        "$(style_summary "$f")"
+    done
+    for f in "$STYLE_DIR"/*.json; do
+      [[ -f $f ]] || continue
+      stem=$(basename "$f" .json)
+      label=$(preset_name_of "$f")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$f" "$f" \
+        "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
+        "$(note_of "$f")"'\n\n'"$(style_summary "$f")" \
+        "$(style_summary "$f")"
+    done
+    list_tweaks STYLE_TWEAKS "$STYLE_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     ;;
   dotify)
     local dir cur_bg
@@ -1921,6 +2149,13 @@ apply() {
     *) apply_preset "$value" ;;
     esac
     ;;
+  styles)
+    case "$value" in
+    save) save_user_style ;;
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    *) apply_style "$value" ;;
+    esac
+    ;;
   dotify)
     local picked
     case "$value" in
@@ -2087,6 +2322,7 @@ status() {
     cmp -s "$f" "$ANIM_ACTIVE" && { anim=$(basename "$f" .lua); break; }
   done < <(anim_files)
   printf 'preset\t%s\n' "$(current_preset_label)"
+  printf 'style\t%s\n' "$(current_style_label)"
   printf 'theme\t%s\n' "$(theme_name)"
   printf 'wallpaper\t%s\n' "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)"
   printf 'anims\t%s\n' "$anim"
@@ -2138,6 +2374,7 @@ restore() {
 available() {
   local plugins="$HOME/.config/omarchy/plugins"
   echo presets
+  echo styles
   echo themes
   echo theme-walls
   command -v lutgen >/dev/null && command -v zenity >/dev/null && echo walls
@@ -2184,6 +2421,7 @@ lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
 layout-delete) delete_user_layout "${2:-}" ;;
 preset-delete) delete_user_preset "${2:-}" ;;
+style-delete) delete_user_style "${2:-}" ;;
 lock-thumbs) lock_thumbs ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;
 picker-cache) picker_cache ;;

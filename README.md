@@ -10,7 +10,7 @@ plugins installed it also drives the bar, the lock screen, wallpaper transitions
 
 | Group | What's inside |
 |---|---|
-| **Presets** | Global desktop snapshots (bundled **NIHIL** preset + your own presets in `~/.config/omarchy/customizer/presets/*.json` with ★, `D` to delete, and automatic rollback to the previous setup) |
+| **Presets** | Global desktop snapshots (bundled **NIHIL** preset + your own presets in `~/.config/omarchy/customizer/presets/*.json` with ★, `D` to delete, and automatic rollback to the previous setup) and **Style** — the form of the desktop on any theme: Flat, Glass, Fluent, NIHIL or your own (window geometry, bar, lock, launcher, widgets, OSD, notifications, animations, opacity, blur, sounds, Glyph, fonts; you choose which parts a style applies) |
 | **Desktop** | Theme (palette + preview), Wallpaper (categories as in the background switcher), Recolor (any image into the current theme with lutgen), Dotify (LED dot-matrix wallpapers & Arch glyph generator), Wallpaper FX*, Widgets*, Dashboard* |
 | **Bar*** | Bar Skin (plus “💾 Save the current skin” into `~/.config/omarchy/bar-skins/`, listed with ★; `D` deletes one after a confirmation), Bar Layout (own layouts the same way, in `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 settings, each with its default and a live preview |
 | **Windows** | Animations (18 presets), Transparency, Blur, OSD*, Notifications* (with tactile sound packs & Hyprland window/workspace sounds), Glyph (Nothing-inspired perimeter edge lighting & charger beams), Shader (CRT / TFT) |
@@ -113,6 +113,21 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
   A file with the same name as a bundled preset replaces it.
 - Shaders: `~/.config/omarchy/customizer/shaders/*.frag`. A shader that uses `time` gets
   `damage_tracking = 0` automatically, a warping one `1`.
+
+## Styles
+
+Theme = colours and wallpaper, **style** = form, preset = theme + style + wallpaper. A style is a preset file
+without `theme` / `wallpaper` plus `fonts` (an `omarchy-font-profile` profile). Its sections are merged into your
+current settings, so it changes how things look, not which widgets are shown. Bundled styles live in
+`styles/`, your own in `~/.config/omarchy/customizer/styles/*.json` (★, `D` to delete; "Save current look as a
+style" in the **Style** tab). The switches below the list (`~/.config/omarchy/customizer/style-apply.json`)
+choose what a style applies. A preset may reference a style with `"style": "<id>"`: the style is applied first,
+then the preset's own fields on top. Rollback is the same "Restore previous setup" row in **Presets**.
+
+Every style sets every form knob (the bundled ones share one key set), so switching between any two styles is
+complete. `hyprGeometry.noGaps` drives Omarchy's "no gaps" toggle (it also removes window borders): NIHIL turns it
+on so windows sit flush against the bezel frame, every other style — and a preset with `"hyprGeometry": null` —
+turns it off and the borders come back.
 
 ## Language
 

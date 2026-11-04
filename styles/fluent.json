@@ -1,0 +1,87 @@
+{
+  "name": "Fluent",
+  "name_ru": "Fluent",
+  "note": "Material / Fluent: layered surfaces with depth — gentle rounding, real shadows, a hint of translucency, island bar, card panels and the theme's own sounds.",
+  "note_ru": "Material / Fluent: слои с глубиной — умеренные скругления, настоящие тени, лёгкая полупрозрачность, бар-острова, карточки и звуки самой темы.",
+  "anims": "01-default - v2",
+  "opacity": "soft",
+  "blur": "medium",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 5,
+    "gapsOut": 10,
+    "borderSize": 1,
+    "rounding": 8,
+    "shadow": true,
+    "noGaps": false
+  },
+  "barSkin": "islands",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "card",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "constellation",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 450,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 10,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "auto",
+    "dashBackground": "background",
+    "dashAlpha": 0.9,
+    "dashRadius": 10,
+    "dashBorder": true,
+    "dashAnimation": "slide",
+    "dashDuration": 325
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "auto",
+    "osdBackground": "background",
+    "osdAlpha": 0.9,
+    "osdRadius": 10,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyBackground": "background",
+    "notifyAlpha": 0.9,
+    "notifyRadius": 10,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "theme",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "nothing"
+}

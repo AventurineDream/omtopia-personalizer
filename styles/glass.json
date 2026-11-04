@@ -1,0 +1,87 @@
+{
+  "name": "Glass",
+  "name_ru": "Стекло",
+  "note": "Glassmorphism: translucent windows over a frosted wallpaper, glass bar and panels, soft round corners, smooth motion and soft clicks.",
+  "note_ru": "Глассморфизм: полупрозрачные окна над матовыми обоями, стеклянный бар и панели, мягкие скругления, плавные анимации и мягкие щелчки.",
+  "anims": "HYDE - default",
+  "opacity": "frosted",
+  "blur": "frosted",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 6,
+    "gapsOut": 14,
+    "borderSize": 1,
+    "rounding": 16,
+    "shadow": true,
+    "noGaps": false
+  },
+  "barSkin": "glass",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "sheet",
+    "wallpaperBlur": 24,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "aurora",
+    "backdrop": 0.6
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 700,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 18,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "auto",
+    "dashBackground": "background",
+    "dashAlpha": 0.75,
+    "dashRadius": 18,
+    "dashBorder": true,
+    "dashAnimation": "grow",
+    "dashDuration": 450
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "auto",
+    "osdBackground": "background",
+    "osdAlpha": 0.75,
+    "osdRadius": 18,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyBackground": "background",
+    "notifyAlpha": 0.75,
+    "notifyRadius": 18,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "classic",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "stock"
+}

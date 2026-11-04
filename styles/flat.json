@@ -1,0 +1,87 @@
+{
+  "name": "Flat",
+  "name_ru": "Плоский",
+  "note": "Flat / Metro: square corners, solid surfaces, no shadows or blur, quick motion, quiet. Typography and colour do all the work.",
+  "note_ru": "Flat / Metro: прямые углы, сплошные поверхности, без теней и блюра, быстрые анимации, тихо. Всю работу делают шрифт и цвет.",
+  "anims": "ML4W - fast",
+  "opacity": "solid",
+  "blur": "off",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 4,
+    "gapsOut": 8,
+    "borderSize": 2,
+    "rounding": 0,
+    "shadow": false,
+    "noGaps": false
+  },
+  "barSkin": "solid-accent",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "editorial",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "metro",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 300,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "slices",
+    "cardRadius": 0,
+    "selectedBorder": 2,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "minimal",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "auto",
+    "dashBackground": "background",
+    "dashAlpha": 1,
+    "dashRadius": 0,
+    "dashBorder": false,
+    "dashAnimation": "fade",
+    "dashDuration": 250
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "auto",
+    "osdBackground": "background",
+    "osdAlpha": 1,
+    "osdRadius": 0,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyBackground": "background",
+    "notifyAlpha": 1,
+    "notifyRadius": 0,
+    "notifyCards": "flat",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "classic",
+    "windowSounds": false
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "stock"
+}

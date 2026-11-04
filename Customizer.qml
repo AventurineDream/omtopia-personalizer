@@ -29,6 +29,7 @@ Item {
   // bar: preview pane draws a bar mock (BarMock.qml); tweak: h/l step the row's value.
   readonly property var allCategories: [
     { group: "presets", key: "presets",   icon: "󰆓", title: "Presets",      hint: "Full desktop snapshots · D — delete",   image: false, live: false, presetStage: true },
+    { group: "presets", key: "styles",    icon: "󰉦", title: "Style",        hint: "Form on any theme · D — delete",         image: false, live: false, presetStage: true },
     { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
     { group: "desk", key: "theme-walls",  icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
     { group: "desk", key: "walls",        icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
@@ -56,7 +57,7 @@ Item {
   // Вкладки сверху: группы категорий (1–6, Tab / Shift+Tab); chips — какие чипы
   // статуса показывать в шапке, пока группа открыта.
   readonly property var allGroups: [
-    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "theme", "bar-skin", "lock", "launcher"] },
+    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "style", "theme", "bar-skin", "lock", "launcher"] },
     { id: "desk", icon: "󰧨", title: "Desktop",  chips: ["theme", "wallpaper", "fx"] },
     { id: "bar",  icon: "󰕮", title: "Bar",      chips: ["bar-skin", "bar-layout"] },
     { id: "win",  icon: "󱂬", title: "Windows",  chips: ["anims", "opacity", "blur", "glyph", "shader"] },
@@ -75,6 +76,7 @@ Item {
   // Header chips: status key -> category key it opens.
   readonly property var allStatusChips: [
     { key: "preset",     icon: "󰆓", title: "Preset",       category: "presets" },
+    { key: "style",      icon: "󰉦", title: "Style",        category: "styles" },
     { key: "theme",      icon: "󰏘", title: "Theme",        category: "themes" },
     { key: "wallpaper",  icon: "󰸉", title: "Wallpaper",    category: "theme-walls" },
     { key: "fx",         icon: "󰗘", title: "Transition",   category: "wallpaper-fx" },
@@ -690,7 +692,7 @@ Item {
   }
 
   function randomPick() {
-    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "glyph") return
+    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "glyph") return
     if (root.category.tweak) return
     if (root.pane === 0) { root.pane = 1 }
     var c = root.randomCandidates()
@@ -718,13 +720,16 @@ Item {
     var k = root.category.key
     if (k === "presets")
       return /\/\.config\/omarchy\/customizer\/presets\/[^/]+\.json$/.test(row.value) && !/\/my-settings\.json$/.test(row.value)
+    if (k === "styles")
+      return /\/\.config\/omarchy\/customizer\/styles\/[^/]+\.json$/.test(row.value)
     return (k === "bar-skins" || k === "bar-layouts") && new RegExp("/\\.config/omarchy/" + k + "/[^/]+\\.json$").test(row.value)
   }
   function deletePreset() {
     var row = root.selectedRow
     if (!root.isUserPreset(row)) return
     root.dismiss()
-    var cmd = root.category.key === "presets" ? "preset-delete" : (root.category.key === "bar-skins" ? "skin-delete" : "layout-delete")
+    var k = root.category.key
+    var cmd = k === "presets" ? "preset-delete" : k === "styles" ? "style-delete" : (k === "bar-skins" ? "skin-delete" : "layout-delete")
     Quickshell.execDetached([root.script, cmd, row.value])
   }
 
@@ -757,7 +762,7 @@ Item {
   // The old fzf preview for shaders showed just the header comments and consts.
   function formatPreview(text) {
     // Описание пресета уже есть в заметке над JSON — переводы note_* в нём только мешают.
-    if (root.category.key === "bar-skins" || root.category.key === "bar-layouts" || root.category.key === "presets")
+    if (root.category.key === "bar-skins" || root.category.key === "bar-layouts" || root.category.key === "presets" || root.category.key === "styles")
       return text.split("\n").filter(function(l) { return !/^\s*"(note|name)(_[a-z]+)?":/.test(l) }).join("\n")
     if (root.category.key !== "shaders") return text
     return text.split("\n").filter(function(l) { return /^(\/\/|const)/.test(l) }).join("\n")
@@ -807,10 +812,10 @@ Item {
     }
     if (root.category.key === "lock") return [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     var h = [["j k", "move"], ["⏎", "apply"], ["/", "search"], ["h", "back"]]
-    if (root.category.key !== "walls" && root.category.key !== "presets") h.push(["r", "random"])
+    if (root.category.key !== "walls" && !root.category.presetStage) h.push(["r", "random"])
     else if (root.category.key === "walls") h.push(["o O", "pick"])
     if (root.isUserPreset(root.selectedRow))
-      h.push(["D", root.category.key === "presets" ? "delete preset" : (root.category.key === "bar-skins" ? "delete skin" : "delete layout")])
+      h.push(["D", root.category.key === "presets" ? "delete preset" : root.category.key === "styles" ? "delete style" : (root.category.key === "bar-skins" ? "delete skin" : "delete layout")])
     if (!root.category.image && !root.category.bar && !root.category.presetStage && root.category.key !== "opacity" && root.category.key !== "blur") h.push(["J K", "scroll"])
     h.push(["?", "keys"])
     return h
@@ -2603,7 +2608,7 @@ Item {
               spacing: Style.space(8)
 
               Rectangle {
-                visible: root.category.key !== "walls" && root.category.key !== "dotify" && root.category.key !== "presets" && root.category.key !== "glyph" && !root.category.tweak
+                visible: root.category.key !== "walls" && root.category.key !== "dotify" && !root.category.presetStage && root.category.key !== "glyph" && !root.category.tweak
                 height: parent.height
                 width: randomRow.implicitWidth + Style.space(24)
                 radius: height / 2
