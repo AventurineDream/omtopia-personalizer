@@ -460,6 +460,12 @@ PICKER_TWEAKS=(
 
 # Виджеты рабочего стола (плагин kamradsmeshnyavy.widgets) — файл widgets.json.
 WIDGET_TWEAKS=(
+  "#General"
+  "widgetStyle|enum|style default nihil|Widgets: look (style — follows the Customizer style)"
+  "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
+  "edgeMargin|num|0 200 8 56|Margin from the screen edges"
+  "tint|color|accent|Accent colour"
+  "screens|enum|all primary|Screens"
   "#Clock"
   "clock|bool|true|Clock"
   "clockStyle|enum|big stacked terminal minimal|Clock: style"
@@ -491,12 +497,6 @@ WIDGET_TWEAKS=(
   "photoAnchor|enum|left right center top-left top top-right bottom-left bottom bottom-right|Photo: position"
   "photoDir|text||Photo: folder (empty — the current wallpaper)"
   "photoInterval|num|1 120 1 10|Photo: change every, minutes"
-  "#General"
-  "widgetStyle|enum|style default nihil|Widgets: look (style — follows the Customizer style)"
-  "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
-  "edgeMargin|num|0 200 8 56|Margin from the screen edges"
-  "tint|color|accent|Accent colour"
-  "screens|enum|all primary|Screens"
 )
 
 # OSD (клон kamradsmeshnyavy.osd): громкость/яркость у края экрана или стоковой карточкой — osd.json.
@@ -653,6 +653,24 @@ STYLE_TWEAKS=(
 # Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
 # переключателя Omarchy «без отступов», и тайловую сетку можно оставить сплошной (её внешние углы и так
 # скругляет рамка экрана). float — плавающие и pop-окна, all — все, off — как в конфиге Hyprland.
+# Вкладка «Окна» (windows.json, применяет hypr/customizer.lua и restore): поверх геометрии стиля.
+# Значения по умолчанию — как в looknfeel.lua dotfiles; стиль при применении пишет сюда свою геометрию.
+WINDOW_LAYOUT_TWEAKS=(
+  "#Gaps and borders"
+  "windowGapsIn|num|0 40 1 2|Gaps between windows"
+  "windowGapsOut|num|0 80 2 4|Gaps to the screen edges"
+  "windowBorder|num|0 8 1 2|Border width"
+  "windowNoGaps|bool|false|No gaps (Omarchy): windows flush to the edges, no borders"
+  "#Decoration"
+  "windowDecoRounding|num|0 32 1 10|Rounding of all windows"
+  "windowShadow|bool|true|Shadow"
+  "windowShadowRange|num|0 40 1 3|Shadow size"
+  "windowDim|bool|true|Dim inactive windows"
+  "windowDimStrength|num|0 0.6 0.05 0.1|Dim strength"
+  "#Layout"
+  "windowLayout|enum|dwindle master|Tiling layout: dwindle (spiral) · master (one big window)"
+)
+
 WINDOW_TWEAKS=(
   "#Window corners"
   "windowRounding|enum|float all off|Rounded windows: floating only · all · off"
@@ -662,7 +680,7 @@ WINDOW_TWEAKS=(
 
 tweak_spec() {
   local t
-  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${STYLE_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}" "${TWEAKS[@]}" "${LOCK_TWEAKS[@]}" "${FX_TWEAKS[@]}" "${PICKER_TWEAKS[@]}" "${WIDGET_TWEAKS[@]}" "${OSD_TWEAKS[@]}" "${NOTIFY_TWEAKS[@]}" "${SOUND_TWEAKS[@]}" "${DASH_TWEAKS[@]}" "${GLYPH_TWEAKS[@]}" "${DOTIFY_TWEAKS[@]}" "${LAUNCHER_TWEAKS[@]}" "${PRESET_TWEAKS[@]}" "${STYLE_TWEAKS[@]}" "${NIHIL_TWEAKS[@]}" "${WINDOW_LAYOUT_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$t"; return; }; done
   return 1
 }
 
@@ -681,7 +699,7 @@ tweak_file() {
   for t in "${LAUNCHER_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$MENU_CFG"; return; }; done
   for t in "${PRESET_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$PRESET_CFG"; return; }; done
   for t in "${STYLE_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$STYLE_CFG"; return; }; done
-  for t in "${WINDOW_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$WINDOW_CFG"; return; }; done
+  for t in "${WINDOW_TWEAKS[@]}" "${WINDOW_LAYOUT_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$WINDOW_CFG"; return; }; done
   for t in "${NIHIL_TWEAKS[@]}"; do [[ ${t%%|*} == "$1" ]] && { echo "$NIHIL_CFG"; return; }; done
   echo "$BAR_SKIN"
 }
@@ -1346,12 +1364,48 @@ geometry_summary() {
   t "gaps %s/%s · border %s · rounding %s · shadow %s" "$gi" "$go" "$bs" "$r" "$([[ ${shd:-0} != 0 ]] && echo on || echo off)"
 }
 
+# Ключи геометрии вкладки «Окна» — стиль пишет сюда свою hyprGeometry, сброс их убирает.
+WINDOW_GEOM_KEYS='["windowGapsIn","windowGapsOut","windowBorder","windowDecoRounding","windowShadow","windowNoGaps"]'
+
+# «Без отступов» из вкладки «Окна» → тоггл Omarchy.
+window_sync() {
+  local v
+  v=$(jq -r 'if has("windowNoGaps") then (.windowNoGaps | tostring) else "" end' "$WINDOW_CFG" 2>/dev/null)
+  [[ -n $v ]] && set_no_gaps "$v"
+  return 0
+}
+
+# Поверх геометрии после перезагрузки (restore): то же, что hypr/customizer.lua берёт из windows.json.
+window_overrides_eval() {
+  [[ -s $WINDOW_CFG ]] || return 0
+  local lua no_gaps=false
+  [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && no_gaps=true
+  lua=$(jq -r --argjson ng "$no_gaps" '
+    def n(k): if (.[k] | type) == "number" then (.[k] | tostring) else null end;
+    def b(k): if (.[k] | type) == "boolean" then (.[k] | tostring) else null end;
+    [ (if $ng then empty else
+        ([ (n("windowGapsIn") | values | "gaps_in = " + .), (n("windowGapsOut") | values | "gaps_out = " + .),
+           (n("windowBorder") | values | "border_size = " + .) ] | join(", ")) end) as $g
+      | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else empty end) as $l
+      | "general = { " + ([$g, $l] | map(select(. != null and . != "")) | join(", ")) + " }",
+      "decoration = { " + ([ (if $ng then null else (n("windowDecoRounding") | values | "rounding = " + .) end),
+         (b("windowDim") | values | "dim_inactive = " + .), (n("windowDimStrength") | values | "dim_strength = " + .),
+         ((if b("windowShadow") != null or n("windowShadowRange") != null then
+            "shadow = { " + ([ (b("windowShadow") | values | "enabled = " + .), (n("windowShadowRange") | values | "range = " + .) ] | join(", ")) + " }"
+           else null end) | values)
+       ] | map(select(. != null)) | join(", ")) + " }" ]
+    | "hl.config({ " + join(", ") + " })"' "$WINDOW_CFG" 2>/dev/null) || return 0
+  [[ -n $lua ]] && hyprctl eval "$lua" >/dev/null 2>&1
+  return 0
+}
+
 geometry_reset() {
   local f="${XDG_STATE_HOME:-$HOME/.local/state}/hypr/geometry"
   [[ -s $f ]] && : >"$f"
+  [[ -s $WINDOW_CFG ]] && write_json_inplace "$WINDOW_CFG" "$(jq --argjson k "$WINDOW_GEOM_KEYS" 'with_entries(select(.key as $x | $k | index($x) | not))' "$WINDOW_CFG")"
   hyprctl reload >/dev/null 2>&1 || true
   restore
-  notify-send -t 2000 "Presets" "$(t "Window geometry: Hyprland config")"
+  notify-send -t 2000 "Windows" "$(t "Window geometry: Hyprland config")"
 }
 
 theme_exists() {
@@ -1633,11 +1687,17 @@ apply_form_sections() {
     if jq -e '.hyprGeometry != null and (.hyprGeometry | type == "object")' "$file" >/dev/null 2>&1; then
       jq -r '.hyprGeometry | "preset \(.gapsIn // 4) \(.gapsOut // 8) \(.borderSize // 1) \(.rounding // 12) \(if .shadow == true then 1 else 0 end)"' \
         "$file" >"$hypr_state/geometry"
+      # Вкладка «Окна» показывает и правит ту же геометрию.
+      write_json_inplace "$WINDOW_CFG" "$(jq --argjson g "$(jq -c '.hyprGeometry' "$file")" '. + {
+        windowGapsIn: ($g.gapsIn // 4), windowGapsOut: ($g.gapsOut // 8), windowBorder: ($g.borderSize // 1),
+        windowDecoRounding: ($g.rounding // 12), windowShadow: ($g.shadow == true), windowNoGaps: ($g.noGaps == true) }' \
+        <<<"$(read_json_or_empty "$WINDOW_CFG")")"
       # «Без отступов» Omarchy (Super+Shift+Backspace) снимает и рамки окон: включён только там, где
       # геометрия просит noGaps (рамка-бортик Nihil — окна вплотную к ней), иначе рамки возвращаются.
       set_no_gaps "$(jq -r '.hyprGeometry.noGaps // false' "$file")"
     elif [[ $mode == replace ]] && jq -e 'has("hyprGeometry")' "$file" >/dev/null 2>&1; then
       : >"$hypr_state/geometry"
+      [[ -s $WINDOW_CFG ]] && write_json_inplace "$WINDOW_CFG" "$(jq --argjson k "$WINDOW_GEOM_KEYS" 'with_entries(select(.key as $x | $k | index($x) | not))' "$WINDOW_CFG")"
       set_no_gaps false
     fi
   fi
@@ -1960,9 +2020,14 @@ list() {
         "$(preset_summary "$f")"
     done
     list_tweaks PRESET_TWEAKS "$PRESET_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    ;;
+  windows)
+    # Отступы, рамки, скругление, тень, затемнение, раскладка и углы окон — тянется h/l, оверлей открыт.
+    list_tweaks WINDOW_LAYOUT_TWEAKS "$WINDOW_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     list_tweaks WINDOW_TWEAKS "$WINDOW_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "Reset")" "section:Reset"
     printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
-      "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
+      "$(t "Drop gaps, borders, rounding and shadow set by a style, a preset or this tab and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
     ;;
   sounds)
     # Пакеты (⏎ — выбрать, p — послушать), переключатели sounds.json, проверка событий текущим пакетом.
@@ -2326,6 +2391,12 @@ apply() {
   fonts)
     [[ $value == section:* ]] || omarchy-font-profile "$value" >/dev/null 2>&1 || true
     ;;
+  windows)
+    case "$value" in
+    tweak:*) tweak "${value#tweak:}" pick; window_sync; hyprctl reload >/dev/null 2>&1; restore ;;
+    geometry-reset) geometry_reset ;;
+    esac
+    ;;
   sounds)
     case "$value" in
     pack:*)
@@ -2553,6 +2624,7 @@ restore() {
       hyprctl eval "hl.config({ general = { gaps_in = $gi, gaps_out = $go, border_size = $bs }, decoration = { rounding = $r, shadow = { enabled = $([[ $shd -gt 0 ]] && echo true || echo false) } } })" >/dev/null
     fi
   fi
+  window_overrides_eval
   "$TOGGLE" restore
   # Блюр под самим оверлеем.
   hyprctl eval 'hl.layer_rule({ match = { namespace = "omarchy-customizer" }, blur = true, ignore_alpha = 0.6 })' >/dev/null
@@ -2564,6 +2636,7 @@ available() {
   local plugins="$HOME/.config/omarchy/plugins"
   echo presets
   echo styles
+  echo windows
   command -v omarchy-font-profile >/dev/null && echo fonts
   command -v pw-play >/dev/null && echo sounds
   echo themes
@@ -2606,7 +2679,7 @@ bar-skins-restore) bar_skin_restore ;;
 tweak)
   if [[ ${3:-} == set ]]; then tweak_set "$2" "${4-}"; else tweak "$2" "${3:-+}"; fi
   # Углы окон — правило окон: снять старое можно только перезагрузкой конфига (hypr/customizer.lua).
-  [[ $2 == window* ]] && hyprctl reload >/dev/null 2>&1
+  [[ $2 == window* ]] && { window_sync; hyprctl reload >/dev/null 2>&1; restore >/dev/null 2>&1; }
   ;;
 lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;

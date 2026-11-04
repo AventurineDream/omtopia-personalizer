@@ -93,7 +93,47 @@ do
 	end
 end
 
--- Window corners (Customizer → Presets → Window corners, ~/.config/omarchy/customizer/windows.json).
+-- Windows tab (Customizer → Windows, ~/.config/omarchy/customizer/windows.json): gaps, border, rounding,
+-- shadow, dim, layout. Only the keys present there are applied, on top of the style geometry above;
+-- Omarchy's "no gaps" toggle still wins for gaps / border / rounding.
+do
+	local f = io.open(home .. "/.config/omarchy/customizer/windows.json", "r")
+	local json = f and f:read("*a") or ""
+	if f then
+		f:close()
+	end
+	local function num(key)
+		return tonumber(json:match('"' .. key .. '"%s*:%s*(%-?[%d.]+)'))
+	end
+	local function bool(key)
+		local v = json:match('"' .. key .. '"%s*:%s*(%a+)')
+		if v == nil then
+			return nil
+		end
+		return v == "true"
+	end
+	local no_gaps = exists(state .. "/omarchy/toggles/hypr/window-no-gaps.lua")
+	local general, decoration = {}, {}
+	if not no_gaps then
+		general.gaps_in = num("windowGapsIn")
+		general.gaps_out = num("windowGapsOut")
+		general.border_size = num("windowBorder")
+		decoration.rounding = num("windowDecoRounding")
+	end
+	local layout = json:match('"windowLayout"%s*:%s*"(%a+)"')
+	if layout == "dwindle" or layout == "master" then
+		general.layout = layout
+	end
+	local shadow, range = bool("windowShadow"), num("windowShadowRange")
+	if shadow ~= nil or range ~= nil then
+		decoration.shadow = { enabled = shadow, range = range }
+	end
+	decoration.dim_inactive = bool("windowDim")
+	decoration.dim_strength = num("windowDimStrength")
+	hl.config({ general = general, decoration = decoration })
+end
+
+-- Window corners (Customizer → Windows → Window corners, ~/.config/omarchy/customizer/windows.json).
 -- A window rule, not decoration.rounding: rules beat the global value and Omarchy's "no gaps"
 -- toggle, and tiled windows can stay square so the grid stays seamless (the bar's screen frame
 -- already rounds their outer corners). "float" = floating and popped windows, "all", "off".

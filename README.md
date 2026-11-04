@@ -114,6 +114,15 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 - Shaders: `~/.config/omarchy/customizer/shaders/*.frag`. A shader that uses `time` gets
   `damage_tracking = 0` automatically, a warping one `1`.
 
+## Windows and widgets
+
+**Windows → Windows**: gaps between windows and to the screen edges, border width, Omarchy's "no gaps",
+rounding of all windows, shadow and its size, dimming of inactive windows, the tiling layout (dwindle / master) and
+window corners — `~/.config/omarchy/customizer/windows.json`, applied by `hypr/customizer.lua` on top of the style
+geometry (a style writes its geometry there too), with a live mini-screen preview. **Desktop → Widgets** shows the
+layout of the enabled widgets on a mini desktop and marks overlapping ones in red. The overlay opens on a given tab
+with a payload: `omarchy-shell shell toggle kamradsmeshnyavy.customizer '{"category":"windows"}'`.
+
 ## Styles
 
 Theme = colours and wallpaper, **style** = form, preset = theme + style + wallpaper. A style is a preset file

@@ -43,6 +43,7 @@ Item {
     { group: "bar",  key: "bar-widgets",  icon: "󰕰", title: "Bar Widgets",  hint: "h l move · ⏎ on / off · shell.json",    image: false, live: false, tweak: true },
     { group: "bar",  key: "bar-layouts",  icon: "󰕮", title: "Bar Layout",   hint: "Sections & edge · shell.json",         image: false, live: false, bar: true },
     { group: "bar",  key: "bar-tweaks",   icon: "󰒓", title: "Bar Tweaks",   hint: "h l / − + change · ⏎ custom color",    image: false, live: false, bar: true, tweak: true },
+    { group: "win",  key: "windows",      icon: "󰖲", title: "Windows",      hint: "Gaps, borders, rounding, shadow, dim · h l change", image: false, live: false },
     { group: "win",  key: "anims",        icon: "󰔡", title: "Animations",   hint: "Live preview while you browse",       image: false, live: true },
     { group: "win",  key: "opacity",      icon: "󰂵", title: "Transparency", hint: "Live preview while you browse",        image: false, live: true },
     { group: "win",  key: "blur",         icon: "󰂷", title: "Blur",         hint: "Live preview while you browse",        image: false, live: true },
@@ -225,7 +226,12 @@ Item {
     root.lastPointer = null
     root.opened = true
     root.pane = 0
-    root.setCategory(root.categoryIndex, true)
+    // payload {"category": "<ключ>"} — открыть сразу на вкладке (например windows, widgets, themes).
+    var want = String(root.parseJson(payloadJson).category || "")
+    var idx = -1
+    for (var i = 0; want !== "" && i < root.categories.length; i++) if (root.categories[i].key === want) idx = i
+    root.setCategory(idx >= 0 ? idx : root.categoryIndex, true)
+    if (idx >= 0) root.pane = 1
     statusProc.running = false
     statusProc.running = true
     availableProc.running = false
@@ -2660,13 +2666,215 @@ Item {
                 }
               }
 
+              // Windows: мини-экран с тремя окнами — отступы, рамки, скругление, тень, затемнение и
+              // раскладка из windows.json (меняются h/l — сцена перерисовывается сразу).
+              Item {
+                id: windowsStage
+                anchors.fill: parent
+                anchors.margins: Style.space(16)
+                visible: root.category.key === "windows"
+                property var cfg: ({})
+                FileView {
+                  path: Quickshell.env("HOME") + "/.config/omarchy/customizer/windows.json"
+                  watchChanges: true; printErrors: false
+                  onFileChanged: reload()
+                  onLoaded: windowsStage.cfg = root.parseJson(text())
+                  onLoadFailed: windowsStage.cfg = ({})
+                }
+                function n(k, d) { var v = Number(cfg[k]); return cfg[k] === undefined || !isFinite(v) ? d : v }
+                function b(k, d) { return cfg[k] === undefined ? d : cfg[k] === true }
+                readonly property bool noGaps: b("windowNoGaps", false)
+                readonly property real k: screenBox.width / 1440
+                readonly property real gin: noGaps ? 0 : n("windowGapsIn", 2) * k
+                readonly property real gout: noGaps ? 0 : n("windowGapsOut", 4) * k
+                readonly property real bw: noGaps ? 0 : n("windowBorder", 2) > 0 ? Math.max(1, n("windowBorder", 2) * k) : 0
+                readonly property real rad: noGaps ? 0 : n("windowDecoRounding", 10) * k
+                readonly property bool shadow: b("windowShadow", true)
+                readonly property bool dim: b("windowDim", true)
+                readonly property real dimStrength: n("windowDimStrength", 0.1)
+                readonly property bool master: String(cfg.windowLayout || "dwindle") === "master"
+
+                ClippingRectangle {
+                  id: screenBox
+                  width: parent.width
+                  height: Math.min(parent.height - Style.space(40), width * 10 / 16)
+                  radius: root.innerRadius
+                  color: root.faint
+                  Image {
+                    anchors.fill: parent
+                    source: windowsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    sourceSize.width: 640
+                  }
+                  Rectangle { width: parent.width; height: Math.max(6, parent.height * 0.045); color: Color.bar.background }
+                  Item {
+                    id: area
+                    x: windowsStage.gout
+                    y: Math.max(6, screenBox.height * 0.045) + windowsStage.gout
+                    width: screenBox.width - 2 * windowsStage.gout
+                    height: screenBox.height - y - windowsStage.gout
+                    readonly property real split: windowsStage.master ? 0.62 : 0.5
+                    Repeater {
+                      model: 3
+                      Rectangle {
+                        required property int index
+                        readonly property bool active: index === 0
+                        readonly property real g: windowsStage.gin / 2
+                        x: index === 0 ? 0 : area.width * area.split + g
+                        y: index === 2 ? area.height / 2 + g : 0
+                        width: index === 0 ? area.width * area.split - g : area.width * (1 - area.split) - g
+                        height: index === 0 ? area.height : area.height / 2 - g
+                        radius: windowsStage.rad
+                        color: Qt.tint(Color.background, Qt.rgba(0, 0, 0, !active && windowsStage.dim ? windowsStage.dimStrength : 0))
+                        border.width: windowsStage.bw
+                        border.color: active ? root.accent : Util.alpha(root.foreground, 0.25)
+                        layer.enabled: windowsStage.shadow
+                        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "#000000"; shadowOpacity: 0.45; shadowBlur: 0.5; shadowVerticalOffset: 2 }
+                        Column {
+                          x: 8; y: 8; spacing: 4
+                          Repeater {
+                            model: 4
+                            Rectangle { required property int index; width: 30 + (index * 23) % 50; height: 3; radius: 1.5; color: Util.alpha(root.foreground, 0.3) }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                Text {
+                  anchors.top: screenBox.bottom
+                  anchors.topMargin: Style.space(10)
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  color: root.foreground
+                  opacity: 0.7
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  text: windowsStage.noGaps ? root.tr("No gaps (Omarchy) is on: gaps, borders and rounding are off.")
+                    : (windowsStage.master ? "master" : "dwindle") + "  ·  " + root.tr("gaps") + " " + windowsStage.n("windowGapsIn", 2) + " / "
+                      + windowsStage.n("windowGapsOut", 4) + "  ·  " + root.tr("border") + " " + windowsStage.n("windowBorder", 2)
+                      + "  ·  " + root.tr("rounding") + " " + windowsStage.n("windowDecoRounding", 10)
+                }
+              }
+
+              // Widgets: мини-стол с раскладкой включённых виджетов (widgets.json): позиции по якорям, как
+              // place() в Widgets.qml; виджет выбранной строки подсвечен, наложения — красным.
+              Item {
+                id: widgetsStage
+                anchors.fill: parent
+                anchors.margins: Style.space(16)
+                visible: root.category.key === "widgets"
+                property var cfg: ({})
+                FileView {
+                  path: Quickshell.env("HOME") + "/.config/omarchy/widgets.json"
+                  watchChanges: true; printErrors: false
+                  onFileChanged: reload()
+                  onLoaded: widgetsStage.cfg = root.parseJson(text())
+                  onLoadFailed: widgetsStage.cfg = ({})
+                }
+                // Имя, ключ включения, якорь по умолчанию, размер на экране 1440 px (примерно как у виджетов).
+                readonly property var defs: [
+                  { key: "clock", title: "Clock", on: true, anchor: "top-left", w: 280, h: 130 },
+                  { key: "media", title: "Now playing", on: true, anchor: "bottom-left", w: 400, h: 120 },
+                  { key: "sysinfo", title: "System rings", on: true, anchor: "top-right", w: 380, h: 110 },
+                  { key: "todo", title: "Todo", on: false, anchor: "right", w: 300, h: 170 },
+                  { key: "quote", title: "Quote", on: false, anchor: "bottom-right", w: 320, h: 110 },
+                  { key: "photo", title: "Photo", on: false, anchor: "left", w: 260, h: 210 }
+                ]
+                readonly property string focusKey: {
+                  var v = root.selectedRow ? String(root.selectedRow.value).replace(/^tweak:/, "") : ""
+                  for (var i = 0; i < defs.length; i++) if (v.indexOf(defs[i].key) === 0) return defs[i].key
+                  return v.indexOf("visualizer") === 0 ? "visualizer" : ""
+                }
+                readonly property real k: deskBox.width / 1440
+                readonly property real margin: (cfg.edgeMargin !== undefined ? Number(cfg.edgeMargin) : 56) * k
+                readonly property var boxes: {
+                  var out = []
+                  var W = deskBox.width, H = deskBox.height
+                  for (var i = 0; i < defs.length; i++) {
+                    var d = defs[i]
+                    var on = cfg[d.key] === undefined ? d.on : cfg[d.key] === true
+                    if (!on) continue
+                    var a = String(cfg[d.key + "Anchor"] || d.anchor)
+                    var w = d.w * k, h = d.h * k
+                    var x = a.indexOf("left") !== -1 ? margin : a.indexOf("right") !== -1 ? W - w - margin : (W - w) / 2
+                    var y = a.indexOf("top") !== -1 ? margin : a.indexOf("bottom") !== -1 ? H - h - margin : (H - h) / 2
+                    out.push({ key: d.key, title: d.title, x: x, y: y, w: w, h: h })
+                  }
+                  for (var p = 0; p < out.length; p++) {
+                    out[p].clash = false
+                    for (var q = 0; q < out.length; q++) {
+                      if (p === q) continue
+                      var A = out[p], B = out[q]
+                      if (A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h) out[p].clash = true
+                    }
+                  }
+                  return out
+                }
+                readonly property bool clash: boxes.some(function(b) { return b.clash })
+
+                ClippingRectangle {
+                  id: deskBox
+                  width: parent.width
+                  height: Math.min(parent.height - Style.space(40), width * 10 / 16)
+                  radius: root.innerRadius
+                  color: root.faint
+                  Image {
+                    anchors.fill: parent
+                    source: widgetsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    sourceSize.width: 640
+                  }
+                  Rectangle {
+                    visible: widgetsStage.cfg.visualizer !== false
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: (widgetsStage.cfg.visualizerHeight !== undefined ? Number(widgetsStage.cfg.visualizerHeight) : 140) * widgetsStage.k
+                    color: Util.alpha(root.accent, widgetsStage.focusKey === "visualizer" ? 0.45 : 0.18)
+                  }
+                  Repeater {
+                    model: widgetsStage.boxes
+                    Rectangle {
+                      required property var modelData
+                      readonly property bool hot: modelData.key === widgetsStage.focusKey
+                      x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
+                      radius: 6
+                      color: Util.alpha(Color.background, hot ? 0.92 : 0.78)
+                      border.width: hot || modelData.clash ? 2 : 1
+                      border.color: modelData.clash ? Color.urgent : (hot ? root.accent : Util.alpha(root.foreground, 0.3))
+                      Text {
+                        anchors.centerIn: parent
+                        text: root.tr(modelData.title)
+                        color: parent.hot ? root.accent : root.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Math.max(9, Style.font.body - 2)
+                      }
+                    }
+                  }
+                }
+                Text {
+                  anchors.top: deskBox.bottom
+                  anchors.topMargin: Style.space(10)
+                  width: parent.width
+                  wrapMode: Text.Wrap
+                  color: widgetsStage.clash ? Color.urgent : root.foreground
+                  opacity: widgetsStage.clash ? 1 : 0.7
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  text: widgetsStage.clash ? root.tr("Widgets overlap — move one of the red ones to another position.")
+                    : root.tr("Layout of the enabled widgets; the one you are editing is highlighted.")
+                }
+              }
+
               // Text previews (animations, layouts, shaders) as a code block.
               Flickable {
                 id: previewFlick
                 anchors.fill: parent
                 anchors.margins: Style.space(14)
                 visible: (!root.category.image || (root.selectedRow !== null && root.isTweakRow(root.selectedRow)))
-                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible && !fontStage.visible
+                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible && !fontStage.visible && !windowsStage.visible && !widgetsStage.visible
                 contentHeight: previewLabel.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
