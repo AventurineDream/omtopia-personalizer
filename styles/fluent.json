@@ -19,7 +19,7 @@
   "barLayout": "omarchy-stock",
   "barTransparent": false,
   "lock": {
-    "design": "card",
+    "design": "style-fluent",
     "wallpaperBlur": 0,
     "wallpaperDim": 0.35
   },

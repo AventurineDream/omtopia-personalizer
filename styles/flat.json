@@ -19,7 +19,7 @@
   "barLayout": "omarchy-stock",
   "barTransparent": false,
   "lock": {
-    "design": "editorial",
+    "design": "style-flat",
     "wallpaperBlur": 0,
     "wallpaperDim": 0.35
   },

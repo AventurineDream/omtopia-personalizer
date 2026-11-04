@@ -19,8 +19,8 @@
   "barLayout": "omarchy-stock",
   "barTransparent": false,
   "lock": {
-    "design": "sheet",
-    "wallpaperBlur": 24,
+    "design": "style-glass",
+    "wallpaperBlur": 0.6,
     "wallpaperDim": 0.35
   },
   "launcher": {
