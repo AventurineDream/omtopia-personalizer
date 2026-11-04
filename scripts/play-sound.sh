@@ -20,6 +20,8 @@ if [[ -f $conf ]]; then
   volume=$(jq -r '.soundVolume // 0.6' "$conf" 2>/dev/null || echo 0.6)
   pack=$(jq -r '.soundPack // "theme"' "$conf" 2>/dev/null || echo theme)
 fi
+# Прослушивание пакета без смены настройки (Customizer → Звуки, p): OMARCHY_SOUND_PACK=<пакет>.
+[[ -n ${OMARCHY_SOUND_PACK:-} ]] && pack=$OMARCHY_SOUND_PACK
 [[ $force == --force || $enabled == true ]] || exit 0
 
 # Throttle rapid events (held volume keys or window/workspace bursts).

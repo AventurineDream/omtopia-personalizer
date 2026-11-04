@@ -1176,6 +1176,32 @@ font_profile_step() {
   omarchy-font-profile "$next" >/dev/null 2>&1 || true
 }
 
+# Звуковые пакеты: theme (звуки темы) и каталоги sounds/<пакет> плагина.
+sound_packs() {
+  local d
+  echo theme
+  for d in "$CUSTOMIZER_DIR"/sounds/*/; do basename "$d"; done
+}
+
+sound_pack_desc() {
+  case "$1" in
+  theme) t "Sounds of the current Omarchy theme (apps/sounds), then the freedesktop theme" ;;
+  nihil) t "NIHIL: tactile hardware clicks and LED blips" ;;
+  classic) t "Classic: soft neutral system sounds" ;;
+  flat) t "Flat: short clean sine ticks" ;;
+  glass) t "Glass: glassy inharmonic bells with a long ring" ;;
+  fluent) t "Fluent: soft marimba notes" ;;
+  paper) t "Paper: rustle of a sheet, pencil ticks and taps on the desk" ;;
+  neumorph) t "Neumorphism: muted soft thuds" ;;
+  brutal) t "Brutalism: hard clicks and low thumps" ;;
+  retro) t "Retro 9x: 8-bit square-wave chiptune motifs" ;;
+  neon) t "Neon: synth saw with a filter sweep" ;;
+  *) t "Sound pack: %s" "$1" ;;
+  esac
+}
+
+SOUND_EVENTS=(open close switch menu notify critical lock power volume)
+
 font_group_title() {
   case "$1" in
   base) echo "Without a style" ;;
@@ -1874,6 +1900,7 @@ launcher_skins() {
 launcher_skin_desc() {
   case "$1" in
   nihil) t "NIHIL hardware bump with concave fillets, monochrome app grid, > actions and = LED calculator" ;;
+  paper) t "Sketchbook page: polaroid cards on a ruled sheet, pencil circle, tape and a sticky note" ;;
   list) t "Stock Omarchy compact list card" ;;
   board) t "Tactile keycap board grid" ;;
   constellation) t "Starfield constellation launcher" ;;
@@ -1921,6 +1948,21 @@ list() {
     list_tweaks WINDOW_TWEAKS "$WINDOW_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     printf '%s\t%s\t\t0\t%s\n' "$(t "↺ Reset window geometry")" "geometry-reset" \
       "$(t "Drop gaps, borders, rounding and shadow set by a preset and return to your Hyprland config. Now: %s" "$(geometry_summary)")"
+    ;;
+  sounds)
+    # Пакеты (⏎ — выбрать, p — послушать), переключатели sounds.json, проверка событий текущим пакетом.
+    local pack cur ev
+    cur=$(jq -r '.soundPack // "theme"' "$SOUND_CFG" 2>/dev/null || echo theme)
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "Sound packs")" "section:Sound packs"
+    while read -r pack; do
+      printf '%s\t%s\t\t%s\t%s\t%s\n' "$pack" "pack:$pack" "$([[ $pack == "$cur" ]] && echo 1 || echo 0)" \
+        "$(sound_pack_desc "$pack")"'\n\n'"$(t "⏎ — use this pack · p — listen without switching")" "$(sound_pack_desc "$pack")"
+    done < <(sound_packs)
+    list_tweaks SOUND_TWEAKS "$SOUND_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } $2 != "soundPack" { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "Test events")" "section:Test events"
+    for ev in "${SOUND_EVENTS[@]}"; do
+      printf '%s\t%s\t\t0\t%s\n' "▶ $ev" "test:$ev" "$(t "⏎ or p — play «%s» with the current pack" "$ev")"
+    done
     ;;
   fonts)
     # Профили omarchy-font-profile, сгруппированные по стилям. sub — «sans · mono · title» (по нему
@@ -2060,7 +2102,6 @@ list() {
   osd) list_tweaks OSD_TWEAKS "$OSD_CFG" ;;
   notifications)
     list_tweaks NOTIFY_TWEAKS "$NOTIFY_CFG"
-    command -v omarchy-sound >/dev/null && list_tweaks SOUND_TWEAKS "$SOUND_CFG"
     return 0
     ;;
   wallpaper-fx)
@@ -2252,6 +2293,16 @@ apply() {
   fonts)
     [[ $value == section:* ]] || omarchy-font-profile "$value" >/dev/null 2>&1 || true
     ;;
+  sounds)
+    case "$value" in
+    pack:*)
+      write_json_inplace "$SOUND_CFG" "$(jq --arg p "${value#pack:}" '.soundPack = $p' <<<"$(read_json_or_empty "$SOUND_CFG")")"
+      "$PLAY_SOUND" notify --force
+      ;;
+    test:*) "$PLAY_SOUND" "${value#test:}" --force ;;
+    tweak:*) tweak "${value#tweak:}" pick ;;
+    esac
+    ;;
   styles)
     case "$value" in
     save) save_user_style ;;
@@ -2427,6 +2478,7 @@ status() {
   printf 'preset\t%s\n' "$(current_preset_label)"
   printf 'style\t%s\n' "$(current_style_label)"
   command -v omarchy-font-profile >/dev/null && printf 'fonts\t%s\n' "$(omarchy-font-profile)"
+  printf 'sound\t%s\n' "$(jq -r 'if .sounds == false then "off" else (.soundPack // "theme") end' "$SOUND_CFG" 2>/dev/null || echo theme)"
   printf 'theme\t%s\n' "$(theme_name)"
   printf 'wallpaper\t%s\n' "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)"
   printf 'anims\t%s\n' "$anim"
@@ -2480,6 +2532,7 @@ available() {
   echo presets
   echo styles
   command -v omarchy-font-profile >/dev/null && echo fonts
+  command -v pw-play >/dev/null && echo sounds
   echo themes
   echo theme-walls
   command -v lutgen >/dev/null && command -v zenity >/dev/null && echo walls
@@ -2526,6 +2579,8 @@ lock-preview) omarchy-shell lock previewDesign "${2:-}" >/dev/null ;;
 skin-delete) delete_user_skin "${2:-}" ;;
 layout-delete) delete_user_layout "${2:-}" ;;
 preset-delete) delete_user_preset "${2:-}" ;;
+# Послушать пакет, не выбирая его: sound-preview <пакет> [событие].
+sound-preview) OMARCHY_SOUND_PACK="${2:-theme}" "$PLAY_SOUND" "${3:-notify}" --force ;;
 style-delete) delete_user_style "${2:-}" ;;
 lock-thumbs) lock_thumbs ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;

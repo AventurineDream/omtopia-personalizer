@@ -31,6 +31,7 @@ Item {
     { group: "presets", key: "presets",   icon: "󰆓", title: "Presets",      hint: "Full desktop snapshots · D — delete",   image: false, live: false, presetStage: true },
     { group: "presets", key: "styles",    icon: "󰉦", title: "Style",        hint: "Form on any theme · D — delete",         image: false, live: false, presetStage: true },
     { group: "presets", key: "fonts",     icon: "󰛖", title: "Fonts",        hint: "System font profiles, by style",          image: false, live: false },
+    { group: "presets", key: "sounds",    icon: "󰕾", title: "Sounds",       hint: "Sound packs · p — listen",               image: false, live: false },
     { group: "desk", key: "themes",       icon: "󰏘", title: "Theme",        hint: "omarchy theme set",                    image: true,  live: false },
     { group: "desk", key: "theme-walls",  icon: "󰸉", title: "Wallpaper",    hint: "Categories as in SUPER+CTRL+SPACE",      image: true,  live: false },
     { group: "desk", key: "walls",        icon: "󰃣", title: "Recolor",      hint: "Lutgen · O folder · o image(s)",       image: true,  live: false },
@@ -58,7 +59,7 @@ Item {
   // Вкладки сверху: группы категорий (1–6, Tab / Shift+Tab); chips — какие чипы
   // статуса показывать в шапке, пока группа открыта.
   readonly property var allGroups: [
-    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "style", "fonts", "theme", "bar-skin", "lock"] },
+    { id: "presets", icon: "󰆓", title: "Presets", chips: ["preset", "style", "fonts", "sound", "theme", "bar-skin"] },
     { id: "desk", icon: "󰧨", title: "Desktop",  chips: ["theme", "wallpaper", "fx"] },
     { id: "bar",  icon: "󰕮", title: "Bar",      chips: ["bar-skin", "bar-layout"] },
     { id: "win",  icon: "󱂬", title: "Windows",  chips: ["anims", "opacity", "blur", "glyph", "shader"] },
@@ -79,6 +80,7 @@ Item {
     { key: "preset",     icon: "󰆓", title: "Preset",       category: "presets" },
     { key: "style",      icon: "󰉦", title: "Style",        category: "styles" },
     { key: "fonts",      icon: "󰛖", title: "Fonts",        category: "fonts" },
+    { key: "sound",      icon: "󰕾", title: "Sound",        category: "sounds" },
     { key: "theme",      icon: "󰏘", title: "Theme",        category: "themes" },
     { key: "wallpaper",  icon: "󰸉", title: "Wallpaper",    category: "theme-walls" },
     { key: "fx",         icon: "󰗘", title: "Transition",   category: "wallpaper-fx" },
@@ -694,7 +696,7 @@ Item {
   }
 
   function randomPick() {
-    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "fonts" || root.category.key === "glyph") return
+    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "fonts" || root.category.key === "sounds" || root.category.key === "glyph") return
     if (root.category.tweak) return
     if (root.pane === 0) { root.pane = 1 }
     var c = root.randomCandidates()
@@ -745,6 +747,13 @@ Item {
   }
 
   // Wallpaper FX: выбрать эффект строки (если это эффект) и проиграть его на рабочем столе.
+  // Sounds: p — послушать пакет под курсором (не выбирая) или событие текущим пакетом; оверлей не закрывается.
+  function listenSound() {
+    var v = root.selectedRow ? String(root.selectedRow.value) : ""
+    if (v.indexOf("pack:") === 0) Quickshell.execDetached([root.script, "sound-preview", v.slice(5), "notify"])
+    else if (v.indexOf("test:") === 0) Quickshell.execDetached([root.script, "apply", "sounds", v])
+  }
+
   function playFx() {
     var row = root.selectedRow
     var effect = row && !root.isTweakRow(row) ? row.value : ""
@@ -813,6 +822,7 @@ Item {
       return [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : root.category.key === "glyph" ? "test sweep" : "open"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     }
     if (root.category.key === "lock") return [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"], ["?", "keys"]]
+    if (root.category.key === "sounds" && !root.isTweakRow(root.selectedRow)) return [["j k", "move"], ["⏎", "use"], ["p", "listen"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     var h = [["j k", "move"], ["⏎", "apply"], ["/", "search"], ["h", "back"]]
     if (root.category.key !== "walls" && !root.category.presetStage) h.push(["r", "random"])
     else if (root.category.key === "walls") h.push(["o O", "pick"])
@@ -1211,6 +1221,7 @@ Item {
           else if (!ctrl && t === "p" && root.category.key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
           else if (!ctrl && t === "p" && root.category.key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
           else if (!ctrl && t === "p" && root.category.key === "glyph") Quickshell.execDetached([root.script, "glyph-test", "false"])
+          else if (!ctrl && t === "p" && root.category.key === "sounds") root.listenSound()
           else if (ctrl && (root.category.key === "walls" || root.category.key === "dotify") && k === Qt.Key_O) root.run("pick-files")
           else if (ctrl && (k === Qt.Key_D)) root.move(root.halfPage())
           else if (ctrl && (k === Qt.Key_U)) root.move(-root.halfPage())
