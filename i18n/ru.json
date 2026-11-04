@@ -580,5 +580,10 @@
   "Quote": "Цитата",
   "Photo": "Фото",
   "Widgets overlap — move one of the red ones to another position.": "Виджеты накладываются — переставь один из красных.",
-  "Layout of the enabled widgets; the one you are editing is highlighted.": "Раскладка включённых виджетов; тот, что правишь, подсвечен."
+  "Layout of the enabled widgets; the one you are editing is highlighted.": "Раскладка включённых виджетов; тот, что правишь, подсвечен.",
+  "⏎ — pick a folder · h/l — back to default": "⏎ — выбрать папку · h/l — вернуть по умолчанию",
+  "Pick a folder": "Выбери папку",
+  "default (current wallpaper)": "по умолчанию (текущие обои)",
+  "Photo: folder (default — the current wallpaper)": "Фото: папка (по умолчанию — текущие обои)",
+  "Desktop widgets: on / off (off — none of them is drawn)": "Виджеты рабочего стола: вкл / выкл (выкл — не рисуется ни один)"
 }

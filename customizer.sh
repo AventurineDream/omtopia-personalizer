@@ -461,6 +461,7 @@ PICKER_TWEAKS=(
 # Виджеты рабочего стола (плагин kamradsmeshnyavy.widgets) — файл widgets.json.
 WIDGET_TWEAKS=(
   "#General"
+  "desktopWidgets|bool|true|Desktop widgets: on / off (off — none of them is drawn)"
   "widgetStyle|enum|style default nihil|Widgets: look (style — follows the Customizer style)"
   "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
   "edgeMargin|num|0 200 8 56|Margin from the screen edges"
@@ -495,7 +496,7 @@ WIDGET_TWEAKS=(
   "#Photo frame"
   "photo|bool|false|Photo frame (click — next picture)"
   "photoAnchor|enum|left right center top-left top top-right bottom-left bottom bottom-right|Photo: position"
-  "photoDir|text||Photo: folder (empty — the current wallpaper)"
+  "photoDir|dir||Photo: folder (default — the current wallpaper)"
   "photoInterval|num|1 120 1 10|Photo: change every, minutes"
 )
 
@@ -804,6 +805,17 @@ tweak() {
       --entry-text="$(tweak_value "$key" "")" 2>/dev/null) || exit 0
     if [[ -z $next ]]; then skin_edit --arg k "$key" 'del(.[$k])'; else skin_edit --arg k "$key" --arg v "$next" '.[$k] = $v'; fi
     ;;
+  dir)
+    # ⏎ — выбрать папку; h/l (и x) — по умолчанию: ключ убирается (у фото-рамки — текущие обои).
+    if [[ $how != pick ]]; then skin_edit --arg k "$key" 'del(.[$k])'; return 0; fi
+    local start
+    start=$(tweak_value "$key" "")
+    start=${start/#\~/$HOME}
+    [[ -d $start ]] || start="$HOME/Pictures"
+    [[ -d $start ]] || start="$HOME"
+    next=$(zenity --file-selection --directory --title="$(t "Pick a folder")" --filename="$start/" 2>/dev/null) || exit 0
+    [[ -n $next ]] && skin_edit --arg k "$key" --arg v "${next/#$HOME/\~}" '.[$k] = $v'
+    ;;
   file)
     [[ $how == pick ]] || return 0
     next=$(zenity --file-selection --title="$(t "Avatar")" --filename="$HOME/" \
@@ -931,12 +943,17 @@ list_tweaks() {
     font) def="" hint=$(t "h/l — Nerd fonts from fc-list; empty = system") ;;
     text) def="" hint=$(t "⏎ — enter text") ;;
     file) def="" hint=$(t "⏎ — pick an image") ;;
+    dir) def="" hint=$(t "⏎ — pick a folder · h/l — back to default") ;;
     esac
     v=$(tweak_value "$key" "$def")
     mark=""
     [[ $v != "$def" ]] && mark="●  "
     long=$(default_label "$key" "$v")
     deflong=$(default_label "$key" "$def")
+    if [[ $kind == dir ]]; then
+      [[ -n $v ]] || long=$(t "default (current wallpaper)")
+      deflong=$(t "default (current wallpaper)")
+    fi
     # В строке списка — короткое значение (до скобки), полностью — в превью.
     # Заметка: литеральные \n, overlay превращает их в переводы строк.
     # 6-е поле — подпись под строкой в списке (по умолчанию).
