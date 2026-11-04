@@ -601,5 +601,6 @@
   "Network: position": "Сеть: положение",
   "Network": "Сеть",
   "Dot accents: Pixel plus DotMatrix Dot in site headings and controls, bold terminal text and shell labels": "Точечные акценты: как Pixel, плюс DotMatrix Dot в заголовках и элементах сайтов, жирном тексте терминала и подписях оболочки",
-  "Dots everywhere: every character in DotMatrix LED — interface, sites, titles, terminal and code": "Точки везде: каждый знак — DotMatrix LED: интерфейс, сайты, заголовки, терминал и код"
+  "Dots everywhere: every character in DotMatrix LED — interface, sites, titles, terminal and code": "Точки везде: каждый знак — DotMatrix LED: интерфейс, сайты, заголовки, терминал и код",
+  "Test: dots everywhere at grid sizes — terminals 18 pt, VS Code 24 px, interface 12 pt: crisp dots, full brightness": "Тест: точки везде на размерах по сетке — терминалы 18 pt, VS Code 24 px, интерфейс 12 pt: чёткие точки, полная яркость"
 }
