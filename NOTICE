@@ -22,3 +22,7 @@ This project includes or is based on:
   Dot-matrix wallpaper generator (scripts/dotify.py), perimeter Glyph light
   (GlyphOverlay.qml), interface sound packs (sounds/nihil, sounds/classic),
   and the NIHIL Hyprland animation preset (animations/NIHIL.lua).
+
+- Caveat — https://github.com/googlefonts/caveat
+  SIL Open Font License 1.1, Copyright 2014 The Caveat Project Authors (fonts/OFL.txt).
+  Handwritten typeface of the Paper style (fonts/Caveat.ttf), unmodified.

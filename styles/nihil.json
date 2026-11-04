@@ -151,7 +151,8 @@
     "notifyRadius": 14,
     "notifyCards": "nihil",
     "notifyCorner": "top-right",
-    "notifyWidth": 360
+    "notifyWidth": 360,
+    "notifyAttach": "auto"
   },
   "sounds": {
     "soundPack": "nihil",

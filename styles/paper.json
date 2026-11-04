@@ -1,0 +1,96 @@
+{
+  "name": "Paper",
+  "name_ru": "Бумага",
+  "note": "Paper / sketchbook: panels are sheets of paper with a torn bottom edge, grain and a strip of tape, handwritten Caveat, a paper bar, a paper grain shader over the whole screen and calm motion. Colours stay the theme's: a light theme gives white paper, a dark one — kraft.",
+  "note_ru": "Бумага / скетчбук: панели — листы с рваным нижним краем, зерном и полоской скотча, рукописный Caveat, бумажный бар, шейдер бумажного зерна на весь экран и спокойные анимации. Цвета остаются от темы: светлая даёт белую бумагу, тёмная — крафт.",
+  "anims": "ML4W - standard",
+  "opacity": "solid",
+  "blur": "off",
+  "shader": "paper",
+  "hyprGeometry": {
+    "gapsIn": 8,
+    "gapsOut": 18,
+    "borderSize": 2,
+    "rounding": 6,
+    "shadow": true,
+    "noGaps": false
+  },
+  "barSkin": "paper",
+  "barLayout": "omarchy-stock",
+  "barTransparent": false,
+  "lock": {
+    "design": "editorial",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.35
+  },
+  "launcher": {
+    "skin": "lofi",
+    "backdrop": 0.75
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 600,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "cards",
+    "cardRadius": 8,
+    "selectedBorder": 1,
+    "dim": 0.5
+  },
+  "widgets": {
+    "widgetStyle": "default",
+    "clockStyle": "big",
+    "dashStyle": "default",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "background",
+    "dashAlpha": 1,
+    "dashRadius": 8,
+    "dashBorder": true,
+    "dashAnimation": "fade",
+    "dashDuration": 400
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "background",
+    "osdAlpha": 1,
+    "osdRadius": 8,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "drawer",
+    "notifyFollowBar": true,
+    "notifyAttach": "floating",
+    "notifyBackground": "background",
+    "notifyAlpha": 1,
+    "notifyRadius": 8,
+    "notifyCards": "bordered",
+    "notifyCorner": "top-right",
+    "notifyWidth": 380
+  },
+  "sounds": {
+    "soundPack": "classic",
+    "windowSounds": false
+  },
+  "glyph": {
+    "glyphEnabled": false,
+    "glyphColor": "foreground",
+    "glyphCriticalColor": "urgent",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "stock",
+  "look": {
+    "texture": "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/textures/paper.png",
+    "elevation": 2,
+    "motion": 1.1,
+    "material": "paper",
+    "cornerScale": 0.5,
+    "typeface": "hand"
+  }
+}

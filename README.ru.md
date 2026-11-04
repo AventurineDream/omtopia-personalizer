@@ -127,6 +127,14 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 Блок `look` стиля пишется в `~/.config/omarchy/style.json` с id стиля — это токены панелей (тени, скорость анимаций,
 материал, углы, шрифт) для `BarStyle.qml` в omarchy-desktop-widgets, omarchy-edge-osd и omarchy-drawer-notifications.
 
+**Бумага** — листы бумаги вместо панелей (рваный нижний край, зерно, полоска скотча цветом акцента), рукописный
+[Caveat](https://github.com/googlefonts/caveat) (OFL, лежит в `fonts/`), скин бара `paper` и шейдер экрана `paper`
+(статичное зерно на весь экран вместе с окнами; без `time`, самый дешёвый режим damage tracking). Цвета остаются от
+темы: светлая даёт белую бумагу, тёмная — крафт / грифель. Тайл зерна генерирует `scripts/paper-texture.py`
+(`textures/paper.png` для светлых панелей, `paper-dark.png` для тёмных).
+
+`python3 scripts/check-styles.py` проверяет, что все стили задают одинаковый набор ручек.
+
 Каждый стиль задаёт все ручки формы (у встроенных один набор ключей), поэтому переход между любыми двумя стилями
 полный. `hyprGeometry.noGaps` управляет тогглом Omarchy «без отступов» (он же снимает рамки окон): NIHIL включает
 его — окна вплотную к рамке-бортику, остальные стили и пресет с `"hyprGeometry": null` выключают, рамки возвращаются.

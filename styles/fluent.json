@@ -64,6 +64,7 @@
   "notifications": {
     "notifyStyle": "drawer",
     "notifyFollowBar": true,
+    "notifyAttach": "auto",
     "notifyBackground": "background",
     "notifyAlpha": 0.9,
     "notifyRadius": 10,
