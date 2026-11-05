@@ -40,12 +40,11 @@ o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle ka
 
 **Everything at once** — `install.sh` adds the Customizer and asks about each companion plugin (all through
 `omarchy plugin add`), links the DOT-MATRIX fonts, binds **Super+Shift+T** in `~/.config/hypr/bindings.lua` and
-restarts the shell. Read it before running:
+restarts the shell. It ships with the plugin — read it, then run it:
 
 ```sh
-curl -fsSLo /tmp/customizer-install.sh https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh
-less /tmp/customizer-install.sh
-bash /tmp/customizer-install.sh            # --all: every companion, --with bar,lock: only these, --none: just the Customizer
+less ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh
+bash ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh            # --all: every companion, --with bar,lock: only these, --none: just the Customizer
 ```
 
 ### Companion plugins
@@ -65,7 +64,7 @@ Each is a separate plugin; the Customizer finds them on its own.
 
 ### Optional programs
 
-- `libvips` — fast thumbnails for themes and wallpapers (`omarchy pkg add libvips`)
+- `libvips` — fast thumbnails for themes and wallpapers (package `libvips`)
 - `zenity` — dialogs for colours, text and files in the tweaks
 - `kamradsmeshnyavy.widgets` plugin — **Widgets** category in Desktop (clock, now playing, cava visualizer, system rings)
 - `lutgen` — Recolor (shown only when both lutgen and zenity are there)

@@ -40,12 +40,11 @@ o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle ka
 
 **Всё сразу** — `install.sh` ставит Customizer и спрашивает про каждый плагин-компаньон (всё через
 `omarchy plugin add`), подключает шрифты DOT-MATRIX, добавляет бинд **Super+Shift+T** в
-`~/.config/hypr/bindings.lua` и перезапускает шелл. Прочитайте его перед запуском:
+`~/.config/hypr/bindings.lua` и перезапускает шелл. Он идёт вместе с плагином — прочитайте и запустите:
 
 ```sh
-curl -fsSLo /tmp/customizer-install.sh https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh
-less /tmp/customizer-install.sh
-bash /tmp/customizer-install.sh            # --all — все компаньоны, --with bar,lock — только эти, --none — только Customizer
+less ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh
+bash ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh            # --all — все компаньоны, --with bar,lock — только эти, --none — только Customizer
 ```
 
 ### Плагины-компаньоны
@@ -65,7 +64,7 @@ bash /tmp/customizer-install.sh            # --all — все компаньон
 
 ### Необязательные программы
 
-- `libvips` — быстрые миниатюры тем и обоев (`omarchy pkg add libvips`)
+- `libvips` — быстрые миниатюры тем и обоев (пакет `libvips`)
 - `zenity` — диалоги выбора цвета, текста и файла в твиках
 - плагин `kamradsmeshnyavy.widgets` — категория **Виджеты** на Рабочем столе (часы, сейчас играет, визуализатор cava, кольца системы)
 - `lutgen` — Recolor (виден, только когда есть и lutgen, и zenity)

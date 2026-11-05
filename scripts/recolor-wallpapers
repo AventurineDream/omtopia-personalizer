@@ -34,7 +34,7 @@ mkdir -p "$BG_DIR"
 
 if ! command -v lutgen >/dev/null 2>&1; then
   echo "Error: 'lutgen' is not installed."
-  echo "Please install it with: cargo install lutgen-cli"
+  echo "Please install lutgen (Arch: the lutgen-bin AUR package)"
   exit 1
 fi
 
