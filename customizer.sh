@@ -2536,7 +2536,8 @@ apply() {
   launcher)
     case "$value" in
     tweak:*) tweak "${value#tweak:}" pick ;;
-    open) setsid -f omarchy-menu toggle apps >/dev/null 2>&1 ;;
+    # Omarchy 4.5: маршрут «apps» открывает стоковый док, а скины рисует само меню (корень, Super+Space)
+    open) setsid -f omarchy-menu toggle >/dev/null 2>&1 ;;
     skin:*)
       mkdir -p "$(dirname "$MENU_CFG")"
       TW_FILE="$MENU_CFG"
@@ -2783,7 +2784,7 @@ lock-thumbs) lock_thumbs "${2:-}" ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;
 picker-cache) picker_cache ;;
 picker-open) setsid -f omarchy-menu toggle theme >/dev/null 2>&1 ;;
-launcher-open) setsid -f omarchy-menu toggle apps >/dev/null 2>&1 ;;
+launcher-open) setsid -f omarchy-menu toggle >/dev/null 2>&1 ;;
 glyph-test) omarchy-shell -q glyph test "${2:-false}" >/dev/null 2>&1 ;;
 anim-preview)
   cp "$2" "$ANIM_ACTIVE"
