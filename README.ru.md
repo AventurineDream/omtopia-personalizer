@@ -27,30 +27,26 @@
 
 ## Установка
 
-Customizer и вопрос про каждый плагин-компаньон:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh | bash
-```
-
-`… | bash -s -- --all` — со всеми компаньонами, `--with bar,lock` — только с перечисленными, `--none` —
-только Customizer. Скрипт ставит каждый плагин через `omarchy plugin add`, добавляет бинд **Super+Shift+T** в
-`~/.config/hypr/bindings.lua` и перезапускает шелл.
-
-Вручную:
-
 ```sh
 omarchy plugin add https://github.com/KamradSmeshnyavy/omarchy-customizer --enable
 omarchy restart shell
 ```
 
-и бинд в `~/.config/hypr/bindings.lua`:
+Бинд в `~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle kamradsmeshnyavy.customizer")
 ```
 
-Проверено на Omarchy 4.0.6 и Quickshell 0.3.2.
+**Всё сразу** — `install.sh` ставит Customizer и спрашивает про каждый плагин-компаньон (всё через
+`omarchy plugin add`), подключает шрифты DOT-MATRIX, добавляет бинд **Super+Shift+T** в
+`~/.config/hypr/bindings.lua` и перезапускает шелл. Прочитайте его перед запуском:
+
+```sh
+curl -fsSLo /tmp/customizer-install.sh https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh
+less /tmp/customizer-install.sh
+bash /tmp/customizer-install.sh            # --all — все компаньоны, --with bar,lock — только эти, --none — только Customizer
+```
 
 ### Плагины-компаньоны
 
@@ -74,6 +70,25 @@ o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle ka
 - плагин `kamradsmeshnyavy.widgets` — категория **Виджеты** на Рабочем столе (часы, сейчас играет, визуализатор cava, кольца системы)
 - `lutgen` — Recolor (виден, только когда есть и lutgen, и zenity)
 - `omarchy-wallpaper-theme` в `PATH` + `matugen` — строки «🎨 Тема из обоев» в **Теме**: тема `dynamic` в стиле Material You из текущих обоев ([скрипт](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
+
+## Требования
+
+Omarchy 4 (Quattro) с его оболочкой. Проверено на Omarchy 4.0.6 и Quickshell 0.3.2.
+
+- `jq` (есть в Omarchy).
+- Необязательно: `libvips` (миниатюры), `zenity` (диалоги цвета, текста, файлов), `lutgen` (Recolor), `matugen` (тема из обоев), `ffmpeg` и `pipewire` (`pw-play`) — звуки, `uv` — сборка шрифтов Dotify. Функция без своей программы просто скрывается.
+- Плагины-компаньоны — по желанию, см. таблицу выше.
+
+## Удаление
+
+```sh
+omarchy plugin remove kamradsmeshnyavy.customizer
+omarchy restart shell
+```
+
+Если ставили через `install.sh` — удалите и строку Super+Shift+T, которую он добавил в `~/.config/hypr/bindings.lua`, и ссылку `~/.local/share/fonts/dotmatrix`.
+
+Настройки остаются в `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/`, `~/.config/omarchy/style.json`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader}` — удалите их вручную, если не нужны.
 
 ## Клавиши
 

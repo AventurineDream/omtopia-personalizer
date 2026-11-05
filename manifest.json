@@ -4,6 +4,7 @@
   "name": "Customizer",
   "version": "1.0.0",
   "author": "KamradSmeshnyavy",
+  "license": "GPL-3.0",
   "description": "Look & feel overlay for Omarchy: themes, wallpapers, recolor, animations, transparency, blur, screen shaders — plus bar, lock, wallpaper-transition and picker settings when those plugins are installed",
   "kinds": [
     "overlay"

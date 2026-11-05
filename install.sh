@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Install the Omarchy Customizer and, optionally, its companion plugins.
 #
-#   curl -fsSL https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh | bash
-#   … | bash -s -- --all                 # Customizer + every companion
-#   … | bash -s -- --with bar,lock       # Customizer + the listed ones
-#   … | bash -s -- --none                # Customizer only
+#   bash install.sh                      # Customizer, then a question per companion
+#   bash install.sh --all                # Customizer + every companion
+#   bash install.sh --with bar,lock      # Customizer + the listed ones
+#   bash install.sh --none               # Customizer only
 #
 # Each plugin is a separate repo added with `omarchy plugin add`, so `omarchy plugin update`
 # and `omarchy plugin remove` keep working. Already installed plugins are skipped.

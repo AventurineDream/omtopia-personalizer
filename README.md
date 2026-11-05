@@ -27,30 +27,26 @@ plugins installed it also drives the bar, the lock screen, wallpaper transitions
 
 ## Install
 
-Customizer, plus a question for each companion plugin:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh | bash
-```
-
-`… | bash -s -- --all` installs every companion, `--with bar,lock` only the listed ones, `--none` just the
-Customizer. The script adds each plugin with `omarchy plugin add`, binds **Super+Shift+T** in
-`~/.config/hypr/bindings.lua` and restarts the shell.
-
-By hand:
-
 ```sh
 omarchy plugin add https://github.com/KamradSmeshnyavy/omarchy-customizer --enable
 omarchy restart shell
 ```
 
-and bind it in `~/.config/hypr/bindings.lua`:
+Bind it in `~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle kamradsmeshnyavy.customizer")
 ```
 
-Tested on Omarchy 4.0.6 with Quickshell 0.3.2.
+**Everything at once** — `install.sh` adds the Customizer and asks about each companion plugin (all through
+`omarchy plugin add`), links the DOT-MATRIX fonts, binds **Super+Shift+T** in `~/.config/hypr/bindings.lua` and
+restarts the shell. Read it before running:
+
+```sh
+curl -fsSLo /tmp/customizer-install.sh https://raw.githubusercontent.com/KamradSmeshnyavy/omarchy-customizer/main/install.sh
+less /tmp/customizer-install.sh
+bash /tmp/customizer-install.sh            # --all: every companion, --with bar,lock: only these, --none: just the Customizer
+```
 
 ### Companion plugins
 
@@ -74,6 +70,25 @@ Each is a separate plugin; the Customizer finds them on its own.
 - `kamradsmeshnyavy.widgets` plugin — **Widgets** category in Desktop (clock, now playing, cava visualizer, system rings)
 - `lutgen` — Recolor (shown only when both lutgen and zenity are there)
 - `omarchy-wallpaper-theme` on `PATH` + `matugen` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
+
+## Requirements
+
+Omarchy 4 (Quattro) with its shell. Tested on Omarchy 4.0.6 with Quickshell 0.3.2.
+
+- `jq` (ships with Omarchy).
+- Optional: `libvips` (thumbnails), `zenity` (colour/text/file dialogs), `lutgen` (Recolor), `matugen` (theme from a wallpaper), `ffmpeg` and `pipewire` (`pw-play`) for sounds, `uv` (builds the Dotify fonts). Each feature hides itself when its program is missing.
+- Companion plugins are optional — see the table above.
+
+## Uninstall
+
+```sh
+omarchy plugin remove kamradsmeshnyavy.customizer
+omarchy restart shell
+```
+
+If you used `install.sh`, also delete the Super+Shift+T line it added to `~/.config/hypr/bindings.lua` and the `~/.local/share/fonts/dotmatrix` link.
+
+Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/`, `~/.config/omarchy/style.json`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader}` — delete them by hand if you don't need them.
 
 ## Keys
 
