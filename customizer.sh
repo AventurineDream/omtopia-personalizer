@@ -1047,8 +1047,9 @@ picker_cache() {
   start=$(date +%s)
   before=$(find "$PICKER_CACHE" -maxdepth 1 -name '*.jpg' 2>/dev/null | wc -l)
   notify-send -t 3000 "Theme Switcher" "$(t "Caching thumbnails…")"
-  # --preload готовит previews/ (по превью на тему) и прогревает overlay.
-  omarchy-theme-switcher --preload >/dev/null 2>&1
+  # --print-rows готовит previews/ (по превью на тему) и кэш строк, ничего не открывая
+  # (флага --preload с Omarchy 4.5 нет — без него переключатель открывался при каждой смене темы).
+  omarchy-theme-switcher --print-rows >/dev/null 2>&1
   omarchy-menu-images --cache-only "${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/theme-selector/previews" >/dev/null 2>&1
   theme=$(theme_name)
   omarchy-menu-images --cache-only "$HOME/.local/state/omarchy/current/theme/backgrounds" \
@@ -2781,7 +2782,7 @@ style-delete) delete_user_style "${2:-}" ;;
 lock-thumbs) lock_thumbs "${2:-}" ;;
 fx-replay) omarchy-shell background replay >/dev/null ;;
 picker-cache) picker_cache ;;
-picker-open) setsid -f omarchy-theme-switcher >/dev/null 2>&1 ;;
+picker-open) setsid -f omarchy-menu toggle theme >/dev/null 2>&1 ;;
 launcher-open) setsid -f omarchy-menu toggle apps >/dev/null 2>&1 ;;
 glyph-test) omarchy-shell -q glyph test "${2:-false}" >/dev/null 2>&1 ;;
 anim-preview)
