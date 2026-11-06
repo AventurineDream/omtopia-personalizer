@@ -1,0 +1,1692 @@
+{
+  "$comment": "Settings of the Customizer: one table per settings file/category. customizer.sh builds its *_TWEAKS arrays from it (key|type|args|label); the overlay gets type/args through `list`. Labels and sections are English; i18n/<lang>.json translates them.",
+  "version": 1,
+  "tables": [
+    {
+      "id": "TWEAKS",
+      "category": "bar-tweaks",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/bar-skin.json",
+      "comment": "Параметры Bar Tweaks: ключ|тип|аргументы|подпись. Дефолты совпадают с BarSkin.qml:\nу num последнее число, у enum первое слово, у color/bool — сами аргументы.",
+      "items": [
+        {
+          "section": "Shape & size"
+        },
+        {
+          "key": "shape",
+          "type": "enum",
+          "values": ["full", "floating", "pill", "islands", "notch", "underline", "hug", "frame"],
+          "label": "Shape"
+        },
+        {
+          "key": "height",
+          "type": "num",
+          "min": 0,
+          "max": 48,
+          "step": 2,
+          "default": 0,
+          "label": "Height"
+        },
+        {
+          "key": "gap",
+          "type": "num",
+          "min": 0,
+          "max": 24,
+          "step": 2,
+          "default": 0,
+          "label": "Gap from the screen edge"
+        },
+        {
+          "key": "margin",
+          "type": "num",
+          "min": 0,
+          "max": 300,
+          "step": 10,
+          "default": 0,
+          "label": "Left/right margins"
+        },
+        {
+          "key": "width",
+          "type": "num",
+          "min": 0.3,
+          "max": 1,
+          "step": 0.05,
+          "default": 1,
+          "label": "Width (floating/pill/notch)"
+        },
+        {
+          "key": "radius",
+          "type": "num",
+          "min": 0,
+          "max": 24,
+          "step": 2,
+          "default": 0,
+          "label": "Radius (hug, frame: corners)"
+        },
+        {
+          "key": "frameWidth",
+          "type": "num",
+          "min": 1,
+          "max": 24,
+          "step": 1,
+          "default": 8,
+          "label": "Frame: width around the screen"
+        },
+        {
+          "key": "padding",
+          "type": "num",
+          "min": -1,
+          "max": 40,
+          "step": 2,
+          "default": -1,
+          "label": "Module padding"
+        },
+        {
+          "key": "islandGap",
+          "type": "num",
+          "min": 0,
+          "max": 20,
+          "step": 2,
+          "default": 0,
+          "label": "Island padding"
+        },
+        {
+          "section": "Colours"
+        },
+        {
+          "key": "background",
+          "type": "color",
+          "default": "bar",
+          "label": "Background"
+        },
+        {
+          "key": "backgroundAlpha",
+          "type": "num",
+          "min": -1,
+          "max": 1,
+          "step": 0.05,
+          "default": -1,
+          "label": "Background alpha"
+        },
+        {
+          "key": "gradient",
+          "type": "color",
+          "default": "none",
+          "label": "Gradient: second colour"
+        },
+        {
+          "key": "border",
+          "type": "color",
+          "default": "accent",
+          "label": "Border"
+        },
+        {
+          "key": "borderWidth",
+          "type": "num",
+          "min": 0,
+          "max": 4,
+          "step": 1,
+          "default": 0,
+          "label": "Border width"
+        },
+        {
+          "key": "borderAlpha",
+          "type": "num",
+          "min": 0,
+          "max": 1,
+          "step": 0.1,
+          "default": 1,
+          "label": "Border alpha"
+        },
+        {
+          "key": "text",
+          "type": "color",
+          "default": "bar",
+          "label": "Text"
+        },
+        {
+          "key": "active",
+          "type": "color",
+          "default": "bar",
+          "label": "Attention colour (recording, updates)"
+        },
+        {
+          "section": "Modules"
+        },
+        {
+          "key": "moduleStyle",
+          "type": "enum",
+          "values": ["plain", "pills", "hover"],
+          "label": "Module background"
+        },
+        {
+          "key": "moduleBackground",
+          "type": "color",
+          "default": "foreground",
+          "label": "Module background colour"
+        },
+        {
+          "key": "moduleAlpha",
+          "type": "num",
+          "min": 0,
+          "max": 1,
+          "step": 0.02,
+          "default": 0.08,
+          "label": "Module background alpha"
+        },
+        {
+          "key": "spacing",
+          "type": "num",
+          "min": 0,
+          "max": 20,
+          "step": 2,
+          "default": 0,
+          "label": "Gap between modules"
+        },
+        {
+          "key": "font",
+          "type": "font",
+          "label": "Font"
+        },
+        {
+          "section": "Effects"
+        },
+        {
+          "key": "shadow",
+          "type": "bool",
+          "default": false,
+          "label": "Shadow"
+        },
+        {
+          "key": "glow",
+          "type": "bool",
+          "default": false,
+          "label": "Glow in the border colour"
+        },
+        {
+          "key": "autoHide",
+          "type": "bool",
+          "default": false,
+          "label": "Auto-hide (slides out on hover)"
+        },
+        {
+          "key": "transparent",
+          "type": "bool",
+          "default": false,
+          "label": "Transparent (stock, text over the wallpaper)"
+        },
+        {
+          "section": "Workspaces"
+        },
+        {
+          "key": "wsLabelStyle",
+          "type": "enum",
+          "values": ["omarchy", "numbers", "leds", "circled", "circled-filled", "circled-sans", "circled-sans-filled", "parens", "fullwidth", "superscript", "roman", "roman-small", "kanji", "greek", "cyrillic", "braille", "dots", "squares", "diamonds", "stars", "triangles", "hearts", "hexagons", "bars", "none"],
+          "label": "Workspaces: labels"
+        },
+        {
+          "key": "wsWindowIcons",
+          "type": "bool",
+          "default": false,
+          "label": "Workspaces: window icons"
+        },
+        {
+          "key": "wsIconStyle",
+          "type": "enum",
+          "values": ["color", "mono", "tinted", "accent", "bubble", "faded", "glyph", "letter", "dots", "count"],
+          "label": "Workspaces: window icon style"
+        },
+        {
+          "key": "wsMaxIcons",
+          "type": "num",
+          "min": 1,
+          "max": 8,
+          "step": 1,
+          "default": 3,
+          "label": "Workspaces: icons per workspace (then +N)"
+        },
+        {
+          "key": "wsDedupe",
+          "type": "bool",
+          "default": true,
+          "label": "Workspaces: one icon per app"
+        },
+        {
+          "key": "wsShown",
+          "type": "num",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "default": 5,
+          "label": "Workspaces: always visible"
+        },
+        {
+          "key": "wsShowEmpty",
+          "type": "bool",
+          "default": true,
+          "label": "Workspaces: show empty"
+        },
+        {
+          "key": "wsActivePill",
+          "type": "bool",
+          "default": false,
+          "label": "Workspaces: pill under the active one"
+        },
+        {
+          "key": "wsActiveColor",
+          "type": "color",
+          "default": "default",
+          "label": "Workspaces: active colour"
+        },
+        {
+          "section": "Compact"
+        },
+        {
+          "key": "compact",
+          "type": "enum",
+          "values": ["off", "single", "fullscreen", "always"],
+          "label": "Compact: when to shrink"
+        },
+        {
+          "key": "compactHeight",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 2,
+          "default": 22,
+          "label": "Compact: height"
+        },
+        {
+          "key": "compactModules",
+          "type": "enum",
+          "values": ["essentials", "all", "center", "minimal"],
+          "label": "Compact: visible modules"
+        },
+        {
+          "key": "compactShape",
+          "type": "enum",
+          "values": ["full", "same", "floating", "pill", "notch", "underline", "hug"],
+          "label": "Compact: shape"
+        },
+        {
+          "key": "compactAlpha",
+          "type": "num",
+          "min": -1,
+          "max": 1,
+          "step": 0.05,
+          "default": -1,
+          "label": "Compact: background alpha"
+        },
+        {
+          "key": "compactReserve",
+          "type": "enum",
+          "values": ["keep", "shrink"],
+          "label": "Compact: space under the bar"
+        },
+        {
+          "key": "compactExpandOnHover",
+          "type": "bool",
+          "default": true,
+          "label": "Compact: expand on hover"
+        }
+      ]
+    },
+    {
+      "id": "LOCK_TWEAKS",
+      "category": "lock-tweaks",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/lock-design.json",
+      "comment": "Параметры экрана блокировки (Lock Tweaks) — те же типы, файл lock-design.json.",
+      "items": [
+        {
+          "key": "clock24",
+          "type": "bool",
+          "default": true,
+          "label": "Clock: 24-hour"
+        },
+        {
+          "key": "showSeconds",
+          "type": "bool",
+          "default": false,
+          "label": "Clock: seconds"
+        },
+        {
+          "key": "showDate",
+          "type": "bool",
+          "default": true,
+          "label": "Date"
+        },
+        {
+          "key": "wallpaperBlur",
+          "type": "num",
+          "min": 0,
+          "max": 1,
+          "step": 0.1,
+          "default": 1,
+          "label": "Wallpaper: blur"
+        },
+        {
+          "key": "wallpaperDim",
+          "type": "num",
+          "min": 0,
+          "max": 0.9,
+          "step": 0.05,
+          "default": 0,
+          "label": "Wallpaper: dim"
+        },
+        {
+          "key": "reduceMotion",
+          "type": "bool",
+          "default": false,
+          "label": "Reduce motion"
+        },
+        {
+          "key": "ownerMessage",
+          "type": "text",
+          "label": "Greeting"
+        },
+        {
+          "key": "avatar",
+          "type": "file",
+          "label": "Avatar"
+        }
+      ]
+    },
+    {
+      "id": "FX_TWEAKS",
+      "category": "wallpaper-fx",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/wallpaper-transition.json",
+      "comment": "Настройки переходов обоев — строки tweak:<key> в категории Wallpaper FX.",
+      "items": [
+        {
+          "key": "duration",
+          "type": "num",
+          "min": 100,
+          "max": 3000,
+          "step": 50,
+          "default": 420,
+          "label": "Duration, ms"
+        },
+        {
+          "key": "easing",
+          "type": "enum",
+          "values": ["InOutCubic", "InOutQuad", "InOutQuart", "InOutSine", "InOutExpo", "OutCubic", "OutExpo", "OutQuint", "OutBack", "OutBounce", "OutElastic", "InCubic", "InExpo", "Linear"],
+          "label": "Easing"
+        },
+        {
+          "key": "angle",
+          "type": "num",
+          "min": 0,
+          "max": 345,
+          "step": 15,
+          "default": 0,
+          "label": "Angle (wipe, wave, slide)"
+        },
+        {
+          "key": "origin",
+          "type": "enum",
+          "values": ["center", "cursor", "random"],
+          "label": "Where circles/drops start"
+        },
+        {
+          "key": "softness",
+          "type": "num",
+          "min": 0,
+          "max": 0.2,
+          "step": 0.01,
+          "default": 0.02,
+          "label": "Edge softness"
+        }
+      ]
+    },
+    {
+      "id": "PICKER_TWEAKS",
+      "category": "theme-switcher",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/image-picker.json",
+      "comment": "Вид пикера тем и обоев — строки tweak:<key> в категории Theme Switcher.\n0 / -1 = значение из стиля-пресета или темы (ключ в файле тогда не хранится).",
+      "items": [
+        {
+          "key": "expandedWidth",
+          "type": "num",
+          "min": 0,
+          "max": 1600,
+          "step": 20,
+          "default": 0,
+          "label": "Selected width"
+        },
+        {
+          "key": "expandedHeight",
+          "type": "num",
+          "min": 0,
+          "max": 1000,
+          "step": 20,
+          "default": 0,
+          "label": "Selected height"
+        },
+        {
+          "key": "sliceWidth",
+          "type": "num",
+          "min": 0,
+          "max": 600,
+          "step": 10,
+          "default": 0,
+          "label": "Neighbour width"
+        },
+        {
+          "key": "sliceHeight",
+          "type": "num",
+          "min": 0,
+          "max": 900,
+          "step": 10,
+          "default": 0,
+          "label": "Neighbour height"
+        },
+        {
+          "key": "cardRadius",
+          "type": "num",
+          "min": -1,
+          "max": 40,
+          "step": 2,
+          "default": -1,
+          "label": "Corner radius"
+        },
+        {
+          "key": "dim",
+          "type": "num",
+          "min": 0,
+          "max": 0.9,
+          "step": 0.05,
+          "default": 0.42,
+          "label": "Neighbour dim"
+        },
+        {
+          "key": "selectedBorder",
+          "type": "num",
+          "min": 0,
+          "max": 8,
+          "step": 1,
+          "default": 3,
+          "label": "Selected border"
+        },
+        {
+          "key": "animMs",
+          "type": "num",
+          "min": 0,
+          "max": 600,
+          "step": 20,
+          "default": 160,
+          "label": "Scroll animation, ms"
+        },
+        {
+          "key": "scrimAlpha",
+          "type": "num",
+          "min": -1,
+          "max": 1,
+          "step": 0.05,
+          "default": -1,
+          "label": "Background dim"
+        },
+        {
+          "key": "labels",
+          "type": "bool",
+          "default": false,
+          "label": "Always show labels"
+        },
+        {
+          "key": "autoCache",
+          "type": "bool",
+          "default": false,
+          "label": "Cache wallpapers on theme change"
+        }
+      ]
+    },
+    {
+      "id": "WIDGET_TWEAKS",
+      "category": "widgets",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/widgets.json",
+      "comment": "Виджеты рабочего стола (плагин kamradsmeshnyavy.widgets) — файл widgets.json.",
+      "items": [
+        {
+          "section": "General"
+        },
+        {
+          "key": "desktopWidgets",
+          "type": "bool",
+          "default": true,
+          "label": "Desktop widgets: on / off (off — none of them is drawn)"
+        },
+        {
+          "key": "widgetStyle",
+          "type": "enum",
+          "values": ["style", "default", "dotmatrix"],
+          "label": "Widgets: look (style — follows the Customizer style)"
+        },
+        {
+          "key": "edgeHover",
+          "type": "bool",
+          "default": false,
+          "label": "Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
+        },
+        {
+          "key": "edgeMargin",
+          "type": "num",
+          "min": 0,
+          "max": 200,
+          "step": 4,
+          "default": 24,
+          "label": "Margin from the bar / frame to the cards"
+        },
+        {
+          "key": "tint",
+          "type": "color",
+          "default": "accent",
+          "label": "Accent colour"
+        },
+        {
+          "key": "screens",
+          "type": "enum",
+          "values": ["all", "primary"],
+          "label": "Screens"
+        },
+        {
+          "section": "Clock"
+        },
+        {
+          "key": "clock",
+          "type": "bool",
+          "default": true,
+          "label": "Clock"
+        },
+        {
+          "key": "clockStyle",
+          "type": "enum",
+          "values": ["big", "stacked", "terminal", "minimal"],
+          "label": "Clock: style"
+        },
+        {
+          "key": "clockAnchor",
+          "type": "enum",
+          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"],
+          "label": "Clock: position"
+        },
+        {
+          "key": "clock24",
+          "type": "bool",
+          "default": true,
+          "label": "Clock: 24-hour"
+        },
+        {
+          "key": "clockSeconds",
+          "type": "bool",
+          "default": false,
+          "label": "Clock: seconds"
+        },
+        {
+          "section": "Now playing"
+        },
+        {
+          "key": "media",
+          "type": "bool",
+          "default": true,
+          "label": "Now playing"
+        },
+        {
+          "key": "mediaAnchor",
+          "type": "enum",
+          "values": ["bottom-left", "bottom", "bottom-right", "top-left", "top", "top-right", "left", "center", "right"],
+          "label": "Now playing: position"
+        },
+        {
+          "section": "Visualizer"
+        },
+        {
+          "key": "visualizer",
+          "type": "bool",
+          "default": true,
+          "label": "Visualizer (cava)"
+        },
+        {
+          "key": "visualizerStyle",
+          "type": "enum",
+          "values": ["bars", "mirror", "wave"],
+          "label": "Visualizer: style"
+        },
+        {
+          "key": "visualizerBars",
+          "type": "num",
+          "min": 8,
+          "max": 128,
+          "step": 4,
+          "default": 48,
+          "label": "Visualizer: bars"
+        },
+        {
+          "key": "visualizerHeight",
+          "type": "num",
+          "min": 40,
+          "max": 400,
+          "step": 20,
+          "default": 140,
+          "label": "Visualizer: height"
+        },
+        {
+          "key": "visualizerAlpha",
+          "type": "num",
+          "min": 0.05,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.45,
+          "label": "Visualizer: opacity"
+        },
+        {
+          "key": "visualizerIdle",
+          "type": "bool",
+          "default": false,
+          "label": "Visualizer: also without music"
+        },
+        {
+          "section": "System rings"
+        },
+        {
+          "key": "sysinfo",
+          "type": "bool",
+          "default": true,
+          "label": "System rings"
+        },
+        {
+          "key": "sysinfoAnchor",
+          "type": "enum",
+          "values": ["top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "top-left", "top"],
+          "label": "System rings: position"
+        },
+        {
+          "key": "network",
+          "type": "bool",
+          "default": false,
+          "label": "Network: interface, ↓ / ↑ and a dot scope"
+        },
+        {
+          "key": "networkAnchor",
+          "type": "enum",
+          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"],
+          "label": "Network: position"
+        },
+        {
+          "section": "Todo"
+        },
+        {
+          "key": "todo",
+          "type": "bool",
+          "default": false,
+          "label": "Todo / notes (click — done, right click — delete, + — add)"
+        },
+        {
+          "key": "todoAnchor",
+          "type": "enum",
+          "values": ["right", "top-right", "top-left", "top", "left", "center", "bottom-left", "bottom", "bottom-right"],
+          "label": "Todo: position"
+        },
+        {
+          "key": "todoMax",
+          "type": "num",
+          "min": 1,
+          "max": 20,
+          "step": 1,
+          "default": 8,
+          "label": "Todo: items shown"
+        },
+        {
+          "section": "Quote of the day"
+        },
+        {
+          "key": "quote",
+          "type": "bool",
+          "default": false,
+          "label": "Quote of the day (click — next; your own: ~/.config/omarchy/widgets-quotes.txt)"
+        },
+        {
+          "key": "quoteAnchor",
+          "type": "enum",
+          "values": ["bottom-right", "bottom", "bottom-left", "right", "left", "center", "top-right", "top", "top-left"],
+          "label": "Quote: position"
+        },
+        {
+          "section": "Photo frame"
+        },
+        {
+          "key": "photo",
+          "type": "bool",
+          "default": false,
+          "label": "Photo frame (click — next picture)"
+        },
+        {
+          "key": "photoAnchor",
+          "type": "enum",
+          "values": ["left", "right", "center", "top-left", "top", "top-right", "bottom-left", "bottom", "bottom-right"],
+          "label": "Photo: position"
+        },
+        {
+          "key": "photoDir",
+          "type": "dir",
+          "label": "Photo: folder (default — the current wallpaper)"
+        },
+        {
+          "key": "photoInterval",
+          "type": "num",
+          "min": 1,
+          "max": 120,
+          "step": 1,
+          "default": 10,
+          "label": "Photo: change every, minutes"
+        }
+      ]
+    },
+    {
+      "id": "OSD_TWEAKS",
+      "category": "osd",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/osd.json",
+      "comment": "OSD (клон kamradsmeshnyavy.osd): громкость/яркость у края экрана или стоковой карточкой — osd.json.",
+      "items": [
+        {
+          "section": "Style"
+        },
+        {
+          "key": "osdStyle",
+          "type": "enum",
+          "values": ["edge", "dotmatrix", "stock"],
+          "label": "OSD: style (edge — slides out of the screen edge / frame)"
+        },
+        {
+          "key": "osdFollowBar",
+          "type": "bool",
+          "default": true,
+          "label": "Follow the bar style (colour, alpha, border, radius)"
+        },
+        {
+          "key": "osdAttach",
+          "type": "enum",
+          "values": ["auto", "attached", "floating"],
+          "label": "Attach to the edge (auto — only to a solid bar / frame)"
+        },
+        {
+          "key": "osdBackground",
+          "type": "color",
+          "default": "background",
+          "label": "Background"
+        },
+        {
+          "key": "osdAlpha",
+          "type": "num",
+          "min": 0.3,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.94,
+          "label": "Background alpha"
+        },
+        {
+          "key": "osdRadius",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 2,
+          "default": 18,
+          "label": "Corner radius"
+        },
+        {
+          "section": "Size & position"
+        },
+        {
+          "key": "osdSide",
+          "type": "enum",
+          "values": ["right", "left"],
+          "label": "OSD: screen edge"
+        },
+        {
+          "key": "osdAlign",
+          "type": "enum",
+          "values": ["center", "top", "bottom"],
+          "label": "Position along the edge"
+        },
+        {
+          "key": "osdSize",
+          "type": "enum",
+          "values": ["normal", "compact", "large"],
+          "label": "Size"
+        },
+        {
+          "section": "Behaviour"
+        },
+        {
+          "key": "osdShowValue",
+          "type": "bool",
+          "default": true,
+          "label": "Show the percentage"
+        },
+        {
+          "key": "osdTimeout",
+          "type": "num",
+          "min": -1,
+          "max": 5000,
+          "step": 100,
+          "default": -1,
+          "label": "Hide after, ms"
+        }
+      ]
+    },
+    {
+      "id": "NOTIFY_TWEAKS",
+      "category": "notifications",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/notify-style.json",
+      "comment": "Уведомления (клон kamradsmeshnyavy.notifications): общая подложка у бара или стоковые карточки.",
+      "items": [
+        {
+          "section": "Style"
+        },
+        {
+          "key": "notifyStyle",
+          "type": "enum",
+          "values": ["drawer", "stock"],
+          "label": "Notifications: style (drawer — one panel glued to the bar and the edge)"
+        },
+        {
+          "key": "notifyFollowBar",
+          "type": "bool",
+          "default": true,
+          "label": "Follow the bar style (colour, alpha, border, radius)"
+        },
+        {
+          "key": "notifyAttach",
+          "type": "enum",
+          "values": ["auto", "attached", "floating"],
+          "label": "Attach to the bar (auto — only to a solid bar at the edge)"
+        },
+        {
+          "key": "notifyBackground",
+          "type": "color",
+          "default": "background",
+          "label": "Background"
+        },
+        {
+          "key": "notifyAlpha",
+          "type": "num",
+          "min": 0.3,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.94,
+          "label": "Background alpha"
+        },
+        {
+          "key": "notifyRadius",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 2,
+          "default": 18,
+          "label": "Corner radius"
+        },
+        {
+          "key": "notifyCards",
+          "type": "enum",
+          "values": ["flat", "bordered", "dotmatrix"],
+          "label": "Cards"
+        },
+        {
+          "section": "Size & position"
+        },
+        {
+          "key": "notifyCorner",
+          "type": "enum",
+          "values": ["top-right", "top-left", "top-center"],
+          "label": "Corner"
+        },
+        {
+          "key": "notifyWidth",
+          "type": "num",
+          "min": 280,
+          "max": 600,
+          "step": 20,
+          "default": 380,
+          "label": "Width"
+        },
+        {
+          "key": "notifyMax",
+          "type": "num",
+          "min": 0,
+          "max": 10,
+          "step": 1,
+          "default": 0,
+          "label": "Visible at once (0 — all)"
+        }
+      ]
+    },
+    {
+      "id": "SOUND_TWEAKS",
+      "category": "sounds",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/sounds.json",
+      "comment": "Звуки интерфейса (omarchy-sound + play-sound.sh): уведомления, громкость, окна, воркспейсы — sounds.json.",
+      "items": [
+        {
+          "section": "Sounds"
+        },
+        {
+          "key": "sounds",
+          "type": "bool",
+          "default": true,
+          "label": "Sounds: on"
+        },
+        {
+          "key": "soundPack",
+          "type": "enum",
+          "values": ["theme", "dotmatrix", "classic", "flat", "glass", "fluent", "paper", "neumorph", "brutal", "retro", "neon"],
+          "label": "Sounds: pack"
+        },
+        {
+          "key": "soundVolume",
+          "type": "num",
+          "min": 0.1,
+          "max": 1,
+          "step": 0.1,
+          "default": 0.6,
+          "label": "Sounds: volume"
+        },
+        {
+          "key": "windowSounds",
+          "type": "bool",
+          "default": false,
+          "label": "Sounds: window & workspace events"
+        }
+      ]
+    },
+    {
+      "id": "DASH_TWEAKS",
+      "category": "dashboard",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/widgets.json",
+      "comment": "Дашборд (плагин kamradsmeshnyavy.widgets) — тот же widgets.json.",
+      "items": [
+        {
+          "section": "Look"
+        },
+        {
+          "key": "dashStyle",
+          "type": "enum",
+          "values": ["default", "dotmatrix"],
+          "label": "Dashboard: style"
+        },
+        {
+          "key": "dashFollowBar",
+          "type": "bool",
+          "default": true,
+          "label": "Follow the bar style (colour, alpha, border, radius)"
+        },
+        {
+          "key": "dashAttach",
+          "type": "enum",
+          "values": ["auto", "attached", "floating"],
+          "label": "Attach to the bar (auto — only to a solid bar at the edge)"
+        },
+        {
+          "key": "dashBackground",
+          "type": "color",
+          "default": "background",
+          "label": "Background"
+        },
+        {
+          "key": "dashAlpha",
+          "type": "num",
+          "min": 0.3,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.94,
+          "label": "Background alpha"
+        },
+        {
+          "key": "dashRadius",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 2,
+          "default": 22,
+          "label": "Corner radius"
+        },
+        {
+          "key": "dashBorder",
+          "type": "bool",
+          "default": false,
+          "label": "Border"
+        },
+        {
+          "section": "Blocks"
+        },
+        {
+          "key": "dashMedia",
+          "type": "bool",
+          "default": true,
+          "label": "Player"
+        },
+        {
+          "key": "dashCalendar",
+          "type": "bool",
+          "default": true,
+          "label": "Calendar"
+        },
+        {
+          "key": "dashWeather",
+          "type": "bool",
+          "default": true,
+          "label": "Weather"
+        },
+        {
+          "key": "dashStats",
+          "type": "bool",
+          "default": true,
+          "label": "CPU / RAM graphs"
+        },
+        {
+          "section": "Weather"
+        },
+        {
+          "key": "weatherCity",
+          "type": "text",
+          "label": "Weather city"
+        },
+        {
+          "key": "weatherUnits",
+          "type": "enum",
+          "values": ["celsius", "fahrenheit"],
+          "label": "Temperature units"
+        },
+        {
+          "section": "Animation"
+        },
+        {
+          "key": "dashAnimation",
+          "type": "enum",
+          "values": ["grow", "slide", "fade"],
+          "label": "Animation"
+        },
+        {
+          "key": "dashDuration",
+          "type": "num",
+          "min": 100,
+          "max": 1000,
+          "step": 20,
+          "default": 340,
+          "label": "Animation, ms"
+        }
+      ]
+    },
+    {
+      "id": "GLYPH_TWEAKS",
+      "category": "glyph",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/glyph.json",
+      "comment": "Контурная подсветка экрана Glyph (GlyphOverlay.qml) — glyph.json.",
+      "items": [
+        {
+          "section": "Glyph lighting"
+        },
+        {
+          "key": "glyphEnabled",
+          "type": "bool",
+          "default": false,
+          "label": "Glyph: perimeter lighting"
+        },
+        {
+          "key": "glyphCriticalRed",
+          "type": "bool",
+          "default": true,
+          "label": "Glyph: signal red on critical alerts"
+        },
+        {
+          "key": "glyphCharger",
+          "type": "bool",
+          "default": true,
+          "label": "Glyph: rising beams on charger plug-in"
+        },
+        {
+          "key": "glyphInsetMode",
+          "type": "enum",
+          "values": ["auto", "frame", "edge"],
+          "label": "Glyph: path around the screen"
+        },
+        {
+          "section": "Appearance"
+        },
+        {
+          "key": "glyphColor",
+          "type": "color",
+          "default": "foreground",
+          "label": "Glyph: light colour"
+        },
+        {
+          "key": "glyphCriticalColor",
+          "type": "color",
+          "default": "urgent",
+          "label": "Glyph: critical colour"
+        },
+        {
+          "key": "glyphDuration",
+          "type": "num",
+          "min": 300,
+          "max": 3000,
+          "step": 100,
+          "default": 1100,
+          "label": "Glyph: sweep duration, ms"
+        },
+        {
+          "key": "glyphThickness",
+          "type": "num",
+          "min": 1,
+          "max": 8,
+          "step": 0.5,
+          "default": 2.5,
+          "label": "Glyph: core thickness"
+        }
+      ]
+    },
+    {
+      "id": "DOTIFY_TWEAKS",
+      "category": "dotify",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/dotify.json",
+      "comment": "Генератор матричных LED-обоев Dotify (scripts/dotify.py) — dotify.json.",
+      "items": [
+        {
+          "section": "Dot matrix"
+        },
+        {
+          "key": "dotPitch",
+          "type": "num",
+          "min": 6,
+          "max": 24,
+          "step": 1,
+          "default": 9,
+          "label": "Cell pitch, px (logical)"
+        },
+        {
+          "key": "dotGamma",
+          "type": "num",
+          "min": 0.4,
+          "max": 2.2,
+          "step": 0.05,
+          "default": 1.25,
+          "label": "Brightness gamma"
+        },
+        {
+          "key": "dotOff",
+          "type": "num",
+          "min": 0,
+          "max": 0.25,
+          "step": 0.01,
+          "default": 0.07,
+          "label": "Unlit LED grid level"
+        },
+        {
+          "key": "dotTint",
+          "type": "color",
+          "default": "foreground",
+          "label": "Lit LED colour"
+        },
+        {
+          "key": "dotBackground",
+          "type": "color",
+          "default": "background",
+          "label": "Void background colour"
+        }
+      ]
+    },
+    {
+      "id": "LAUNCHER_TWEAKS",
+      "category": "launcher",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/extensions/menu-skin.json",
+      "comment": "Лаунчер приложений (kamradsmeshnyavy.menu) — extensions/menu-skin.json.",
+      "items": [
+        {
+          "key": "backdrop",
+          "type": "num",
+          "min": 0.2,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.94,
+          "label": "Background dim"
+        }
+      ]
+    },
+    {
+      "id": "DOTMATRIX_TWEAKS",
+      "category": "widgets",
+      "valuePrefix": "",
+      "file": "~/.config/omarchy/dotmatrix.json",
+      "comment": "Стиль DOT-MATRIX (dot-matrix) — dotmatrix.json, его читает dotmatrix/Palette.qml в каждом плагине.",
+      "items": [
+        {
+          "section": "DOT-MATRIX palette"
+        },
+        {
+          "key": "palette",
+          "type": "enum",
+          "values": ["theme", "mono"],
+          "label": "DOT-MATRIX: palette (theme — omarchy colours, mono — original black & white)"
+        },
+        {
+          "section": "DOT-MATRIX colours"
+        },
+        {
+          "key": "dotmatrixBg",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: background (bar, drawers, cards)"
+        },
+        {
+          "key": "dotmatrixFg",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: text"
+        },
+        {
+          "key": "dotmatrixDim",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: secondary text"
+        },
+        {
+          "key": "dotmatrixMuted",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: labels and app names"
+        },
+        {
+          "key": "dotmatrixLine",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: hairlines and card borders"
+        },
+        {
+          "key": "dotmatrixSurface",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: raised surfaces (rows, fields)"
+        },
+        {
+          "key": "dotmatrixLit",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: lit LEDs, sliders, active toggles"
+        },
+        {
+          "key": "dotmatrixSignal",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: signal (accent marks and indicators)"
+        },
+        {
+          "key": "dotmatrixDanger",
+          "type": "color",
+          "default": "default",
+          "label": "DOT-MATRIX: danger (critical, confirmations)"
+        }
+      ]
+    },
+    {
+      "id": "PRESET_TWEAKS",
+      "category": "presets",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/preset-apply.json",
+      "comment": "Что применять из пресета — preset-apply.json. Выключенный раздел пресет не трогает.",
+      "items": [
+        {
+          "section": "Apply from presets"
+        },
+        {
+          "key": "presetTheme",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply theme"
+        },
+        {
+          "key": "presetWallpaper",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply wallpaper"
+        },
+        {
+          "key": "presetGeometry",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply window geometry (gaps, borders, rounding, shadow)"
+        },
+        {
+          "key": "presetAnims",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply animations"
+        },
+        {
+          "key": "presetOpacity",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply opacity and blur"
+        },
+        {
+          "key": "presetShader",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply screen shader"
+        },
+        {
+          "key": "presetBar",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply bar skin and layout"
+        },
+        {
+          "key": "presetLock",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply lock screen"
+        },
+        {
+          "key": "presetLauncher",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply launcher"
+        },
+        {
+          "key": "presetWallpaperFx",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply wallpaper transition and picker"
+        },
+        {
+          "key": "presetWidgets",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply widgets and dashboard"
+        },
+        {
+          "key": "presetOsd",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply OSD"
+        },
+        {
+          "key": "presetNotifications",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply notifications"
+        },
+        {
+          "key": "presetSounds",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply sounds"
+        },
+        {
+          "key": "presetGlyph",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply Glyph"
+        },
+        {
+          "key": "presetFonts",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply system fonts of the preset's style"
+        },
+        {
+          "key": "presetLook",
+          "type": "bool",
+          "default": true,
+          "label": "Presets: apply panel surfaces (shadows, motion, material, corners, typeface)"
+        }
+      ]
+    },
+    {
+      "id": "STYLE_TWEAKS",
+      "category": "styles",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/style-apply.json",
+      "comment": "Что применять при смене стиля — style-apply.json. Ключи — как у пресетов, с префиксом style.",
+      "items": [
+        {
+          "section": "Apply from styles"
+        },
+        {
+          "key": "styleGeometry",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply window geometry (gaps, borders, rounding, shadow)"
+        },
+        {
+          "key": "styleAnims",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply animations"
+        },
+        {
+          "key": "styleOpacity",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply opacity and blur"
+        },
+        {
+          "key": "styleShader",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply screen shader"
+        },
+        {
+          "key": "styleBar",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply bar skin and layout"
+        },
+        {
+          "key": "styleLock",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply lock screen"
+        },
+        {
+          "key": "styleLauncher",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply launcher"
+        },
+        {
+          "key": "styleWallpaperFx",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply wallpaper transition and picker"
+        },
+        {
+          "key": "styleWidgets",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply widgets and dashboard"
+        },
+        {
+          "key": "styleOsd",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply OSD"
+        },
+        {
+          "key": "styleNotifications",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply notifications"
+        },
+        {
+          "key": "styleSounds",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply sounds"
+        },
+        {
+          "key": "styleGlyph",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply Glyph"
+        },
+        {
+          "key": "styleFonts",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply system fonts (terminals, GTK, browser)"
+        },
+        {
+          "key": "styleLook",
+          "type": "bool",
+          "default": true,
+          "label": "Styles: apply panel surfaces (shadows, motion, material, corners, typeface)"
+        },
+        {
+          "key": "styleTheme",
+          "type": "enum",
+          "values": ["current", "off", "dark", "light"],
+          "label": "Styles: theme (current — same brightness as the theme now · off · dark · light)"
+        }
+      ]
+    },
+    {
+      "id": "WINDOW_LAYOUT_TWEAKS",
+      "category": "windows",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/windows.json",
+      "comment": "Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и\nпереключателя Omarchy «без отступов», и тайловую сетку можно оставить сплошной (её внешние углы и так\nскругляет рамка экрана). float — плавающие и pop-окна, all — все, off — как в конфиге Hyprland.\nВкладка «Окна» (windows.json, применяет hypr/customizer.lua и restore): поверх геометрии стиля.\nЗначения по умолчанию — как в looknfeel.lua dotfiles; стиль при применении пишет сюда свою геометрию.",
+      "items": [
+        {
+          "section": "Gaps and borders"
+        },
+        {
+          "key": "windowGapsIn",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 1,
+          "default": 2,
+          "label": "Gaps between windows"
+        },
+        {
+          "key": "windowGapsOut",
+          "type": "num",
+          "min": 0,
+          "max": 80,
+          "step": 2,
+          "default": 4,
+          "label": "Gaps to the screen edges"
+        },
+        {
+          "key": "windowBorder",
+          "type": "num",
+          "min": 0,
+          "max": 8,
+          "step": 1,
+          "default": 2,
+          "label": "Border width"
+        },
+        {
+          "key": "windowNoGaps",
+          "type": "bool",
+          "default": false,
+          "label": "No gaps (Omarchy): windows flush to the edges, no borders"
+        },
+        {
+          "section": "Decoration"
+        },
+        {
+          "key": "windowDecoRounding",
+          "type": "num",
+          "min": 0,
+          "max": 32,
+          "step": 1,
+          "default": 10,
+          "label": "Rounding of all windows"
+        },
+        {
+          "key": "windowShadow",
+          "type": "bool",
+          "default": true,
+          "label": "Shadow"
+        },
+        {
+          "key": "windowShadowRange",
+          "type": "num",
+          "min": 0,
+          "max": 40,
+          "step": 1,
+          "default": 3,
+          "label": "Shadow size"
+        },
+        {
+          "key": "windowDim",
+          "type": "bool",
+          "default": true,
+          "label": "Dim inactive windows"
+        },
+        {
+          "key": "windowDimStrength",
+          "type": "num",
+          "min": 0,
+          "max": 0.6,
+          "step": 0.05,
+          "default": 0.1,
+          "label": "Dim strength"
+        },
+        {
+          "section": "Layout"
+        },
+        {
+          "key": "windowLayout",
+          "type": "enum",
+          "values": ["dwindle", "master"],
+          "label": "Tiling layout: dwindle (spiral) · master (one big window)"
+        }
+      ]
+    },
+    {
+      "id": "WINDOW_TWEAKS",
+      "category": "windows",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/windows.json",
+      "items": [
+        {
+          "section": "Window corners"
+        },
+        {
+          "key": "windowRounding",
+          "type": "enum",
+          "values": ["float", "all", "off"],
+          "label": "Rounded windows: floating only · all · off"
+        },
+        {
+          "key": "windowRadius",
+          "type": "num",
+          "min": 0,
+          "max": 32,
+          "step": 2,
+          "default": 16,
+          "label": "Window corner radius"
+        },
+        {
+          "key": "windowRoundingPower",
+          "type": "num",
+          "min": 2,
+          "max": 4,
+          "step": 0.5,
+          "default": 2.5,
+          "label": "Corner shape: 2 — circle, 4 — squircle"
+        }
+      ]
+    }
+  ]
+}

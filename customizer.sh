@@ -369,58 +369,38 @@ layout_summary() {
           ("R: " + ([.layout.right[]?.id | sub("^[a-z]+\\."; "")] | join(" ")))] | join("  ·  ")' "$1"
 }
 
-# Параметры Bar Tweaks: ключ|тип|аргументы|подпись. Дефолты совпадают с BarSkin.qml:
-# у num последнее число, у enum первое слово, у color/bool — сами аргументы.
-TWEAKS=(
-  "#Shape & size"
-  "shape|enum|full floating pill islands notch underline hug frame|Shape"
-  "height|num|0 48 2 0|Height"
-  "gap|num|0 24 2 0|Gap from the screen edge"
-  "margin|num|0 300 10 0|Left/right margins"
-  "width|num|0.3 1 0.05 1|Width (floating/pill/notch)"
-  "radius|num|0 24 2 0|Radius (hug, frame: corners)"
-  "frameWidth|num|1 24 1 8|Frame: width around the screen"
-  "padding|num|-1 40 2 -1|Module padding"
-  "islandGap|num|0 20 2 0|Island padding"
-  "#Colours"
-  "background|color|bar|Background"
-  "backgroundAlpha|num|-1 1 0.05 -1|Background alpha"
-  "gradient|color|none|Gradient: second colour"
-  "border|color|accent|Border"
-  "borderWidth|num|0 4 1 0|Border width"
-  "borderAlpha|num|0 1 0.1 1|Border alpha"
-  "text|color|bar|Text"
-  "active|color|bar|Attention colour (recording, updates)"
-  "#Modules"
-  "moduleStyle|enum|plain pills hover|Module background"
-  "moduleBackground|color|foreground|Module background colour"
-  "moduleAlpha|num|0 1 0.02 0.08|Module background alpha"
-  "spacing|num|0 20 2 0|Gap between modules"
-  "font|font||Font"
-  "#Effects"
-  "shadow|bool|false|Shadow"
-  "glow|bool|false|Glow in the border colour"
-  "autoHide|bool|false|Auto-hide (slides out on hover)"
-  "transparent|bool|false|Transparent (stock, text over the wallpaper)"
-  "#Workspaces"
-  "wsLabelStyle|enum|omarchy numbers leds circled circled-filled circled-sans circled-sans-filled parens fullwidth superscript roman roman-small kanji greek cyrillic braille dots squares diamonds stars triangles hearts hexagons bars none|Workspaces: labels"
-  "wsWindowIcons|bool|false|Workspaces: window icons"
-  "wsIconStyle|enum|color mono tinted accent bubble faded glyph letter dots count|Workspaces: window icon style"
-  "wsMaxIcons|num|1 8 1 3|Workspaces: icons per workspace (then +N)"
-  "wsDedupe|bool|true|Workspaces: one icon per app"
-  "wsShown|num|1 10 1 5|Workspaces: always visible"
-  "wsShowEmpty|bool|true|Workspaces: show empty"
-  "wsActivePill|bool|false|Workspaces: pill under the active one"
-  "wsActiveColor|color|default|Workspaces: active colour"
-  "#Compact"
-  "compact|enum|off single fullscreen always|Compact: when to shrink"
-  "compactHeight|num|0 40 2 22|Compact: height"
-  "compactModules|enum|essentials all center minimal|Compact: visible modules"
-  "compactShape|enum|full same floating pill notch underline hug|Compact: shape"
-  "compactAlpha|num|-1 1 0.05 -1|Compact: background alpha"
-  "compactReserve|enum|keep shrink|Compact: space under the bar"
-  "compactExpandOnHover|bool|true|Compact: expand on hover"
-)
+# Описания настроек — settings.json рядом (таблица на файл настроек: категория, файл, пункты
+# с типом, пределами и подписью). Из него собираются массивы *_TWEAKS в прежнем виде
+# «ключ|тип|аргументы|подпись» («#Раздел» — заголовок) — дальше скрипт работает с ними как раньше.
+SETTINGS_JSON="$CUSTOMIZER_DIR/settings.json"
+# jq отдаёт по строке на таблицу: «ИМЯ+=('ключ|тип|аргументы|подпись' …)» с кавычками @sh — один eval.
+SETTINGS_JQ='.tables[] | "\(.id)+=(" + ([.items[]
+  | if has("section") then "#" + .section
+    else [.key, .type,
+          (if .type == "num" then "\(.min) \(.max) \(.step) \(.default)"
+           elif .type == "enum" then (.values | join(" "))
+           elif .type == "bool" or .type == "color" then (.default | tostring)
+           else "" end),
+          .label] | join("|") end
+  | @sh] | join(" ")) + ")"'
+declare -ga TWEAKS=() LOCK_TWEAKS=() FX_TWEAKS=() PICKER_TWEAKS=() WIDGET_TWEAKS=() OSD_TWEAKS=() NOTIFY_TWEAKS=() \
+  SOUND_TWEAKS=() DASH_TWEAKS=() GLYPH_TWEAKS=() DOTIFY_TWEAKS=() LAUNCHER_TWEAKS=() DOTMATRIX_TWEAKS=() \
+  PRESET_TWEAKS=() STYLE_TWEAKS=() WINDOW_LAYOUT_TWEAKS=() WINDOW_TWEAKS=()
+# Собранное кэшируется в $RUN_DIR (tmpfs) и пересобирается, только когда settings.json новее:
+# обычный вызов — source маленького файла без jq. В кэш попадают только строки
+# «<ИМЯ>TWEAKS+=(…)» — source не исполнит ничего, кроме добавления в массивы.
+SETTINGS_CACHE="$RUN_DIR/settings${SETTINGS_JSON//\//_}.bash"
+if [[ ! -s $SETTINGS_CACHE || $SETTINGS_JSON -nt $SETTINGS_CACHE ]]; then
+  _code=$(jq -r "$SETTINGS_JQ" "$SETTINGS_JSON" 2>/dev/null | grep -E '^([A-Z]+_)*TWEAKS\+=\(')
+  if [[ -n $_code ]]; then
+    mkdir -p "$RUN_DIR"
+    _tmp=$(mktemp "$RUN_DIR/settings.XXXXXX") && printf '%s\n' "$_code" >"$_tmp" && mv -f "$_tmp" "$SETTINGS_CACHE"
+  fi
+  unset _code _tmp
+fi
+# shellcheck source=/dev/null
+[[ -s $SETTINGS_CACHE ]] && source "$SETTINGS_CACHE"
+((${#TWEAKS[@]})) || printf 'customizer: cannot read %s\n' "$SETTINGS_JSON" >&2
 
 # Как показывать дефолт в подписи: особые значения — словами.
 default_label() {
@@ -457,265 +437,18 @@ default_label() {
   esac
 }
 
-# Параметры экрана блокировки (Lock Tweaks) — те же типы, файл lock-design.json.
-LOCK_TWEAKS=(
-  "clock24|bool|true|Clock: 24-hour"
-  "showSeconds|bool|false|Clock: seconds"
-  "showDate|bool|true|Date"
-  "wallpaperBlur|num|0 1 0.1 1|Wallpaper: blur"
-  "wallpaperDim|num|0 0.9 0.05 0|Wallpaper: dim"
-  "reduceMotion|bool|false|Reduce motion"
-  "ownerMessage|text||Greeting"
-  "avatar|file||Avatar"
-)
 
-# Настройки переходов обоев — строки tweak:<key> в категории Wallpaper FX.
-FX_TWEAKS=(
-  "duration|num|100 3000 50 420|Duration, ms"
-  "easing|enum|InOutCubic InOutQuad InOutQuart InOutSine InOutExpo OutCubic OutExpo OutQuint OutBack OutBounce OutElastic InCubic InExpo Linear|Easing"
-  "angle|num|0 345 15 0|Angle (wipe, wave, slide)"
-  "origin|enum|center cursor random|Where circles/drops start"
-  "softness|num|0 0.2 0.01 0.02|Edge softness"
-)
 
-# Вид пикера тем и обоев — строки tweak:<key> в категории Theme Switcher.
-# 0 / -1 = значение из стиля-пресета или темы (ключ в файле тогда не хранится).
-PICKER_TWEAKS=(
-  "expandedWidth|num|0 1600 20 0|Selected width"
-  "expandedHeight|num|0 1000 20 0|Selected height"
-  "sliceWidth|num|0 600 10 0|Neighbour width"
-  "sliceHeight|num|0 900 10 0|Neighbour height"
-  "cardRadius|num|-1 40 2 -1|Corner radius"
-  "dim|num|0 0.9 0.05 0.42|Neighbour dim"
-  "selectedBorder|num|0 8 1 3|Selected border"
-  "animMs|num|0 600 20 160|Scroll animation, ms"
-  "scrimAlpha|num|-1 1 0.05 -1|Background dim"
-  "labels|bool|false|Always show labels"
-  "autoCache|bool|false|Cache wallpapers on theme change"
-)
 
-# Виджеты рабочего стола (плагин kamradsmeshnyavy.widgets) — файл widgets.json.
-WIDGET_TWEAKS=(
-  "#General"
-  "desktopWidgets|bool|true|Desktop widgets: on / off (off — none of them is drawn)"
-  "widgetStyle|enum|style default dotmatrix|Widgets: look (style — follows the Customizer style)"
-  "edgeHover|bool|false|Edge hotzones (top — dashboard, top-right — settings, bottom — launcher)"
-  "edgeMargin|num|0 200 4 24|Margin from the bar / frame to the cards"
-  "tint|color|accent|Accent colour"
-  "screens|enum|all primary|Screens"
-  "#Clock"
-  "clock|bool|true|Clock"
-  "clockStyle|enum|big stacked terminal minimal|Clock: style"
-  "clockAnchor|enum|top-left top top-right left center right bottom-left bottom bottom-right|Clock: position"
-  "clock24|bool|true|Clock: 24-hour"
-  "clockSeconds|bool|false|Clock: seconds"
-  "#Now playing"
-  "media|bool|true|Now playing"
-  "mediaAnchor|enum|bottom-left bottom bottom-right top-left top top-right left center right|Now playing: position"
-  "#Visualizer"
-  "visualizer|bool|true|Visualizer (cava)"
-  "visualizerStyle|enum|bars mirror wave|Visualizer: style"
-  "visualizerBars|num|8 128 4 48|Visualizer: bars"
-  "visualizerHeight|num|40 400 20 140|Visualizer: height"
-  "visualizerAlpha|num|0.05 1 0.05 0.45|Visualizer: opacity"
-  "visualizerIdle|bool|false|Visualizer: also without music"
-  "#System rings"
-  "sysinfo|bool|true|System rings"
-  "sysinfoAnchor|enum|top-right left center right bottom-left bottom bottom-right top-left top|System rings: position"
-  "network|bool|false|Network: interface, ↓ / ↑ and a dot scope"
-  "networkAnchor|enum|top-left top top-right left center right bottom-left bottom bottom-right|Network: position"
-  "#Todo"
-  "todo|bool|false|Todo / notes (click — done, right click — delete, + — add)"
-  "todoAnchor|enum|right top-right top-left top left center bottom-left bottom bottom-right|Todo: position"
-  "todoMax|num|1 20 1 8|Todo: items shown"
-  "#Quote of the day"
-  "quote|bool|false|Quote of the day (click — next; your own: ~/.config/omarchy/widgets-quotes.txt)"
-  "quoteAnchor|enum|bottom-right bottom bottom-left right left center top-right top top-left|Quote: position"
-  "#Photo frame"
-  "photo|bool|false|Photo frame (click — next picture)"
-  "photoAnchor|enum|left right center top-left top top-right bottom-left bottom bottom-right|Photo: position"
-  "photoDir|dir||Photo: folder (default — the current wallpaper)"
-  "photoInterval|num|1 120 1 10|Photo: change every, minutes"
-)
 
-# OSD (клон kamradsmeshnyavy.osd): громкость/яркость у края экрана или стоковой карточкой — osd.json.
-OSD_TWEAKS=(
-  "#Style"
-  "osdStyle|enum|edge dotmatrix stock|OSD: style (edge — slides out of the screen edge / frame)"
-  "osdFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
-  "osdAttach|enum|auto attached floating|Attach to the edge (auto — only to a solid bar / frame)"
-  "osdBackground|color|background|Background"
-  "osdAlpha|num|0.3 1 0.05 0.94|Background alpha"
-  "osdRadius|num|0 40 2 18|Corner radius"
-  "#Size & position"
-  "osdSide|enum|right left|OSD: screen edge"
-  "osdAlign|enum|center top bottom|Position along the edge"
-  "osdSize|enum|normal compact large|Size"
-  "#Behaviour"
-  "osdShowValue|bool|true|Show the percentage"
-  "osdTimeout|num|-1 5000 100 -1|Hide after, ms"
-)
-# Уведомления (клон kamradsmeshnyavy.notifications): общая подложка у бара или стоковые карточки.
-NOTIFY_TWEAKS=(
-  "#Style"
-  "notifyStyle|enum|drawer stock|Notifications: style (drawer — one panel glued to the bar and the edge)"
-  "notifyFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
-  "notifyAttach|enum|auto attached floating|Attach to the bar (auto — only to a solid bar at the edge)"
-  "notifyBackground|color|background|Background"
-  "notifyAlpha|num|0.3 1 0.05 0.94|Background alpha"
-  "notifyRadius|num|0 40 2 18|Corner radius"
-  "notifyCards|enum|flat bordered dotmatrix|Cards"
-  "#Size & position"
-  "notifyCorner|enum|top-right top-left top-center|Corner"
-  "notifyWidth|num|280 600 20 380|Width"
-  "notifyMax|num|0 10 1 0|Visible at once (0 — all)"
-)
-# Звуки интерфейса (omarchy-sound + play-sound.sh): уведомления, громкость, окна, воркспейсы — sounds.json.
-SOUND_TWEAKS=(
-  "#Sounds"
-  "sounds|bool|true|Sounds: on"
-  "soundPack|enum|theme dotmatrix classic flat glass fluent paper neumorph brutal retro neon|Sounds: pack"
-  "soundVolume|num|0.1 1 0.1 0.6|Sounds: volume"
-  "windowSounds|bool|false|Sounds: window & workspace events"
-)
-# Дашборд (плагин kamradsmeshnyavy.widgets) — тот же widgets.json.
-DASH_TWEAKS=(
-  "#Look"
-  "dashStyle|enum|default dotmatrix|Dashboard: style"
-  "dashFollowBar|bool|true|Follow the bar style (colour, alpha, border, radius)"
-  "dashAttach|enum|auto attached floating|Attach to the bar (auto — only to a solid bar at the edge)"
-  "dashBackground|color|background|Background"
-  "dashAlpha|num|0.3 1 0.05 0.94|Background alpha"
-  "dashRadius|num|0 40 2 22|Corner radius"
-  "dashBorder|bool|false|Border"
-  "#Blocks"
-  "dashMedia|bool|true|Player"
-  "dashCalendar|bool|true|Calendar"
-  "dashWeather|bool|true|Weather"
-  "dashStats|bool|true|CPU / RAM graphs"
-  "#Weather"
-  "weatherCity|text||Weather city"
-  "weatherUnits|enum|celsius fahrenheit|Temperature units"
-  "#Animation"
-  "dashAnimation|enum|grow slide fade|Animation"
-  "dashDuration|num|100 1000 20 340|Animation, ms"
-)
 
-# Контурная подсветка экрана Glyph (GlyphOverlay.qml) — glyph.json.
-GLYPH_TWEAKS=(
-  "#Glyph lighting"
-  "glyphEnabled|bool|false|Glyph: perimeter lighting"
-  "glyphCriticalRed|bool|true|Glyph: signal red on critical alerts"
-  "glyphCharger|bool|true|Glyph: rising beams on charger plug-in"
-  "glyphInsetMode|enum|auto frame edge|Glyph: path around the screen"
-  "#Appearance"
-  "glyphColor|color|foreground|Glyph: light colour"
-  "glyphCriticalColor|color|urgent|Glyph: critical colour"
-  "glyphDuration|num|300 3000 100 1100|Glyph: sweep duration, ms"
-  "glyphThickness|num|1 8 0.5 2.5|Glyph: core thickness"
-)
 
-# Генератор матричных LED-обоев Dotify (scripts/dotify.py) — dotify.json.
-DOTIFY_TWEAKS=(
-  "#Dot matrix"
-  "dotPitch|num|6 24 1 9|Cell pitch, px (logical)"
-  "dotGamma|num|0.4 2.2 0.05 1.25|Brightness gamma"
-  "dotOff|num|0 0.25 0.01 0.07|Unlit LED grid level"
-  "dotTint|color|foreground|Lit LED colour"
-  "dotBackground|color|background|Void background colour"
-)
 
-# Лаунчер приложений (kamradsmeshnyavy.menu) — extensions/menu-skin.json.
-LAUNCHER_TWEAKS=(
-  "backdrop|num|0.2 1 0.05 0.94|Background dim"
-)
 
-# Стиль DOT-MATRIX (dot-matrix) — dotmatrix.json, его читает dotmatrix/Palette.qml в каждом плагине.
-DOTMATRIX_TWEAKS=(
-  "#DOT-MATRIX palette"
-  "palette|enum|theme mono|DOT-MATRIX: palette (theme — omarchy colours, mono — original black & white)"
-  "#DOT-MATRIX colours"
-  "dotmatrixBg|color|default|DOT-MATRIX: background (bar, drawers, cards)"
-  "dotmatrixFg|color|default|DOT-MATRIX: text"
-  "dotmatrixDim|color|default|DOT-MATRIX: secondary text"
-  "dotmatrixMuted|color|default|DOT-MATRIX: labels and app names"
-  "dotmatrixLine|color|default|DOT-MATRIX: hairlines and card borders"
-  "dotmatrixSurface|color|default|DOT-MATRIX: raised surfaces (rows, fields)"
-  "dotmatrixLit|color|default|DOT-MATRIX: lit LEDs, sliders, active toggles"
-  "dotmatrixSignal|color|default|DOT-MATRIX: signal (accent marks and indicators)"
-  "dotmatrixDanger|color|default|DOT-MATRIX: danger (critical, confirmations)"
-)
 
-# Что применять из пресета — preset-apply.json. Выключенный раздел пресет не трогает.
-PRESET_TWEAKS=(
-  "#Apply from presets"
-  "presetTheme|bool|true|Presets: apply theme"
-  "presetWallpaper|bool|true|Presets: apply wallpaper"
-  "presetGeometry|bool|true|Presets: apply window geometry (gaps, borders, rounding, shadow)"
-  "presetAnims|bool|true|Presets: apply animations"
-  "presetOpacity|bool|true|Presets: apply opacity and blur"
-  "presetShader|bool|true|Presets: apply screen shader"
-  "presetBar|bool|true|Presets: apply bar skin and layout"
-  "presetLock|bool|true|Presets: apply lock screen"
-  "presetLauncher|bool|true|Presets: apply launcher"
-  "presetWallpaperFx|bool|true|Presets: apply wallpaper transition and picker"
-  "presetWidgets|bool|true|Presets: apply widgets and dashboard"
-  "presetOsd|bool|true|Presets: apply OSD"
-  "presetNotifications|bool|true|Presets: apply notifications"
-  "presetSounds|bool|true|Presets: apply sounds"
-  "presetGlyph|bool|true|Presets: apply Glyph"
-  "presetFonts|bool|true|Presets: apply system fonts of the preset's style"
-  "presetLook|bool|true|Presets: apply panel surfaces (shadows, motion, material, corners, typeface)"
-)
 
-# Что применять при смене стиля — style-apply.json. Ключи — как у пресетов, с префиксом style.
-STYLE_TWEAKS=(
-  "#Apply from styles"
-  "styleGeometry|bool|true|Styles: apply window geometry (gaps, borders, rounding, shadow)"
-  "styleAnims|bool|true|Styles: apply animations"
-  "styleOpacity|bool|true|Styles: apply opacity and blur"
-  "styleShader|bool|true|Styles: apply screen shader"
-  "styleBar|bool|true|Styles: apply bar skin and layout"
-  "styleLock|bool|true|Styles: apply lock screen"
-  "styleLauncher|bool|true|Styles: apply launcher"
-  "styleWallpaperFx|bool|true|Styles: apply wallpaper transition and picker"
-  "styleWidgets|bool|true|Styles: apply widgets and dashboard"
-  "styleOsd|bool|true|Styles: apply OSD"
-  "styleNotifications|bool|true|Styles: apply notifications"
-  "styleSounds|bool|true|Styles: apply sounds"
-  "styleGlyph|bool|true|Styles: apply Glyph"
-  "styleFonts|bool|true|Styles: apply system fonts (terminals, GTK, browser)"
-  "styleLook|bool|true|Styles: apply panel surfaces (shadows, motion, material, corners, typeface)"
-  "styleTheme|enum|current off dark light|Styles: theme (current — same brightness as the theme now · off · dark · light)"
-)
 
-# Углы окон. Скругление — правилом окон, а не decoration.rounding: оно сильнее общей настройки и
-# переключателя Omarchy «без отступов», и тайловую сетку можно оставить сплошной (её внешние углы и так
-# скругляет рамка экрана). float — плавающие и pop-окна, all — все, off — как в конфиге Hyprland.
-# Вкладка «Окна» (windows.json, применяет hypr/customizer.lua и restore): поверх геометрии стиля.
-# Значения по умолчанию — как в looknfeel.lua dotfiles; стиль при применении пишет сюда свою геометрию.
-WINDOW_LAYOUT_TWEAKS=(
-  "#Gaps and borders"
-  "windowGapsIn|num|0 40 1 2|Gaps between windows"
-  "windowGapsOut|num|0 80 2 4|Gaps to the screen edges"
-  "windowBorder|num|0 8 1 2|Border width"
-  "windowNoGaps|bool|false|No gaps (Omarchy): windows flush to the edges, no borders"
-  "#Decoration"
-  "windowDecoRounding|num|0 32 1 10|Rounding of all windows"
-  "windowShadow|bool|true|Shadow"
-  "windowShadowRange|num|0 40 1 3|Shadow size"
-  "windowDim|bool|true|Dim inactive windows"
-  "windowDimStrength|num|0 0.6 0.05 0.1|Dim strength"
-  "#Layout"
-  "windowLayout|enum|dwindle master|Tiling layout: dwindle (spiral) · master (one big window)"
-)
 
-WINDOW_TWEAKS=(
-  "#Window corners"
-  "windowRounding|enum|float all off|Rounded windows: floating only · all · off"
-  "windowRadius|num|0 32 2 16|Window corner radius"
-  "windowRoundingPower|num|2 4 0.5 2.5|Corner shape: 2 — circle, 4 — squircle"
-)
 
 tweak_spec() {
   local t
@@ -2895,25 +2628,16 @@ available() {
 # Индекс для поиска по всем настройкам (/ в overlay): категория, value строки, подпись, раздел.
 # Без чтения значений — быстро; value совпадает с тем, что даёт list <категория>.
 search_index() {
-  local spec cat arr prefix t sec key label
-  # <категория>:<массив>[:t] — t: value строк с префиксом "tweak:" (как в list этой категории).
-  for spec in presets:PRESET_TWEAKS:t styles:STYLE_TWEAKS:t sounds:SOUND_TWEAKS:t \
-    dotify:DOTIFY_TWEAKS:t wallpaper-fx:FX_TWEAKS:t widgets:WIDGET_TWEAKS widgets:DOTMATRIX_TWEAKS \
-    dashboard:DASH_TWEAKS bar-tweaks:TWEAKS windows:WINDOW_LAYOUT_TWEAKS:t windows:WINDOW_TWEAKS:t \
-    osd:OSD_TWEAKS notifications:NOTIFY_TWEAKS glyph:GLYPH_TWEAKS:t lock-tweaks:LOCK_TWEAKS \
-    theme-switcher:PICKER_TWEAKS:t launcher:LAUNCHER_TWEAKS:t; do
-    IFS=: read -r cat arr prefix <<<"$spec"
-    [[ $prefix == t ]] && prefix="tweak:"
-    local -n table=$arr
-    sec=""
-    for t in "${table[@]}"; do
-      if [[ $t == '#'* ]]; then sec=$(t "${t#\#}"); continue; fi
-      IFS='|' read -r key _ _ label <<<"$t"
-      [[ $cat == sounds && $key == soundPack ]] && continue
-      printf '%s\t%s\t%s\t%s\n' "$cat" "$prefix$key" "$(t "$label")" "$sec"
-    done
-    unset -n table
-  done
+  local cat val lab sec _l _s
+  while IFS=$'\x1f' read -r -d $'\x1e' cat val lab sec; do
+    T_OUT=_l t "$lab"
+    _s=""
+    [[ -n $sec ]] && T_OUT=_s t "$sec"
+    printf '%s\t%s\t%s\t%s\n' "$cat" "$val" "$_l" "$_s"
+  done < <(jq -j '.tables[] | .category as $c | .valuePrefix as $p
+    | foreach .items[] as $i (""; if $i.section then $i.section else . end;
+        if $i.key and ($c != "sounds" or $i.key != "soundPack")
+        then $c, "\u001f", $p + $i.key, "\u001f", $i.label, "\u001f", ., "\u001e" else empty end)' "$SETTINGS_JSON" 2>/dev/null)
 }
 
 mkdir -p "$RUN_DIR" "$STATE_DIR"

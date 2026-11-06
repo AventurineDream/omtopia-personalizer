@@ -177,6 +177,12 @@ complete. `hyprGeometry.noGaps` drives Omarchy's "no gaps" toggle (it also remov
 on so windows sit flush against the bezel frame, every other style — and a preset with `"hyprGeometry": null` —
 turns it off and the borders come back.
 
+## Settings file
+
+Every setting the Customizer shows — its type (switch, slider, choice, colour…), limits, default, label and the
+file it is written to — is described in [`settings.json`](settings.json), one table per settings file. Add or
+change a setting there; labels are English and `i18n/<lang>.json` translates them.
+
 ## Language
 
 English and Russian. The language comes from `"lang"` in `~/.config/omarchy/customizer.json`, otherwise
