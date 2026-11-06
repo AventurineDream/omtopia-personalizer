@@ -975,6 +975,20 @@ Item {
     else root.run(root.selectedRow.value)
   }
 
+  // Физическая клавиша → символ US-раскладки (xkb keycode = evdev + 8, его отдаёт nativeScanCode
+  // на Wayland): клавиши работают и в русской раскладке. Пара — без Shift / с Shift.
+  readonly property var scanKeys: ({
+    10: "1!", 11: "2@", 12: "3#", 13: "4$", 14: "5%", 15: "6^", 16: "7&", 17: "8*", 18: "9(", 19: "0)", 20: "-_", 21: "=+",
+    24: "qQ", 25: "wW", 26: "eE", 27: "rR", 28: "tT", 29: "yY", 30: "uU", 31: "iI", 32: "oO", 33: "pP", 34: "[{", 35: "]}",
+    38: "aA", 39: "sS", 40: "dD", 41: "fF", 42: "gG", 43: "hH", 44: "jJ", 45: "kK", 46: "lL", 47: ";:", 48: "'\"", 49: "`~",
+    52: "zZ", 53: "xX", 54: "cC", 55: "vV", 56: "bB", 57: "nN", 58: "mM", 59: ",<", 60: ".>", 61: "/?"
+  })
+  function latinKey(event) {
+    var pair = root.scanKeys[event.nativeScanCode]
+    if (!pair) return ""
+    return (event.modifiers & Qt.ShiftModifier) ? pair.charAt(1) : pair.charAt(0)
+  }
+
   // Клавиши по фокусу: рейл (pane 0), домашняя, страница (pane 1). true — обработано.
   function handlePaneKey(event, k, t, ctrl, printable) {
     var esc = k === Qt.Key_Escape
@@ -1927,11 +1941,15 @@ Item {
           var ctrl = event.modifiers & Qt.ControlModifier
           var t = event.text
           var printable = t && t.length === 1 && t.charCodeAt(0) >= 32 && t.charCodeAt(0) !== 127
+          // Нелатинская раскладка (или Ctrl без текста): команда — по физической клавише, как в US.
+          // Текст для поиска (t) не трогаем до проверки режима поиска — там нужна сама буква.
+          var lk = (!t || t.charCodeAt(0) > 127) ? root.latinKey(event) : ""
+          if (ctrl && /^[a-z]$/i.test(lk)) k = Qt.Key_A + (lk.toUpperCase().charCodeAt(0) - 65)
           var pendingG = root.pendingG
           root.pendingG = false
 
           if (root.helpOpen) {
-            if (k === Qt.Key_Escape || t === "?" || t === "q") root.helpOpen = false
+            if (k === Qt.Key_Escape || (lk || t) === "?" || (lk || t) === "q") root.helpOpen = false
             event.accepted = true
             return
           }
@@ -1954,6 +1972,8 @@ Item {
             event.accepted = true
             return
           }
+
+          if (lk) { t = lk; printable = true }
 
           // Везде: вкладки, рейл по цифрам, поиск, помощь, закрыть.
           if (k === Qt.Key_Backtab) root.setTab(-1)
