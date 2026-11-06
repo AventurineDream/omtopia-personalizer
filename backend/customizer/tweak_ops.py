@@ -177,8 +177,8 @@ def window_after():
         elif want != "true" and NO_GAPS_FLAG.is_file():
             _quiet(["omarchy-hyprland-toggle", "window-no-gaps", "off"])
     _quiet(["hyprctl", "reload"])
-    from . import commands
-    commands.legacy(["restore"])
+    from . import preview_ops
+    preview_ops.restore()
 
 
 # ── Виджеты бара и профиль шрифтов ──

@@ -20,6 +20,19 @@
 # Categories: presets styles anims bar-layouts bar-skins bar-tweaks themes theme-walls walls shaders opacity blur
 set -uo pipefail
 
+# Перенесённые на Python команды — сразу в backend/run.py (тот же вывод и коды). Остальное — ниже,
+# по-старому; бэкенд сам зовёт этот скрипт с CUSTOMIZER_LEGACY=1 для того, что ещё не перенесено.
+if [[ -z ${CUSTOMIZER_LEGACY:-} ]]; then
+  case "${1:-}" in
+  list | status | available | search-index | lang | tweak | restore | theme-fav | \
+    opacity-preview | opacity-restore | blur-preview | blur-restore | bar-skins-preview | bar-skins-restore | \
+    anim-preview | anim-restore | lock-preview | sound-preview | fx-replay | picker-open | launcher-open | glyph-test | \
+    skin-delete | layout-delete | preset-delete | style-delete)
+    exec /usr/bin/python3 -I "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/backend/run.py" "$@"
+    ;;
+  esac
+fi
+
 CUSTOMIZER_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 # shellcheck source=scripts/i18n.sh
 source "$CUSTOMIZER_DIR/scripts/i18n.sh"
