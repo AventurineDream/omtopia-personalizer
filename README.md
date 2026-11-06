@@ -6,6 +6,11 @@ One overlay for the whole look & feel of [Omarchy](https://omarchy.org): themes,
 animations, transparency, blur and screen shaders — with live preview while you browse. With the companion
 plugins installed it also drives the bar, the lock screen, wallpaper transitions and the picker style.
 
+The window is laid out like a Material 3 settings app: a navigation rail (Home + the groups below), a page with
+breadcrumbs, a title, search across every setting and the group's tabs, a live-preview card on top, and below it
+setting cards — switches, segmented buttons, sliders, colour swatches — or a gallery of tiles. Home shows what is in
+use right now and quick actions. It follows the theme, the glass / solid material and the DOT-MATRIX style.
+
 ![Desktop](screenshots/desktop.webp)
 
 | Group | What's inside |
@@ -93,13 +98,17 @@ Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/cu
 
 | Keys | |
 |---|---|
-| Tab / 1–6 | groups |
-| j k · l ⏎ · h | move · open · back |
-| / | search |
-| h l, − + | change a tweak · x — reset it |
+| j k · h l | move · rail ⇄ page (in a gallery h l move between tiles) |
+| Tab / ⇧Tab · 0 · 1–6 | next / previous tab · Home · rail section |
+| ⏎ | apply · toggle · open |
+| h l, − + | change a setting · x — reset it · i — type a value |
+| / | search all settings (↑↓ pick a result in another section, ⏎ go there) |
+| v · J K | show / hide the preview card · scroll its text |
 | p | play / show live (transitions, lock designs, picker) |
 | r | surprise me |
 | ? · q / Esc | all keys · close |
+
+Everything also works with the mouse: drag sliders, click switches, segments and tiles.
 
 ## How your choices survive a reload
 

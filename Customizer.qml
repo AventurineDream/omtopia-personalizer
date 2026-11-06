@@ -8,12 +8,15 @@ import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "dotmatrix" as DotMatrix
+import "ui"
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
-// SUPER+SHIFT+T). Header with what is in use now, then three panes:
-// categories | filterable list | preview, and a key-hint footer.
+// SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
+// (Home + groups) | page with breadcrumbs, title, global search, category tabs,
+// a live-preview hero card and setting cards / gallery tiles, plus a key-hint footer.
+// Everything works from the keyboard (yazi-style keys) and with the mouse.
 // customizer.sh next to this file does the listing and applying, so the
-// actions stay identical to the shell script.
+// actions stay identical to the shell script. Visual pieces live in ui/.
 Item {
   id: root
 
@@ -143,6 +146,16 @@ Item {
   property bool filtering: false     // "/" pressed: printable keys go to the filter
   property bool pendingG: false      // first "g" of "gg"
   property bool helpOpen: false
+  // Домашняя страница (пункт 0 рейла) и выделение на ней (карточки, потом действия).
+  property bool homeOpen: false
+  property bool everOpened: false
+  property int homeSel: 0
+  // Поиск по всем настройкам: индекс (customizer.sh search-index) и выбранный результат (-1 — нет).
+  property var searchIndex: []
+  property int searchSel: -1
+  property bool heroCollapsed: false  // v — свернуть карточку превью
+  property bool pendingRandom: false  // «Случайная тема» с домашней: выбрать, как только темы загрузятся
+  property string toast: ""           // ошибка записи значения мышью — в футере на 4 с
   property var status: ({})
   property var lastPointer: null     // window coords of the last hover event
   property string keepValue: ""      // row (by value) to stay on when a list reloads after a tweak
@@ -184,6 +197,7 @@ Item {
   function setGroup(index) {
     var n = groups.length
     index = (index + n) % n
+    if (root.homeOpen) { root.homeOpen = false; contentFade.restart() }
     var id = groups[index].id
     var target = root.groupLast[id]
     if (target === undefined) {
@@ -193,6 +207,205 @@ Item {
     root.setCategory(target)
   }
   property var selectedRow: null     // set by selectionChanged(); ListModel.get() isn't reactive
+
+  // Рейл: 0 — Домой, дальше группы.
+  readonly property var railItems: [{ icon: "󰋜", title: root.tr("Home") }].concat(root.groups.map(function(g) {
+    return { icon: g.icon, title: g.title }
+  }))
+  readonly property int railIndex: root.homeOpen ? 0 : root.groupIndex + 1
+  function setRail(index) {
+    var n = root.railItems.length
+    index = (index + n) % n
+    if (index === 0) root.goHome()
+    else root.setGroup(index - 1)
+  }
+  function goHome() {
+    if (root.homeOpen) return
+    root.revertPreview()
+    root.homeOpen = true
+    root.filtering = false
+    root.homeSel = Math.min(root.homeSel, Math.max(0, root.homeCards.length + root.homeActions.length - 1))
+    contentFade.restart()
+    statusProc.running = false
+    statusProc.running = true
+    root.syncBarPreview()
+  }
+  // Tab / Shift+Tab: соседняя вкладка (категория) группы; с домашней — первая группа.
+  function setTab(dir) {
+    if (root.homeOpen) { root.setGroup(dir > 0 ? 0 : root.groups.length - 1); return }
+    var cats = root.groupCategories
+    var n = cats.length
+    var pos = cats.indexOf(root.categoryIndex)
+    root.setCategory(cats[(pos + dir + n) % n])
+  }
+  readonly property var groupTabs: root.groupCategories.map(function(i) {
+    return { icon: root.categories[i].icon, title: root.categories[i].title }
+  })
+  function groupTitle(id) {
+    var i = root.groupIndexOf(id)
+    return i >= 0 ? root.groups[i].title : ""
+  }
+
+  // ── Домашняя страница ──
+  readonly property var homeCards: root.statusChips.map(function(c) {
+    return { key: c.key, icon: c.icon, title: c.title, value: root.statusText(c.key), category: c.category }
+  })
+  readonly property var homeActions: {
+    var a = [{ id: "random-theme", icon: "󰒝", title: root.tr("Random theme") }]
+    if (root.isAvailable("presets")) a.push({ id: "save-preset", icon: "󰆓", title: root.tr("Save preset") })
+    a.push({ id: "picker", icon: "󰸌", title: root.tr("Theme picker") })
+    a.push({ id: "launcher", icon: "󰀻", title: root.tr("Launcher") })
+    a.push({ id: "keys", icon: "󰌌", title: root.tr("Keyboard shortcuts") })
+    return a
+  }
+  readonly property var homePalette: {
+    var keys = ["background", "foreground", "accent", "color1", "color2", "color3", "color4", "color5", "color6"]
+    var out = []
+    for (var i = 0; i < keys.length; i++) if (root.themePalette[keys[i]]) out.push(root.themePalette[keys[i]])
+    return out
+  }
+  function greeting() {
+    var h = new Date().getHours()
+    return root.tr(h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening")
+  }
+  // h j k l по сетке домашней: карточки, под ними действия. false — упёрлись в левый край.
+  function homeMove(dx, dy) {
+    var nC = root.homeCards.length, nA = root.homeActions.length
+    var cols = Math.max(1, homePage.columns)
+    var i = root.homeSel
+    var inCards = i < nC
+    if (dx !== 0) {
+      var base = inCards ? 0 : nC, cnt = inCards ? nC : nA
+      if (dx < 0 && (i - base) % cols === 0) return false
+      var nx = i + dx
+      if (nx >= base && nx < base + cnt) root.homeSel = nx
+      return true
+    }
+    var lastStart = Math.floor(Math.max(0, nC - 1) / cols) * cols
+    if (dy > 0) {
+      if (inCards) root.homeSel = i + cols < nC ? i + cols : i < lastStart ? nC - 1 : (nA > 0 ? nC + Math.min(i % cols, nA - 1) : i)
+      else if (i + cols < nC + nA) root.homeSel = i + cols
+    } else {
+      if (!inCards) root.homeSel = i - cols >= nC ? i - cols : (nC > 0 ? Math.min(lastStart + (i - nC) % cols, nC - 1) : i)
+      else if (i - cols >= 0) root.homeSel = i - cols
+    }
+    return true
+  }
+  function homeActivate(i) {
+    var nC = root.homeCards.length
+    if (i < nC) { root.jumpTo({ cat: root.homeCards[i].category, value: "" }); return }
+    var a = root.homeActions[i - nC]
+    if (!a) return
+    if (a.id === "random-theme") { root.pendingRandom = true; root.jumpTo({ cat: "themes", value: "" }) }
+    else if (a.id === "save-preset") { root.dismiss(); Quickshell.execDetached([root.script, "apply", "presets", "save"]) }
+    else if (a.id === "picker") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
+    else if (a.id === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
+    else if (a.id === "keys") root.helpOpen = true
+  }
+
+  // ── Поиск по всем настройкам ──
+  // Имена категорий, все твики (search-index) и строки уже загруженных категорий; текущую
+  // категорию не повторяем — её фильтрует сама страница.
+  readonly property var searchResults: {
+    if (!root.filtering) return []
+    var q = root.filterText.trim().toLowerCase()
+    if (q.length < 2) return []
+    var out = [], seen = ({}), limit = 8
+    var push = function(r) {
+      var id = r.cat + "\u0001" + r.value
+      if (seen[id]) return
+      seen[id] = true
+      out.push(r)
+    }
+    for (var i = 0; i < root.categories.length && out.length < limit; i++) {
+      var c = root.categories[i]
+      if (c.title.toLowerCase().indexOf(q) !== -1)
+        push({ cat: c.key, value: "", label: c.title, where: root.groupTitle(c.group), icon: c.icon })
+    }
+    for (var j = 0; j < root.searchIndex.length && out.length < limit; j++) {
+      var e = root.searchIndex[j]
+      if (!root.homeOpen && e.cat === root.category.key) continue
+      if (e.label.toLowerCase().indexOf(q) === -1 && e.section.toLowerCase().indexOf(q) === -1) continue
+      var ci = root.categoryIndexOf(e.cat)
+      if (ci < 0) continue
+      push({ cat: e.cat, value: e.value, label: e.label,
+        where: root.categories[ci].title + (e.section ? "  ›  " + e.section : ""), icon: root.categories[ci].icon })
+    }
+    for (var key in root.cache) {
+      if (out.length >= limit) break
+      if (!root.homeOpen && key === root.category.key) continue
+      var ck = root.categoryIndexOf(key)
+      if (ck < 0 || root.categories[ck].tweak) continue
+      var rows = root.cache[key]
+      for (var r = 0; r < rows.length && out.length < limit; r++) {
+        var row = rows[r]
+        if (root.isHeader(row) || /^tweak:/.test(row.value) || row.label.toLowerCase().indexOf(q) === -1) continue
+        push({ cat: key, value: row.value, label: row.label, where: root.categories[ck].title, icon: root.categories[ck].icon })
+      }
+    }
+    return out
+  }
+  function startSearch() {
+    root.filtering = true
+    root.searchSel = -1
+    if (root.searchIndex.length === 0 && !searchProc.running) searchProc.running = true
+  }
+  // Перейти к результату поиска / карточке домашней: категория и (если есть) строка в ней.
+  function jumpTo(res) {
+    root.filtering = false
+    root.searchSel = -1
+    var idx = root.categoryIndexOf(res.cat)
+    if (idx < 0) return
+    if (root.homeOpen) { root.homeOpen = false; contentFade.restart() }
+    if (idx !== root.categoryIndex) root.setCategory(idx)
+    else if (root.filterText) root.setFilter("")
+    root.pane = 1
+    if (res.value) {
+      if (root.loading) root.keepValue = res.value
+      else root.selectValue(res.value)
+    } else if (root.pendingRandom && !root.loading) {
+      root.pendingRandom = false
+      Qt.callLater(root.randomPick)
+    }
+    root.selectionChanged()
+  }
+  function selectValue(value) {
+    for (var i = 0; i < displayModel.count; i++) {
+      if (displayModel.get(i).value !== value) continue
+      root.selectedIndex = i
+      root.ensureVisible()
+      root.selectionChanged()
+      return
+    }
+  }
+  function loadSearchIndex(raw) {
+    var out = []
+    var lines = String(raw || "").split("\n")
+    for (var i = 0; i < lines.length; i++) {
+      var f = lines[i].split("\t")
+      if (f.length >= 3) out.push({ cat: f[0], value: f[1], label: f[2], section: f[3] || "" })
+    }
+    root.searchIndex = out
+  }
+
+  // Ошибка записи значения (мышью) — в футер на 4 с.
+  function showToast(text) {
+    root.toast = text
+    toastTimer.restart()
+  }
+
+  // Цвет строки-твика: #hex, роль темы (colors.toml), роль DOT-MATRIX или цвета шелла.
+  function resolveColor(v) {
+    v = String(v || "")
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
+    if (/^dotmatrix\./.test(v)) {
+      var pv = DotMatrix.Palette[v.slice(10)]
+      return pv !== undefined ? pv : "transparent"
+    }
+    if (root.themePalette[v]) return root.themePalette[v]
+    var map = { accent: Color.accent, bar: Color.bar.background, background: Color.background, foreground: Color.foreground, urgent: Color.urgent }
+    return map[v] !== undefined ? map[v] : "transparent"
+  }
 
   property color background: Color.menu.background
   property color foreground: Color.menu.text
@@ -205,11 +418,40 @@ Item {
   readonly property color muted: Util.alpha(foreground, 0.55)
   readonly property color faint: Util.alpha(foreground, 0.08)
   readonly property color hairline: Util.alpha(foreground, 0.10)
-  // Стекло + мягкие карточки: окно полупрозрачное (Hyprland размывает под ним —
-  // layer rule omarchy-customizer в apps/hyprland/windows.lua), панели и строки — карточки.
-  readonly property int cornerRadius: Math.max(Style.cornerRadius, 18)
-  readonly property int innerRadius: 12
-  readonly property real glassAlpha: 0.78
+
+  // ── Стиль: ~/.config/omarchy/style.json (пишет Customizer → Пресеты → Стиль) ──
+  // material: auto/glass — стекло, остальное — сплошная панель; cornerScale — скругления;
+  // motion — множитель длительностей (0 — без анимаций); id dotmatrix — палитра и формы DOT-MATRIX.
+  property var look: ({})
+  readonly property bool dot: String(look.id || "") === "dotmatrix"
+  readonly property string material: String(look.material || "auto")
+  readonly property bool glass: material === "auto" || material === "glass"
+  readonly property real cornerScale: look.cornerScale !== undefined && isFinite(Number(look.cornerScale)) ? Math.max(0, Number(look.cornerScale)) : 1
+  readonly property real motionScale: look.motion !== undefined && isFinite(Number(look.motion)) ? Math.max(0, Number(look.motion)) : 1
+  function ms(d) { return Math.round(d * root.motionScale) }
+
+  // Цветовые роли Material 3 из темы (в DOT-MATRIX — из dotmatrix/Palette.qml, не hex).
+  readonly property color primary: dot ? DotMatrix.Palette.signal : accent
+  readonly property color inkOnPrimary: dot ? DotMatrix.Palette.onSignal : background
+  readonly property color secondaryContainer: Util.alpha(primary, dot ? 0.22 : 0.26)
+  readonly property color inkOnContainer: foreground
+  readonly property color surface: dot ? DotMatrix.Palette.surface : Util.alpha(foreground, 0.05)
+  readonly property color surfaceLow: Util.alpha(foreground, 0.07)
+  readonly property color surfaceHi: Util.alpha(foreground, 0.10)
+  readonly property color surfaceSelected: Util.alpha(primary, 0.12)
+  readonly property color outline: dot ? DotMatrix.Palette.line : Util.alpha(foreground, 0.08)
+  readonly property color outlineStrong: Util.alpha(foreground, 0.45)
+  readonly property color unlit: dot ? DotMatrix.Palette.unlit : Util.alpha(foreground, 0.12)
+  readonly property int rCard: dot ? Math.min(4, Math.round(16 * cornerScale)) : Math.round(16 * cornerScale)
+  readonly property int rSmall: dot ? 2 : Math.max(2, Math.round(8 * cornerScale))
+  // Иконки — шрифтом Omarchy: у профиля шрифтов может не быть Nerd-глифов.
+  readonly property string iconFont: Style.font.family
+
+  // Стекло + мягкие карточки: окно полупрозрачное (размытая копия обоев рисуется в QML —
+  // блюр Hyprland у пользователя бывает выключен), панели и строки — карточки.
+  readonly property int cornerRadius: dot ? 6 : Math.round(Math.max(Style.cornerRadius, 22) * cornerScale)
+  readonly property int innerRadius: dot ? 3 : Math.round(12 * cornerScale)
+  readonly property real glassAlpha: glass ? 0.78 : 0.97
   readonly property color panelFill: Util.alpha(foreground, 0.045)
   readonly property color panelBorder: Util.alpha(foreground, 0.08)
   property string fontFamily: Style.font.menuFamily
@@ -219,13 +461,20 @@ Item {
   property int contentMargin: Style.spacing.panelPadding
   property int contentSpacing: Style.spacing.md
   property int rowHeight: Math.max(Style.space(30), Style.font.title + Style.spacing.controlPaddingY * 2)
-  readonly property int thumbRowHeight: Math.round(rowHeight * 1.7)
-  property int cardWidth: Math.min(Style.space(1240), panel.width - Style.gapsOut * 2)
-  property int cardHeight: Math.min(Style.space(720), panel.height - Style.gapsOut * 2)
+  property int cardWidth: Math.min(Style.space(1300), panel.width - Style.gapsOut * 2)
+  property int cardHeight: Math.min(Style.space(780), panel.height - Style.gapsOut * 2)
+
+  // Галерея: плиток в ряд — сколько влезает по ширине страницы (не меньше двух).
+  readonly property int tileGap: Style.space(10)
+  readonly property int gridCols: Math.max(2, Math.floor((itemList.width + tileGap) / (Style.space(200) + tileGap)))
+  readonly property real tileWidth: (itemList.width - (gridCols - 1) * tileGap) / gridCols
+  readonly property real tileHeight: Math.round(tileWidth * 0.62) + Style.font.bodySmall + Style.space(22)
+  onGridColsChanged: if (displayModel.count > 0) root.buildView(true)
 
   function open(payloadJson) {
     root.cache = ({})
     root.filtering = false
+    root.searchSel = -1
     root.helpOpen = false
     root.lastPointer = null
     root.opened = true
@@ -234,8 +483,13 @@ Item {
     var want = String(root.parseJson(payloadJson).category || "")
     var idx = -1
     for (var i = 0; want !== "" && i < root.categories.length; i++) if (root.categories[i].key === want) idx = i
-    root.setCategory(idx >= 0 ? idx : root.categoryIndex, true)
+    // Первое открытие — домашняя; потом — где остановились; payload — сразу его вкладка.
+    var toHome = !root.everOpened && idx < 0 || root.homeOpen && idx < 0
+    root.everOpened = true
+    root.setCategory(idx >= 0 ? idx : root.categoryIndex, true)   // снимает homeOpen
+    root.homeOpen = toHome
     if (idx >= 0) root.pane = 1
+    if (root.searchIndex.length === 0 && !searchProc.running) searchProc.running = true
     statusProc.running = false
     statusProc.running = true
     availableProc.running = false
@@ -255,7 +509,7 @@ Item {
   function syncBarPreview() {
     var mode = "off"
     var k = root.category.key
-    if (root.opened && (k === "bar-skins" || k === "bar-tweaks" || k === "bar-layouts" || k === "bar-widgets")) {
+    if (root.opened && !root.homeOpen && (k === "bar-skins" || k === "bar-tweaks" || k === "bar-layouts" || k === "bar-widgets")) {
       var row = root.selectedRow
       mode = row && root.isTweakRow(row) && /^compact/.test(root.tweakKey(row)) ? "compact" : "expanded"
     }
@@ -287,6 +541,7 @@ Item {
     if (index < 0 || index >= categories.length) return
     if (index === root.categoryIndex && !force) return
     root.revertPreview()
+    root.homeOpen = false
     root.categoryIndex = index
     var last = ({})
     for (var g in root.groupLast) last[g] = root.groupLast[g]
@@ -304,6 +559,7 @@ Item {
       root.items = root.cache[key]
       root.selectedIndex = root.currentIndexOf(root.items)
       root.rebuild()
+      Qt.callLater(root.ensureVisible)
     } else {
       root.items = []
       root.rebuild()
@@ -328,8 +584,10 @@ Item {
     for (var i = 0; i < lines.length; i++) {
       if (!lines[i]) continue
       var f = lines[i].split("\t")
+      // 7–10: тип настройки, его аргументы, сырое значение, имя без значения (list_tweaks).
       rows.push({ label: f[0] || "", value: f[1] || "", preview: f[2] || "", current: f[3] === "1",
-        note: (f[4] || "").replace(/\\n/g, "\n"), sub: f[5] || "" })
+        note: (f[4] || "").replace(/\\n/g, "\n"), sub: f[5] || "",
+        kind: f[6] || "", args: f[7] || "", raw: f[8] || "", name: f[9] || "" })
     }
     var next = ({})
     for (var k in root.cache) next[k] = root.cache[k]
@@ -351,7 +609,9 @@ Item {
     root.selectedIndex = root.selectableFrom(shown, at, 1)
     root.keepValue = ""
     root.rebuild()
+    Qt.callLater(root.ensureVisible)
     if (root.reloadQueued) { root.reloadQueued = false; root.reloadCategory() }
+    if (root.pendingRandom && key === "themes") { root.pendingRandom = false; Qt.callLater(root.randomPick) }
   }
 
   function indexOfValue(rows, value) {
@@ -427,18 +687,97 @@ Item {
     if (same) {
       for (var j = 0; j < rows.length; j++) displayModel.set(j, rows[j])
     } else {
-      var y = itemList.contentY
       displayModel.clear()
       for (var k = 0; k < rows.length; k++) displayModel.append(rows[k])
-      itemList.contentY = Math.max(0, Math.min(y, itemList.contentHeight - itemList.height))
     }
     if (root.selectedIndex >= displayModel.count) root.selectedIndex = Math.max(0, displayModel.count - 1)
     if (displayModel.count > 0 && root.isHeader(displayModel.get(root.selectedIndex)))
       root.selectedIndex = root.selectableFrom(rows, root.selectedIndex, 1)
-    if (!same) Qt.callLater(function() {
-      if (displayModel.count > 0) itemList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
-    })
+    root.buildView(!same)
+    if (!same) Qt.callLater(root.ensureVisible)
     root.selectionChanged()
+  }
+
+  // Ряды страницы (viewModel): подряд идущие картинки (галерея) собираются по gridCols плиток,
+  // остальное — по одному ряду: раздел, карточка настройки, строка. viewOf[i] — ряд строки i.
+  // Тот же набор рядов (шаг твика) — правим на месте, иначе пересборка с сохранённой прокруткой.
+  property var viewOf: []
+  function rowObject(r) {
+    return { label: r.label, value: r.value, preview: r.preview, current: r.current, note: r.note, sub: r.sub,
+      kind: r.kind || "", args: r.args || "", raw: r.raw || "", name: r.name || "" }
+  }
+  function isTileRow(row) {
+    return row !== null && row !== undefined && root.category.image === true && !root.isHeader(row) && !root.isTweakRow(row)
+  }
+  function buildView(reset) {
+    var cols = root.gridCols
+    var entries = [], map = []
+    var n = displayModel.count
+    var i = 0
+    while (i < n) {
+      var r = displayModel.get(i)
+      var e = root.rowObject(r)
+      e.idx = i
+      e.tiles = []
+      if (root.isTileRow(r)) {
+        e.vkind = "tiles"
+        while (i < n && e.tiles.length < cols && root.isTileRow(displayModel.get(i))) {
+          e.tiles.push(root.rowObject(displayModel.get(i)))
+          map[i] = entries.length
+          i++
+        }
+      } else {
+        e.vkind = root.isHeader(r) ? "header" : root.isTweakRow(r) ? "setting" : "row"
+        map[i] = entries.length
+        i++
+      }
+      e.n = e.vkind === "tiles" ? e.tiles.length : 1
+      entries.push(e)
+    }
+    root.viewOf = map
+    var same = !reset && entries.length === viewModel.count
+    for (var k = 0; same && k < entries.length; k++) {
+      var old = viewModel.get(k)
+      same = old.vkind === entries[k].vkind && old.idx === entries[k].idx && old.n === entries[k].n
+    }
+    if (same) {
+      for (var s = 0; s < entries.length; s++) viewModel.set(s, entries[s])
+      return
+    }
+    var y = itemList.contentY
+    viewModel.clear()
+    for (var a = 0; a < entries.length; a++) viewModel.append(entries[a])
+    itemList.contentY = Math.max(0, Math.min(y, itemList.contentHeight - itemList.height))
+  }
+  function ensureVisible() {
+    if (displayModel.count === 0) return
+    var v = root.viewOf[root.selectedIndex]
+    if (v === undefined) return
+    itemList.positionViewAtIndex(v, ListView.Contain)
+    // Не прятать строку под закреплённым заголовком раздела.
+    var item = itemList.itemAtIndex(v)
+    var room = stickySection.height + Style.space(6)
+    if (item && v > 0 && item.y - itemList.contentY < room)
+      itemList.contentY = Math.max(itemList.originY, item.y - room)
+  }
+  // Начало и конец сплошного куска галереи вокруг строки i.
+  function tileRun(i) {
+    var s = i, e = i
+    while (s > 0 && root.isTileRow(displayModel.get(s - 1))) s--
+    while (e < displayModel.count - 1 && root.isTileRow(displayModel.get(e + 1))) e++
+    return [s, e]
+  }
+  // h / l в галерее: соседняя плитка; false — левый край ряда (h уходит на рейл).
+  function tileStep(dir) {
+    var i = root.selectedIndex
+    var run = root.tileRun(i)
+    if (dir < 0 && (i - run[0]) % root.gridCols === 0) return false
+    var t = i + dir
+    if (t < run[0] || t > run[1]) return true
+    root.selectedIndex = t
+    root.ensureVisible()
+    root.selectionChanged()
+    return true
   }
 
   // [ / ]: к первой строке предыдущего / следующего раздела.
@@ -461,7 +800,7 @@ Item {
     var rows = []
     for (var r = 0; r < displayModel.count; r++) rows.push(displayModel.get(r))
     root.selectedIndex = root.selectableFrom(rows, i, 1)
-    itemList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+    root.ensureVisible()
     root.selectionChanged()
   }
 
@@ -476,8 +815,9 @@ Item {
 
   function setFilter(text) {
     root.filterText = text
+    root.searchSel = -1
     root.selectedIndex = 0
-    root.pane = 1
+    if (!root.homeOpen) root.pane = 1
     root.rebuild()
   }
 
@@ -487,21 +827,21 @@ Item {
     root.pane = 0
   }
 
-  // Rows that fit in the list, halved: the Ctrl+D / Ctrl+U step.
+  // Rows that fit on the page, halved: the Ctrl+D / Ctrl+U step (in the gallery — whole rows of tiles).
   function halfPage() {
-    return Math.max(1, Math.floor(itemList.height / root.listRowHeight() / 2))
+    var rowH = root.category.image ? root.tileHeight + root.tileGap : root.category.tweak ? Style.space(86) : Style.space(66)
+    var rows = Math.max(1, Math.floor(itemList.height / rowH / 2))
+    return root.category.image ? rows * root.gridCols : rows
   }
 
-  function listRowHeight() {
-    if (root.category.image) return root.thumbRowHeight
-    return root.category.tweak ? Math.round(root.rowHeight * 1.5) : root.rowHeight
-  }
-
-  // Jump to a row (-1 = last); in the category pane, to a category.
+  // Jump to a row (-1 = last); on the rail, to the first / last rail item.
   function moveTo(index) {
     if (root.pane === 0) {
-      var cats = root.groupCategories
-      root.setCategory(cats[index < 0 ? cats.length - 1 : Math.min(index, cats.length - 1)])
+      root.setRail(index < 0 ? root.railItems.length - 1 : Math.min(index, root.railItems.length - 1))
+      return
+    }
+    if (root.homeOpen) {
+      root.homeSel = index < 0 ? root.homeCards.length + root.homeActions.length - 1 : 0
       return
     }
     if (displayModel.count === 0) return
@@ -517,21 +857,31 @@ Item {
 
   function move(delta) {
     if (root.pane === 0) {
-      var cats = root.groupCategories
-      var n = cats.length
-      var pos = cats.indexOf(root.categoryIndex)
-      root.setCategory(cats[Math.abs(delta) === 1 ? (pos + delta + n) % n : Math.max(0, Math.min(n - 1, pos + delta))])
+      var n = root.railItems.length
+      root.setRail(Math.abs(delta) === 1 ? root.railIndex + delta : Math.max(0, Math.min(n - 1, root.railIndex + delta)))
       return
     }
+    if (root.homeOpen) { root.homeMove(0, delta > 0 ? 1 : -1); return }
     if (displayModel.count === 0) return
     var target = Math.max(0, Math.min(displayModel.count - 1, root.selectedIndex + delta))
+    // j / k в галерее — на ряд плиток вверх / вниз; с края куска — к строке до / после него.
+    if (Math.abs(delta) === 1 && root.isTileRow(displayModel.get(root.selectedIndex))) {
+      var run = root.tileRun(root.selectedIndex)
+      var cols = root.gridCols
+      target = root.selectedIndex + delta * cols
+      if (target > run[1]) {
+        var lastRowStart = run[0] + Math.floor((run[1] - run[0]) / cols) * cols
+        target = root.selectedIndex < lastRowStart ? run[1] : run[1] + 1
+      } else if (target < run[0]) target = run[0] - 1
+      if (target < 0 || target >= displayModel.count) return
+    }
     if (root.isHeader(displayModel.get(target))) {
       var rows = []
       for (var r = 0; r < displayModel.count; r++) rows.push(displayModel.get(r))
       target = root.selectableFrom(rows, target, delta < 0 ? -1 : 1)
     }
     root.selectedIndex = target
-    itemList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+    root.ensureVisible()
     root.selectionChanged()
   }
 
@@ -544,10 +894,9 @@ Item {
       keyCatcher.forceActiveFocus()
     }
     previewFlick.contentY = 0
-    itemList.currentIndex = root.selectedIndex
     var row = root.selectedIndex >= 0 && root.selectedIndex < displayModel.count
       ? displayModel.get(root.selectedIndex) : null
-    root.selectedRow = row ? { label: row.label, value: row.value, preview: row.preview, current: row.current, note: row.note, sub: row.sub } : null
+    root.selectedRow = row ? root.rowObject(row) : null
     var rowHasImage = root.category.image && row !== null && !root.isTweakRow(row)
     previewFile.path = (row && !rowHasImage) ? row.preview : ""
     if (!row || rowHasImage || !row.preview) root.previewText = ""
@@ -580,6 +929,7 @@ Item {
       root.selectionChanged()
       return
     }
+    if (root.homeOpen) { root.homeActivate(root.homeSel); return }
     if (!root.selectedRow || root.isHeader(root.selectedRow)) return
     if (root.category.key === "theme-walls" && /^dir:/.test(root.selectedRow.value)) {
       var target = root.selectedRow.value.slice(4)
@@ -598,6 +948,103 @@ Item {
     else root.run(root.selectedRow.value)
   }
 
+  // Клавиши по фокусу: рейл (pane 0), домашняя, страница (pane 1). true — обработано.
+  function handlePaneKey(event, k, t, ctrl, printable) {
+    var esc = k === Qt.Key_Escape
+    var enter = k === Qt.Key_Return || k === Qt.Key_Enter
+    var left = k === Qt.Key_Left || (!ctrl && t === "h")
+    var right = k === Qt.Key_Right || (!ctrl && t === "l")
+    var down = k === Qt.Key_Down || (!ctrl && t === "j")
+    var up = k === Qt.Key_Up || (!ctrl && t === "k")
+
+    if (root.pane === 0) {
+      if (down) root.move(1)
+      else if (up) root.move(-1)
+      else if (right || enter) root.activate()
+      else if (esc) root.dismiss()
+      else return false
+      return true
+    }
+
+    if (root.homeOpen) {
+      if (left) { if (!root.homeMove(-1, 0)) root.pane = 0 }
+      else if (right) root.homeMove(1, 0)
+      else if (down) root.homeMove(0, 1)
+      else if (up) root.homeMove(0, -1)
+      else if (enter) root.homeActivate(root.homeSel)
+      else if (esc) root.pane = 0
+      else return false
+      return true
+    }
+
+    var key = root.category.key
+    var row = root.selectedRow
+    var tweaking = !ctrl && root.isTweakRow(row)
+    var tile = root.isTileRow(row)
+    if (tweaking && (t === "h" || t === "-" || k === Qt.Key_Left)) root.tweak("-")
+    else if (tweaking && (t === "l" || t === "+" || t === "=" || k === Qt.Key_Right)) root.tweak("+")
+    else if (tweaking && t === "x") root.tweak("reset")
+    else if (tweaking && t === "i" && key !== "bar-widgets") root.startEdit()
+    // Галерея: h / l — соседняя плитка; с левого края — папкой выше (Wallpaper) или на рейл.
+    else if (tile && left) { if (!root.tileStep(-1) && !root.wallUp()) root.toCategories() }
+    else if (tile && right) root.tileStep(1)
+    else if (!ctrl && t === "[") root.jumpSection(-1)
+    else if (!ctrl && t === "]") root.jumpSection(1)
+    else if (!ctrl && t === "p" && (key === "lock" || key === "lock-tweaks")) root.previewLock()
+    // T: недостающие снимки, если такие есть, иначе — все.
+    else if (!ctrl && t === "T" && key === "lock") root.run(root.hasRow("missing-thumbs") ? "missing-thumbs" : "regen-thumbs")
+    else if (!ctrl && t === "p" && key === "wallpaper-fx") root.playFx()
+    else if (!ctrl && t === "p" && key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
+    else if (!ctrl && t === "p" && key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
+    else if (!ctrl && t === "p" && key === "glyph") Quickshell.execDetached([root.script, "glyph-test", "false"])
+    else if (!ctrl && t === "p" && key === "sounds") root.listenSound()
+    else if (ctrl && (key === "walls" || key === "dotify") && k === Qt.Key_O) root.run("pick-files")
+    else if (esc) { if (root.filterText) root.setFilter(""); else if (!root.wallUp()) root.toCategories() }
+    else if (enter) root.activate()
+    else if (down) root.move(1)
+    else if (up) root.move(-1)
+    else if (left) { if (!root.wallUp()) root.toCategories() }
+    else if (right) {}
+    else if (ctrl || !printable) return false
+    else if (t === "J") root.scrollPreview(1)
+    else if (t === "K") root.scrollPreview(-1)
+    else if (t === "r") root.randomPick()
+    else if (t === "D") root.deletePreset()
+    else if (t === "f" && key === "themes") root.toggleFavoriteTheme()
+    else if ((key === "walls" || key === "dotify") && t === "o") root.run("pick-files")
+    else if ((key === "walls" || key === "dotify") && t === "O") root.run("pick-dir")
+    else return false
+    return true
+  }
+
+  // Карточка превью над страницей: есть ли у категории сцена или текст для неё.
+  readonly property bool heroAvailable: {
+    var c = root.category
+    return c.image === true || c.bar === true || c.fx === true || c.picker === true || c.presetStage === true
+      || ["opacity", "blur", "fonts", "windows", "widgets", "anims", "shaders"].indexOf(c.key) !== -1
+  }
+  readonly property bool heroCode: root.category.key === "anims" || root.category.key === "shaders"
+  // Текст справа от сцены: заметка строки и то, что раньше было под сценой.
+  function heroNote() {
+    var row = root.selectedRow
+    if (!row) return ""
+    var k = root.category.key
+    if (root.heroCode) return root.previewText || row.note
+    if (k === "windows") return (windowsStage.noGaps ? root.tr("No gaps (Omarchy) is on: gaps, borders and rounding are off.")
+      : (windowsStage.master ? "master" : "dwindle") + "  ·  " + root.tr("gaps") + " " + windowsStage.n("windowGapsIn", 2) + " / "
+        + windowsStage.n("windowGapsOut", 4) + "  ·  " + root.tr("border") + " " + windowsStage.n("windowBorder", 2)
+        + "  ·  " + root.tr("rounding") + " " + windowsStage.n("windowDecoRounding", 10)) + "\n\n" + row.note
+    if (k === "widgets") return (widgetsStage.clash ? root.tr("Widgets overlap — move one of the red ones to another position.")
+      : root.tr("Layout of the enabled widgets; the one you are editing is highlighted.")) + "\n\n" + row.note
+    if (root.isTweakRow(row)) return row.note
+    if (k === "bar-skins" || k === "presets" || k === "styles") return row.note + (root.previewText ? "\n\n" + root.previewText : "")
+    if (root.category.fx) return row.note + "\n\n" + root.tr("The preview plays the transition at half speed.")
+    if (k === "fonts") return row.note + "\n\n" + root.tr("Interface") + ": " + fontStage.sans
+      + "\n" + root.tr("Code") + ": " + fontStage.mono + "\n" + root.tr("Titles") + ": " + fontStage.title
+    if (root.category.image) return row.label + (root.paletteOf(row.note).length === 0 && row.note ? "\n\n" + row.note : "")
+    return row.note || root.previewText
+  }
+
   // Bar Tweaks: step the selected parameter and reload the list on the same row.
   // The overlay stays open; the bar behind it and the mock follow bar-skin.json.
   // A held key autorepeats faster than customizer.sh runs: the latest step waits
@@ -609,6 +1056,34 @@ Item {
     return row !== null && !root.isHeader(row) && (root.category.tweak === true || /^tweak:/.test(row.value))
   }
   function tweakKey(row) { return String(row.value).replace(/^tweak:/, "") }
+
+  function clickSelect(index) {
+    root.pane = 1
+    if (root.selectedIndex === index) return
+    root.selectedIndex = index
+    root.selectionChanged()
+  }
+  // Qt шлёт hover и строкам, приехавшим под неподвижный указатель (загрузка, прокрутка) —
+  // такие события выделение не забирают: только реальное движение указателя.
+  function hoverSelect(index, p) {
+    var last = root.lastPointer
+    root.lastPointer = { x: p.x, y: p.y }
+    if (!last || (Math.abs(p.x - last.x) < 1 && Math.abs(p.y - last.y) < 1)) return
+    if (root.pane === 1 && root.editingIndex < 0 && root.selectedIndex !== index) {
+      root.selectedIndex = index
+      root.selectionChanged()
+    }
+  }
+  // Значение мышью (ползунок, сегмент): tweak <key> set <value>, как ручной ввод (i).
+  function setTweakAt(index, value) {
+    if (index < 0 || index >= displayModel.count || editor.running) return
+    var row = displayModel.get(index)
+    if (!root.isTweakRow(row)) return
+    root.clickSelect(index)
+    editor.key = root.tweakKey(row)
+    editor.command = [root.script, "tweak", editor.key, "set", String(value)]
+    editor.running = true
+  }
 
   function tweak(dir) {
     if (root.pane !== 1 || !root.selectedRow || !root.isTweakRow(root.selectedRow)) return
@@ -719,7 +1194,8 @@ Item {
     var c = root.randomCandidates()
     if (c.length === 0) return
     root.selectedIndex = c[Math.floor(Math.random() * c.length)]
-    itemList.positionViewAtIndex(root.selectedIndex, ListView.Center)
+    var v = root.viewOf[root.selectedIndex]
+    if (v !== undefined) itemList.positionViewAtIndex(v, ListView.Center)
     root.selectionChanged()
     root.run(root.selectedRow.value)
   }
@@ -842,8 +1318,18 @@ Item {
   }
 
   function keyHints() {
-    if (root.filtering) return [["⏎", "keep filter"], ["Esc", "clear"], ["↑↓", "move"]]
-    if (root.pane === 0) return [["Tab", "group"], ["1–" + root.groups.length, "group"], ["j k", "category"], ["l ⏎", "open"], ["/", "search"], ["?", "keys"], ["q", "close"]]
+    if (root.filtering) return [["↑ ↓", "results"], ["⏎", root.searchSel >= 0 ? "go there" : "keep filter"], ["Esc", "clear"]]
+    if (root.pane === 0) return [["j k", "sections"], ["l ⏎", "open"], ["Tab", "next tab"], ["0–" + root.groups.length, "jump"], ["/", "search"], ["?", "keys"], ["q", "close"]]
+    if (root.homeOpen) return [["h j k l", "move"], ["⏎", "open"], ["Tab", "first section"], ["/", "search"], ["Esc", "back"], ["?", "keys"]]
+    if (root.category.image && root.isTileRow(root.selectedRow)) {
+      var g = [["h j k l", "move"], ["⏎", "apply"], ["Tab", "next tab"], ["/", "search"]]
+      if (root.category.key === "lock") g.push(["p", "preview live"], ["T", "refresh previews"])
+      else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
+      else g.push(["r", "random"])
+      if (root.category.key === "themes") g.push(["f", "favorite"])
+      g.push(["v", "preview"], ["?", "keys"])
+      return g
+    }
     if (root.category.key === "lock-tweaks") return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["x", "default"], ["⏎", "step · pick"], ["p", "preview"], ["Esc", "back"]]
     if (root.category.key === "bar-widgets") return [["j k", "move"], ["h l", "move widget"], ["⏎ x", "on / off"], ["[ ]", "section"], ["Esc", "back"]]
     if (root.category.tweak) return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["[ ]", "section"], ["x", "default"], ["⏎", "step · pick color"], ["Esc", "back"]]
@@ -872,17 +1358,34 @@ Item {
   }
 
   ListModel { id: displayModel }
+  ListModel { id: viewModel }       // ряды страницы, см. buildView()
 
   // Смена категории: список и превью мягко проявляются со сдвигом снизу.
   ParallelAnimation {
     id: contentFade
-    NumberAnimation { target: listColumn; property: "opacity"; from: 0.25; to: 1; duration: 200; easing.type: Easing.OutCubic }
-    NumberAnimation { target: previewColumn; property: "opacity"; from: 0.25; to: 1; duration: 240; easing.type: Easing.OutCubic }
-    NumberAnimation { target: listShift; property: "y"; from: 10; to: 0; duration: 220; easing.type: Easing.OutCubic }
-    NumberAnimation { target: previewShift; property: "y"; from: 14; to: 0; duration: 260; easing.type: Easing.OutCubic }
+    NumberAnimation { target: pageBody; property: "opacity"; from: 0.25; to: 1; duration: root.ms(220); easing.type: Easing.OutCubic }
+    NumberAnimation { target: pageShift; property: "y"; from: 12; to: 0; duration: root.ms(260); easing.type: Easing.OutCubic }
   }
 
   Timer { id: gTimer; interval: 700; onTriggered: root.pendingG = false }
+  Timer { id: toastTimer; interval: 4000; onTriggered: root.toast = "" }
+
+  Process {
+    id: searchProc
+    command: [root.script, "search-index"]
+    stdout: StdioCollector {
+      onStreamFinished: root.loadSearchIndex(text)
+    }
+  }
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/omarchy/style.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.look = root.parseJson(text())
+    onLoadFailed: root.look = ({})
+  }
 
   Process {
     id: lister
@@ -1013,10 +1516,12 @@ Item {
     stderr: StdioCollector { id: editorErr }
     onExited: function(code) {
       if (code === 0) {
-        root.cancelEdit()
+        if (root.editingIndex >= 0) root.cancelEdit()
         root.reloadCategory()
       } else {
-        root.editError = editorErr.text.trim() || root.tr("Not applied")
+        var msg = editorErr.text.trim() || root.tr("Not applied")
+        if (root.editingIndex >= 0) root.editError = msg
+        else root.showToast(msg)
       }
     }
   }
@@ -1195,7 +1700,7 @@ Item {
           y: -card.y
           width: panel.width
           height: panel.height
-          source: root.opened && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+          source: root.opened && root.glass && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
           sourceSize.width: Math.max(1, panel.width / 2)
           fillMode: Image.PreserveAspectCrop
           asynchronous: true
@@ -1207,7 +1712,7 @@ Item {
           width: glassWall.width
           height: glassWall.height
           source: glassWall
-          visible: glassWall.status === Image.Ready
+          visible: root.glass && glassWall.status === Image.Ready
           autoPaddingEnabled: false
           blurEnabled: true
           blur: 1
@@ -1228,7 +1733,7 @@ Item {
       opacity: root.opened ? 1 : 0
       scale: root.opened ? 1 : 0.97
       Behavior on opacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
-      Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+      Behavior on scale { NumberAnimation { duration: root.ms(220); easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -1254,76 +1759,49 @@ Item {
             return
           }
 
+          // Поиск: текст фильтрует страницу, ↑↓ — по результатам из других мест, ⏎ — туда
+          // (или оставить фильтр, если результат не выбран), Esc — сбросить.
           if (root.filtering) {
+            var res = root.searchResults
             if (k === Qt.Key_Escape) { root.filtering = false; root.setFilter("") }
-            else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.filtering = false
+            else if (k === Qt.Key_Return || k === Qt.Key_Enter) {
+              if (root.searchSel >= 0 && root.searchSel < res.length) root.jumpTo(res[root.searchSel])
+              else { root.filtering = false; root.searchSel = -1 }
+            }
             else if (k === Qt.Key_Backspace && !root.filterText) root.filtering = false
             else if (Util.editsFilter(event, root.filterText)) root.setFilter(Util.editedFilter(event, root.filterText))
-            else if (k === Qt.Key_Up || (ctrl && (k === Qt.Key_K || k === Qt.Key_P))) root.move(-1)
-            else if (k === Qt.Key_Down || (ctrl && (k === Qt.Key_J || k === Qt.Key_N))) root.move(1)
+            else if (k === Qt.Key_Up || k === Qt.Key_Backtab || (ctrl && (k === Qt.Key_K || k === Qt.Key_P))) root.searchSel = Math.max(-1, root.searchSel - 1)
+            else if (k === Qt.Key_Down || k === Qt.Key_Tab || (ctrl && (k === Qt.Key_J || k === Qt.Key_N))) root.searchSel = Math.min(res.length - 1, root.searchSel + 1)
             else if (printable && !ctrl) root.setFilter(root.filterText + t)
             else return
             event.accepted = true
             return
           }
 
-          var tweaking = root.pane === 1 && !ctrl && root.isTweakRow(root.selectedRow)
-          if (tweaking && (t === "h" || t === "-" || k === Qt.Key_Left)) root.tweak("-")
-          else if (tweaking && (t === "l" || t === "+" || t === "=" || k === Qt.Key_Right)) root.tweak("+")
-          else if (tweaking && t === "x") root.tweak("reset")
-          else if (tweaking && t === "i" && root.category.key !== "bar-widgets") root.startEdit()
-          else if (!ctrl && root.pane === 1 && t === "[") root.jumpSection(-1)
-          else if (!ctrl && root.pane === 1 && t === "]") root.jumpSection(1)
-          else if (!ctrl && t === "p" && (root.category.key === "lock" || root.category.key === "lock-tweaks")) root.previewLock()
-          // T: недостающие снимки, если такие есть, иначе — все.
-          else if (!ctrl && t === "T" && root.category.key === "lock") root.run(root.hasRow("missing-thumbs") ? "missing-thumbs" : "regen-thumbs")
-          else if (!ctrl && t === "p" && root.category.key === "wallpaper-fx") root.playFx()
-          else if (!ctrl && t === "p" && root.category.key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
-          else if (!ctrl && t === "p" && root.category.key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
-          else if (!ctrl && t === "p" && root.category.key === "glyph") Quickshell.execDetached([root.script, "glyph-test", "false"])
-          else if (!ctrl && t === "p" && root.category.key === "sounds") root.listenSound()
-          else if (ctrl && (root.category.key === "walls" || root.category.key === "dotify") && k === Qt.Key_O) root.run("pick-files")
-          else if (ctrl && (k === Qt.Key_D)) root.move(root.halfPage())
-          else if (ctrl && (k === Qt.Key_U)) root.move(-root.halfPage())
-          else if (ctrl && (k === Qt.Key_F)) root.move(root.halfPage() * 2)
-          else if (ctrl && (k === Qt.Key_B)) root.move(-root.halfPage() * 2)
-          else if (ctrl && (k === Qt.Key_N)) root.move(1)
-          else if (ctrl && (k === Qt.Key_P)) root.move(-1)
-          else if (k === Qt.Key_Escape) {
-            if (root.filterText) root.setFilter("")
-            else if (root.pane === 1) { if (!root.wallUp()) root.toCategories() }
-            else root.dismiss()
-          }
-          else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.activate()
-          else if (k === Qt.Key_Up) root.move(-1)
-          else if (k === Qt.Key_Down) root.move(1)
+          // Везде: вкладки, рейл по цифрам, поиск, помощь, закрыть.
+          if (k === Qt.Key_Backtab) root.setTab(-1)
+          else if (k === Qt.Key_Tab) root.setTab(1)
+          else if (!ctrl && t === "/") root.startSearch()
+          else if (!ctrl && t === "?") root.helpOpen = true
+          else if (!ctrl && t === "q") root.dismiss()
+          else if (!ctrl && t === "0") root.goHome()
+          else if (!ctrl && t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)
+          else if (!ctrl && t === "v" && !root.homeOpen) root.heroCollapsed = !root.heroCollapsed
+          else if (ctrl && k === Qt.Key_D) root.move(root.halfPage())
+          else if (ctrl && k === Qt.Key_U) root.move(-root.halfPage())
+          else if (ctrl && k === Qt.Key_F) root.move(root.halfPage() * 2)
+          else if (ctrl && k === Qt.Key_B) root.move(-root.halfPage() * 2)
+          else if (ctrl && k === Qt.Key_N) root.move(1)
+          else if (ctrl && k === Qt.Key_P) root.move(-1)
           else if (k === Qt.Key_PageUp) root.move(-root.halfPage() * 2)
           else if (k === Qt.Key_PageDown) root.move(root.halfPage() * 2)
           else if (k === Qt.Key_Home) root.moveTo(0)
           else if (k === Qt.Key_End) root.moveTo(-1)
-          else if (k === Qt.Key_Backtab) root.setGroup(root.groupIndex - 1)
-          else if (k === Qt.Key_Tab) root.setGroup(root.groupIndex + 1)
-          else if (k === Qt.Key_Left) { if (!root.wallUp()) root.toCategories() }
-          else if (k === Qt.Key_Right) { if (root.pane === 0) root.activate() }
-          else if (ctrl || !printable) return
-          else if (t === "j") root.move(1)
-          else if (t === "k") root.move(-1)
-          else if (t === "h") { if (!root.wallUp()) root.toCategories() }
-          else if (t === "l") { if (root.pane === 0) root.activate() }
-          else if (t === "g") { if (pendingG) root.moveTo(0); else { root.pendingG = true; gTimer.restart() } }
-          else if (t === "G") root.moveTo(-1)
-          else if (t === "J") root.scrollPreview(1)
-          else if (t === "K") root.scrollPreview(-1)
-          else if (t === "/") { root.filtering = true; root.pane = 1; root.selectionChanged() }
-          else if (t === "?") root.helpOpen = true
-          else if (t === "q") root.dismiss()
-          else if (t === "r") root.randomPick()
-          else if (t === "D") root.deletePreset()
-          else if (!ctrl && t === "f" && root.category.key === "themes") root.toggleFavoriteTheme()
-          else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "o") root.run("pick-files")
-          else if ((root.category.key === "walls" || root.category.key === "dotify") && t === "O") root.run("pick-dir")
-          else if (t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)
-          else return
+          else if (!ctrl && t === "g") { if (pendingG) root.moveTo(0); else { root.pendingG = true; gTimer.restart() } }
+          else if (!ctrl && t === "G") root.moveTo(-1)
+          else {
+            if (!root.handlePaneKey(event, k, t, ctrl, printable)) return
+          }
           event.accepted = true
         }
       }
@@ -1336,785 +1814,1158 @@ Item {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
 
-        // ── Header ─────────────────────────────────────────────────
+        // ── Рейл: Домой + группы ──────────────────────────────────
+        NavRail {
+          id: rail
+          anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+          width: implicitWidth
+          t: root
+          items: root.railItems
+          currentIndex: root.railIndex
+          focused: root.pane === 0 && !root.filtering
+          onPicked: function(i) { root.setRail(i); root.pane = 0 }
+        }
+
         Item {
-          id: header
-          anchors { top: parent.top; left: parent.left; right: parent.right }
-          height: Math.round(root.rowHeight * 1.6)
+          id: page
+          anchors { top: parent.top; bottom: parent.bottom; left: rail.right; leftMargin: Style.space(14); right: parent.right }
 
-          Rectangle {
-            id: logo
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.round(header.height * 0.82)
-            height: width
-            radius: root.innerRadius + 2
-            gradient: Gradient {
-              orientation: Gradient.Vertical
-              GradientStop { position: 0; color: Util.alpha(root.accent, 0.95) }
-              GradientStop { position: 1; color: Util.alpha(root.accent, 0.55) }
-            }
-            Text {
-              anchors.centerIn: parent
-              text: "󰸌"
-              color: root.background
-              font.family: root.fontFamily
-              font.pixelSize: Math.round(parent.height * 0.5)
-            }
-          }
+          // ── Шапка: крошки, заголовок, поиск, закрыть ─────────────
+          Item {
+            id: header
+            z: 10
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: Style.space(66)
 
-          Column {
-            anchors.left: logo.right
-            anchors.leftMargin: Style.space(12)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-            Text {
-              text: "Customizer"
-              color: root.foreground
-              font.family: root.headFont
-              font.pixelSize: Style.font.display
-              font.bold: true
-            }
-            Text {
-              text: "Look & feel · Hyprland × Omarchy"
-              color: root.muted
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.letterSpacing: 0.8
-            }
-          }
-
-          // Вкладки-группы: капсула, под активной скользит подсветка.
-          Rectangle {
-            id: tabBar
-            anchors.centerIn: parent
-            height: Math.round(header.height * 0.72)
-            width: tabRow.implicitWidth + Style.space(8)
-            radius: height / 2
-            color: root.panelFill
-            border.width: 1
-            border.color: root.panelBorder
-
-            Rectangle {
-              id: tabGlow
-              readonly property Item target: tabRow.width > 0 ? tabRepeater.itemAt(root.groupIndex) : null
-              x: target ? tabRow.x + target.x : 0
-              width: target ? target.width : 0
+            Column {
+              anchors.left: parent.left
+              anchors.right: searchBox.left
+              anchors.rightMargin: Style.space(16)
               anchors.verticalCenter: parent.verticalCenter
-              height: parent.height - Style.space(8)
-              radius: height / 2
-              color: Util.alpha(root.accent, 0.18)
-              border.width: 1
-              border.color: Util.alpha(root.accent, 0.55)
-              Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-              Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-            }
-
-            Row {
-              id: tabRow
-              anchors.centerIn: parent
-              spacing: 0
-              Repeater {
-                id: tabRepeater
-                model: root.groups
-                delegate: Item {
-                  required property int index
-                  required property var modelData
-                  readonly property bool active: index === root.groupIndex
-                  width: tabLabel.implicitWidth + Style.space(28)
-                  height: tabBar.height
-                  Row {
-                    id: tabLabel
-                    anchors.centerIn: parent
-                    spacing: Style.space(7)
-                    Text {
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: modelData.icon
-                      color: active ? root.accent : root.muted
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.title
-                      Behavior on color { ColorAnimation { duration: 160 } }
-                    }
-                    Text {
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: modelData.title
-                      color: active ? root.foreground : root.muted
-                      font.family: root.headFont
-                      font.pixelSize: Style.font.body
-                      font.bold: active
-                      Behavior on color { ColorAnimation { duration: 160 } }
-                    }
-                  }
-                  MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.setGroup(index)
-                  }
-                }
+              spacing: Style.space(4)
+              Text {
+                width: parent.width
+                text: (root.homeOpen ? "Customizer  ·  " + root.tr("Look & feel")
+                  : root.group.title + "  ·  " + root.category.hint
+                    + (root.category.key === "theme-walls" && root.wallPath ? "  ·  󰉋 " + root.wallPath : "")).toUpperCase()
+                elide: Text.ElideRight
+                color: root.primary
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: 1.2
+              }
+              Text {
+                width: parent.width
+                text: root.homeOpen ? root.tr("Home") : root.category.title
+                elide: Text.ElideRight
+                color: root.foreground
+                font.family: root.headFont
+                font.pixelSize: Style.font.display
+                font.bold: true
               }
             }
-          }
-
-          // What is in use right now; clicking a chip opens its category.
-          Row {
-            id: chips
-            // Чипы статуса переехали в левую панель («Сейчас»); шапка — логотип и вкладки.
-            visible: false
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(6)
-
-            Repeater {
-              model: root.groupChips
-              delegate: Rectangle {
-                required property var modelData
-                readonly property bool hot: root.category.key === modelData.category
-                height: Style.font.body + Style.space(14)
-                width: Math.min(Style.space(190), chipRow.implicitWidth + Style.space(18))
-                radius: height / 2
-                color: hot ? Util.alpha(root.accent, 0.16) : root.panelFill
-                border.width: 1
-                border.color: hot ? Util.alpha(root.accent, 0.5) : root.panelBorder
-                Behavior on color { ColorAnimation { duration: 140 } }
-
-                Row {
-                  id: chipRow
-                  anchors.centerIn: parent
-                  spacing: Style.space(6)
-                  width: Math.min(implicitWidth, parent.width - Style.space(18))
-                  Text {
-                    id: chipIcon
-                    text: modelData.icon
-                    color: root.accent
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.body
-                  }
-                  Text {
-                    width: Math.min(implicitWidth, Style.space(190) - Style.space(18) - chipIcon.width - Style.space(6))
-                    text: root.statusText(modelData.key)
-                    elide: Text.ElideRight
-                    color: root.foreground
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
-                  }
-                }
-
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: {
-                    var i = root.categoryIndexOf(modelData.category)
-                    if (i < 0) return
-                    root.setCategory(i)
-                    root.pane = 1
-                    root.selectionChanged()
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        Item {
-          id: headerRule
-          anchors { top: header.bottom; topMargin: root.contentSpacing; left: parent.left; right: parent.right }
-          height: 1
-        }
-
-        // ── Footer: contextual key hints ───────────────────────────
-        Item {
-          id: footer
-          anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-          height: Style.font.caption + Style.space(12)
-
-          Row {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(16)
-            Repeater {
-              model: root.keyHints()
-              delegate: Hint {
-                required property var modelData
-                keys: modelData[0]
-                label: modelData[1]
-              }
-            }
-          }
-
-          Text {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.category.icon + "  " + root.category.hint
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
-        }
-
-        Item {
-          id: footerRule
-          anchors { bottom: footer.top; bottomMargin: Style.space(8); left: parent.left; right: parent.right }
-          height: 1
-        }
-
-        // ── Body ───────────────────────────────────────────────────
-        Item {
-          id: body
-          anchors {
-            top: headerRule.bottom; topMargin: root.contentSpacing
-            bottom: footerRule.top; bottomMargin: root.contentSpacing
-            left: parent.left; right: parent.right
-          }
-
-          // Мягкие подложки трёх панелей (категории · список · превью).
-          Repeater {
-            model: [catFlick, listColumn, previewColumn]
-            delegate: Rectangle {
-              required property Item modelData
-              x: modelData.x - Style.space(10)
-              y: modelData.y - Style.space(10)
-              width: modelData.width + Style.space(20)
-              height: modelData.height + Style.space(20)
-              radius: 16
-              color: root.panelFill
-              border.width: 1
-              border.color: root.panelBorder
-            }
-          }
-
-          // Categories — прокручиваются, когда не влезают (активная всегда видна).
-          Flickable {
-            id: catFlick
-            x: Style.space(10)
-            y: Style.space(10)
-            width: Style.space(240)
-            height: parent.height - Style.space(20)
-            contentHeight: catColumn.implicitHeight
-            boundsBehavior: Flickable.StopAtBounds
-            clip: true
-
-            function ensureVisible(item) {
-              var y = item.y
-              if (y < contentY) contentY = y
-              else if (y + item.height > contentY + height) contentY = y + item.height - height
-            }
-
-          Column {
-            id: catColumn
-            width: catFlick.width
-            spacing: Style.space(4)
-
-            Text {
-              text: root.group.title.toUpperCase()
-              color: root.muted
-              font.family: root.headFont
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: 1.4
-              leftPadding: Style.space(6)
-              bottomPadding: Style.space(4)
-            }
-
-            Repeater {
-              model: root.groupCategories
-              delegate: Rectangle {
-                id: catRow
-                required property int modelData
-                readonly property int index: modelData
-                readonly property var info: root.categories[modelData]
-                readonly property bool active: index === root.categoryIndex
-                readonly property bool focused: active && root.pane === 0
-                onActiveChanged: if (active) Qt.callLater(catFlick.ensureVisible, catRow)
-
-                width: catColumn.width
-                height: Math.round(root.rowHeight * 1.45)
-                radius: root.innerRadius
-                color: active ? Util.alpha(root.accent, 0.14) : (catHover.containsMouse ? root.faint : "transparent")
-                border.width: active ? 1 : 0
-                border.color: Util.alpha(root.accent, focused ? 0.7 : 0.3)
-                Behavior on color { ColorAnimation { duration: 120 } }
-
-                Rectangle {
-                  anchors.left: parent.left
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: 3
-                  height: catRow.active ? parent.height * 0.5 : 0
-                  radius: 2
-                  color: root.accent
-                  Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-                }
-
-                Rectangle {
-                  id: badge
-                  anchors.left: parent.left
-                  anchors.leftMargin: Style.space(10)
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: Math.round(parent.height * 0.62)
-                  height: width
-                  radius: root.innerRadius
-                  color: Util.alpha(root.accent, catRow.active ? 0.22 : 0.08)
-                  Behavior on color { ColorAnimation { duration: 140 } }
-                  Text {
-                    anchors.centerIn: parent
-                    text: catRow.info.icon
-                    color: catRow.active ? root.accent : root.foreground
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.iconLarge
-                  }
-                }
-
-                Column {
-                  anchors.left: badge.right
-                  anchors.leftMargin: Style.space(10)
-                  anchors.right: numCap.left
-                  anchors.rightMargin: Style.space(6)
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: Style.space(1)
-                  Text {
-                    width: parent.width
-                    text: catRow.info.title
-                    elide: Text.ElideRight
-                    color: catRow.active ? root.selectedText : root.foreground
-                    font.family: root.headFont
-                    font.pixelSize: Style.font.title
-                    font.bold: catRow.active
-                  }
-                  Text {
-                    width: parent.width
-                    text: catRow.info.hint
-                    elide: Text.ElideRight
-                    color: root.muted
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                  }
-                }
-
-                Keycap {
-                  id: numCap
-                  anchors.right: parent.right
-                  anchors.rightMargin: Style.space(8)
-                  anchors.verticalCenter: parent.verticalCenter
-                  label: "⏎"
-                  visible: catRow.focused
-                  opacity: 0.8
-                }
-
-                MouseArea {
-                  id: catHover
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: { root.setCategory(catRow.index); root.pane = 1; root.selectionChanged() }
-                }
-              }
-            }
-
-            // Что сейчас стоит в этой группе; клик открывает категорию.
-            Item { width: 1; height: Style.space(10) }
-            Text {
-              visible: root.groupChips.length > 0
-              text: root.tr("NOW")
-              color: root.muted
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: 1.4
-              leftPadding: Style.space(6)
-              bottomPadding: Style.space(2)
-            }
-            Repeater {
-              model: root.groupChips
-              delegate: Rectangle {
-                required property var modelData
-                width: catColumn.width
-                height: Style.font.body + Style.space(16)
-                radius: height / 2
-                color: nowMouse.containsMouse ? Util.alpha(root.accent, 0.12) : root.panelFill
-                border.width: 1
-                border.color: root.panelBorder
-                Behavior on color { ColorAnimation { duration: 120 } }
-                Row {
-                  anchors.left: parent.left
-                  anchors.leftMargin: Style.space(12)
-                  anchors.right: parent.right
-                  anchors.rightMargin: Style.space(12)
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: Style.space(8)
-                  Text {
-                    id: nowIcon
-                    text: modelData.icon
-                    color: root.accent
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.body
-                  }
-                  Text {
-                    id: nowTitle
-                    text: modelData.title
-                    color: root.muted
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
-                  }
-                  Text {
-                    width: parent.width - nowIcon.width - nowTitle.width - Style.space(16)
-                    text: root.statusText(modelData.key)
-                    elide: Text.ElideRight
-                    color: root.foreground
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
-                  }
-                }
-                MouseArea {
-                  id: nowMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: {
-                    var i = root.categoryIndexOf(modelData.category)
-                    if (i < 0) return
-                    root.setCategory(i)
-                    root.pane = 1
-                    root.selectionChanged()
-                  }
-                }
-              }
-            }
-          }
-
-          }
-
-          Item {
-            id: rule1
-            anchors.left: catFlick.right
-            anchors.leftMargin: Style.space(14)
-            width: 1; height: parent.height
-          }
-
-          // Items
-          Item {
-            id: listColumn
-            anchors.left: rule1.right
-            anchors.leftMargin: Style.space(14)
-            y: Style.space(10)
-            width: Style.space(370)
-            height: parent.height - Style.space(20)
-            transform: Translate { id: listShift }
 
             Rectangle {
-              id: search
-              width: parent.width
-              height: root.rowHeight
-              radius: height / 2
-              color: root.faint
-              border.width: 1
-              border.color: root.filtering ? Util.alpha(root.accent, 0.7) : root.hairline
-              Behavior on border.color { ColorAnimation { duration: 140 } }
+              id: searchBox
+              anchors.right: closeBtn.left
+              anchors.rightMargin: Style.space(10)
+              anchors.verticalCenter: parent.verticalCenter
+              width: Math.min(Style.space(340), parent.width * 0.36)
+              height: Style.space(44)
+              radius: root.dot ? Style.space(3) : height / 2
+              color: root.filtering ? root.surfaceHi : root.surfaceLow
+              border.width: root.filtering ? Style.space(2) : (root.dot ? 1 : 0)
+              border.color: root.filtering ? root.primary : root.outline
+              Behavior on color { ColorAnimation { duration: root.ms(140) } }
 
               Text {
                 id: searchIcon
                 anchors.left: parent.left
-                anchors.leftMargin: Style.space(12)
+                anchors.leftMargin: Style.space(16)
                 anchors.verticalCenter: parent.verticalCenter
                 text: "󰍉"
-                color: root.filtering ? root.accent : root.muted
-                font.family: root.fontFamily
+                color: root.filtering ? root.primary : root.muted
+                font.family: root.iconFont
                 font.pixelSize: Style.font.title
               }
-
               Text {
                 anchors.left: searchIcon.right
-                anchors.leftMargin: Style.space(8)
-                anchors.right: count.left
+                anchors.leftMargin: Style.space(10)
+                anchors.right: searchKey.left
                 anchors.rightMargin: Style.space(8)
                 anchors.verticalCenter: parent.verticalCenter
                 textFormat: Text.PlainText
-                text: root.filtering ? root.filterText + "▏"
-                  : root.filterText ? root.filterText
-                  : root.category.key === "theme-walls" && root.wallPath ? "󰉋 " + root.wallPath + "  ( / )"
-                  : root.tr("Search %1…").arg(root.category.title.toLowerCase()) + "  ( / )"
+                text: root.filtering ? root.filterText + "▏" : root.filterText ? root.filterText : root.tr("Search settings")
                 color: root.filtering || root.filterText ? root.foreground : root.muted
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 elide: Text.ElideLeft
               }
-
-              Text {
-                id: count
+              Keycap {
+                id: searchKey
                 anchors.right: parent.right
                 anchors.rightMargin: Style.space(12)
                 anchors.verticalCenter: parent.verticalCenter
-                text: displayModel.count ? (root.selectedIndex + 1) + " / " + displayModel.count : ""
-                color: root.muted
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                label: root.filtering ? "Esc" : "/"
+              }
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.IBeamCursor
+                onClicked: root.startSearch()
               }
             }
 
-            ListView {
-              id: itemList
-              anchors { top: search.bottom; topMargin: root.contentSpacing; bottom: parent.bottom; left: parent.left; right: parent.right }
-              model: displayModel
-              clip: true
-              spacing: Style.space(4)
-              boundsBehavior: Flickable.StopAtBounds
-              highlightFollowsCurrentItem: true
-              highlightMoveDuration: 160
-              highlightResizeDuration: 120
-              highlight: Rectangle {
-                radius: root.innerRadius
-                color: Util.alpha(root.accent, root.pane === 1 ? 0.16 : 0.08)
-                border.width: 1
-                border.color: Util.alpha(root.accent, root.pane === 1 ? 0.6 : 0.25)
-                layer.enabled: root.pane === 1
-                layer.effect: MultiEffect {
-                  shadowEnabled: true
-                  shadowColor: "#000000"
-                  shadowOpacity: 0.35
-                  shadowBlur: 0.5
-                  shadowVerticalOffset: 2
-                }
+            Rectangle {
+              id: closeBtn
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(40); height: width
+              radius: root.dot ? Style.space(3) : width / 2
+              color: closeHover.containsMouse ? root.surfaceHi : "transparent"
+              Text {
+                anchors.centerIn: parent
+                text: "󰅖"
+                color: root.foreground
+                font.family: root.iconFont
+                font.pixelSize: Style.font.title
+              }
+              MouseArea {
+                id: closeHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.dismiss()
+              }
+            }
+
+            // Результаты поиска из других мест: ↑↓ — выбрать, ⏎ — перейти.
+            Rectangle {
+              id: searchDrop
+              visible: root.filtering && root.searchResults.length > 0
+              anchors.top: searchBox.bottom
+              anchors.topMargin: Style.space(6)
+              anchors.right: closeBtn.right
+              width: Math.max(searchBox.width + closeBtn.width + Style.space(10), Style.space(460))
+              height: dropCol.implicitHeight + Style.space(12)
+              radius: root.rCard
+              color: Qt.rgba(root.background.r, root.background.g, root.background.b, 0.98)
+              border.width: 1
+              border.color: root.outline
+              layer.enabled: visible
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: "#000000"
+                shadowOpacity: 0.45
+                shadowBlur: 0.8
+                shadowVerticalOffset: 4
               }
 
-              delegate: Item {
-                id: itemRow
-                required property int index
-                required property string label
-                required property string preview
-                required property string note
-                required property string sub
-                required property string value
-                required property bool current
-
-                readonly property bool header: /^section:/.test(value)
-                readonly property bool tweakRow: !header && (root.category.tweak === true || /^tweak:/.test(value))
-                readonly property bool showThumb: root.category.image && !header && !tweakRow
-                readonly property bool editing: index >= 0 && index === root.editingIndex
-                readonly property bool hasCursor: index >= 0 && index === root.selectedIndex
-                onEditingChanged: if (editing) Qt.callLater(function() {
-                  if (typeof root === "undefined" || !root || !itemRow.editing) return
-                  editInput.text = root.editInitial
-                  editInput.selectAll()
-                  editInput.forceActiveFocus()
-                })
-                readonly property var palette: root.paletteOf(note)
-
-                width: itemList.width
-
-                // Мягкая карточка под курсором мыши (выбранную рисует highlight).
-                Rectangle {
-                  anchors.fill: parent
-                  radius: root.innerRadius
-                  color: rowMouse.containsMouse && !itemRow.hasCursor ? root.faint : "transparent"
-                  Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                // Длинные подписи переносятся (до двух строк) — строка растёт под них.
-                height: header ? Style.space(30)
-                  : showThumb ? root.thumbRowHeight
-                  : Math.max(tweakRow ? Math.round(root.rowHeight * 1.5) : root.rowHeight, rowText.implicitHeight + Style.space(12))
-
-                // Заголовок раздела: линия с названием, не выделяется.
-                Item {
-                  visible: itemRow.header
-                  anchors.fill: parent
-                  Text {
-                    id: headerText
-                    anchors.left: parent.left
-                    anchors.leftMargin: Style.space(10)
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: Style.space(4)
-                    text: itemRow.label
-                    color: root.accent
-                    font.family: root.headFont
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                    font.capitalization: Font.AllUppercase
-                    font.letterSpacing: 1
-                  }
-                  Rectangle {
-                    anchors.left: headerText.right
-                    anchors.leftMargin: Style.space(10)
-                    anchors.right: parent.right
-                    anchors.rightMargin: Style.space(10)
-                    anchors.verticalCenter: headerText.verticalCenter
-                    height: 1
-                    color: root.hairline
-                  }
-                }
-
-                ClippingRectangle {
-                  id: thumb
-                  visible: itemRow.showThumb
-                  anchors.left: parent.left
-                  anchors.leftMargin: Style.space(6)
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: visible ? Math.round(height * 1.6) : 0
-                  height: parent.height - Style.space(10)
-                  radius: root.innerRadius - 2
-                  color: root.faint
-
-                  Image {
-                    id: thumbImg
-                    // Cached thumbnail first; the full image only while the cache fills.
-                    property bool fallback: false
-                    anchors.fill: parent
-                    source: !thumb.visible || !itemRow.preview ? ""
-                      : fallback ? root.fileUrl(itemRow.preview) : root.thumbUrl(itemRow.preview)
-                    onStatusChanged: if (status === Image.Error && !fallback) fallback = true
-                    Connections {
-                      target: root
-                      function onThumbVersionChanged() { thumbImg.fallback = false }
-                    }
-                    sourceSize.width: Math.max(1, thumb.width * 2)
-                    sourceSize.height: Math.max(1, thumb.height * 2)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    opacity: status === Image.Ready ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 180 } }
-                  }
-                  Text {
-                    anchors.centerIn: parent
-                    visible: !itemRow.preview
-                    text: /^pick-dir/.test(itemRow.label) || itemRow.label.indexOf("folder") >= 0 ? "󰉋" : "󰋩"
-                    color: root.accent
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.iconLarge
-                  }
-                }
-
+              Column {
+                id: dropCol
+                anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(6) }
+                spacing: Style.space(2)
                 Text {
-                  id: rowIcon
-                  visible: !itemRow.showThumb && !itemRow.header
-                  anchors.left: parent.left
-                  anchors.leftMargin: Style.space(12)
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: itemRow.current ? "󰄬" : root.category.icon
-                  color: itemRow.current ? root.accent : Util.alpha(root.foreground, itemRow.hasCursor ? 0.8 : 0.35)
+                  leftPadding: Style.space(10)
+                  topPadding: Style.space(4)
+                  bottomPadding: Style.space(4)
+                  text: root.tr("In other sections")
+                  color: root.muted
                   font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                }
+                Repeater {
+                  model: root.searchResults
+                  delegate: Rectangle {
+                    id: hit
+                    required property int index
+                    required property var modelData
+                    readonly property bool sel: index === root.searchSel
+                    width: dropCol.width
+                    height: Style.space(50)
+                    radius: Math.max(2, root.rCard - Style.space(6))
+                    color: sel ? root.secondaryContainer : (hitHover.containsMouse ? root.surfaceHi : "transparent")
+                    Text {
+                      id: hitIcon
+                      anchors.left: parent.left
+                      anchors.leftMargin: Style.space(12)
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: hit.modelData.icon
+                      color: root.primary
+                      font.family: root.iconFont
+                      font.pixelSize: Style.font.title
+                    }
+                    Column {
+                      anchors.left: hitIcon.right
+                      anchors.leftMargin: Style.space(12)
+                      anchors.right: parent.right
+                      anchors.rightMargin: Style.space(12)
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(2)
+                      Text {
+                        width: parent.width
+                        text: hit.modelData.label
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        color: root.foreground
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.body
+                        font.bold: hit.sel
+                      }
+                      Text {
+                        width: parent.width
+                        text: hit.modelData.where
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        color: root.muted
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                    }
+                    MouseArea {
+                      id: hitHover
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.jumpTo(hit.modelData)
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // ── Вкладки группы + «Удиви меня» ─────────────────────────
+          TabStrip {
+            id: tabs
+            visible: !root.homeOpen
+            anchors { top: header.bottom; topMargin: Style.space(4); left: parent.left; right: tabTools.left; rightMargin: Style.space(10) }
+            height: implicitHeight
+            t: root
+            items: root.groupTabs
+            currentIndex: root.groupCategories.indexOf(root.categoryIndex)
+            onPicked: function(i) { root.setCategory(root.groupCategories[i]) }
+          }
+          Row {
+            id: tabTools
+            visible: !root.homeOpen
+            anchors.right: parent.right
+            anchors.verticalCenter: tabs.verticalCenter
+            spacing: Style.space(8)
+            Rectangle {
+              visible: root.category.key !== "walls" && root.category.key !== "dotify" && !root.category.presetStage && root.category.key !== "glyph" && !root.category.tweak
+              height: Style.space(34)
+              width: randomRow.implicitWidth + Style.space(24)
+              radius: root.dot ? Style.space(3) : height / 2
+              color: randomHover.containsMouse ? root.secondaryContainer : root.surfaceLow
+              Row {
+                id: randomRow
+                anchors.centerIn: parent
+                spacing: Style.space(8)
+                Text { text: "󰒝"; color: root.primary; font.family: root.iconFont; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: root.tr("Surprise me"); color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
+                Keycap { label: "r"; anchors.verticalCenter: parent.verticalCenter }
+              }
+              MouseArea { id: randomHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.randomPick() }
+            }
+            Rectangle {
+              visible: root.heroAvailable
+              height: Style.space(34)
+              width: heroRow.implicitWidth + Style.space(24)
+              radius: root.dot ? Style.space(3) : height / 2
+              color: heroHover.containsMouse ? root.secondaryContainer : root.surfaceLow
+              Row {
+                id: heroRow
+                anchors.centerIn: parent
+                spacing: Style.space(8)
+                Text { text: root.heroCollapsed ? "󰈈" : "󰈉"; color: root.primary; font.family: root.iconFont; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: root.tr("Preview"); color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
+                Keycap { label: "v"; anchors.verticalCenter: parent.verticalCenter }
+              }
+              MouseArea { id: heroHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.heroCollapsed = !root.heroCollapsed }
+            }
+          }
+
+          // ── Футер: подсказки клавиш, счётчик / ошибка ─────────────
+          Item {
+            id: footer
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: Style.font.caption + Style.space(12)
+
+            Row {
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(16)
+              Repeater {
+                model: root.keyHints()
+                delegate: Hint {
+                  required property var modelData
+                  keys: modelData[0]
+                  label: root.tr(modelData[1])
+                }
+              }
+            }
+
+            Text {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Math.min(implicitWidth, parent.width * 0.4)
+              elide: Text.ElideRight
+              textFormat: Text.PlainText
+              text: root.toast ? "⚠ " + root.toast
+                : !root.homeOpen && displayModel.count ? (root.selectedIndex + 1) + " / " + displayModel.count : ""
+              color: root.toast ? Color.urgent : root.muted
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          // ── Тело страницы ─────────────────────────────────────────
+          Item {
+            id: pageBody
+            anchors {
+              top: tabs.visible ? tabs.bottom : header.bottom
+              topMargin: Style.space(14)
+              bottom: footer.top
+              bottomMargin: Style.space(10)
+              left: parent.left
+              right: parent.right
+            }
+            transform: Translate { id: pageShift }
+
+            HomePage {
+              id: homePage
+              anchors.fill: parent
+              visible: root.homeOpen
+              t: root
+              cards: root.homeCards
+              actions: root.homeActions
+              wallpaper: root.homeOpen && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+              palette: root.homePalette
+              selectedIndex: root.homeSel
+              focused: root.pane === 1 && !root.filtering
+              onOpenCard: function(i) { root.pane = 1; root.homeSel = i; root.homeActivate(i) }
+            }
+
+            // Карточка превью: сцена слева, заметка справа (v — свернуть).
+            Item {
+              id: hero
+              visible: !root.homeOpen && root.heroAvailable && !root.heroCollapsed && root.selectedRow !== null
+              anchors { top: parent.top; left: parent.left; right: parent.right }
+              height: visible ? Math.max(Style.space(200), Math.round(pageBody.height * 0.38)) : 0
+              // Не через .visible сцен: они невидимы, пока невидим сам stageArea (замкнутый круг).
+              readonly property bool hasVisual: {
+                var c = root.category, row = root.selectedRow
+                if (c.key === "windows" || c.key === "widgets") return true
+                if (!row) return false
+                return c.key === "opacity" || c.key === "blur" || c.bar === true || c.fx === true || c.picker === true
+                  || (c.presetStage === true && presetStage.presetWallPath !== "")
+                  || (c.key === "fonts" && !root.isHeader(row))
+                  || (c.image === true && !root.isTweakRow(row))
+              }
+
+              ClippingRectangle {
+                id: stageArea
+                anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+                width: hero.hasVisual ? Math.round(hero.width * 0.62) : 0
+                visible: width > 0
+                radius: root.rCard
+                color: root.surface
+                border.width: root.dot ? 1 : 0
+                border.color: root.outline
+
+                // Pictures: crop wallpapers to fill, keep theme screenshots whole.
+                Image {
+                  id: previewImage
+                  anchors.fill: parent
+                  readonly property bool showImage: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow)
+                  visible: showImage
+                  source: showImage && root.selectedRow.preview ? root.fileUrl(root.selectedRow.preview) : ""
+                  sourceSize.width: Math.max(1, stageArea.width * 2)
+                  sourceSize.height: Math.max(1, stageArea.height * 2)
+                  fillMode: root.category.key === "themes" ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                  asynchronous: true
+                  cache: false
+                  opacity: status === Image.Ready ? 1 : 0
+                  Behavior on opacity { NumberAnimation { duration: 200 } }
+                }
+
+                // Картинки нет (снимок лока ещё не снят, файл удалён) — подсказка вместо пустого поля.
+                Text {
+                  anchors.centerIn: parent
+                  width: parent.width - Style.space(40)
+                  visible: previewImage.showImage && root.selectedRow !== null && !!root.selectedRow.preview && previewImage.status === Image.Error
+                  horizontalAlignment: Text.AlignHCenter
+                  wrapMode: Text.Wrap
+                  text: root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
+                    : root.tr("No preview for this item.")
+                  color: root.foreground
+                  opacity: 0.6
+                  font.family: Style.font.family
                   font.pixelSize: Style.font.body
                 }
 
-                Column {
-                  id: rowText
-                  visible: !itemRow.header
-                  anchors.left: itemRow.showThumb ? thumb.right : (rowIcon.visible ? rowIcon.right : parent.left)
-                  anchors.leftMargin: Style.space(10)
-                  anchors.right: activePill.visible ? activePill.left : parent.right
-                  anchors.rightMargin: Style.space(8)
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: Style.space(4)
-
-                  Text {
-                    width: parent.width
-                    // Имена файлов — одной строкой с многоточием в середине, остальное переносится.
-                    wrapMode: itemRow.showThumb ? Text.NoWrap : Text.Wrap
-                    maximumLineCount: itemRow.showThumb ? 1 : 2
-                    elide: itemRow.showThumb ? Text.ElideMiddle : Text.ElideRight
-                    textFormat: Text.PlainText
-                    text: itemRow.label
-                    color: itemRow.hasCursor ? root.selectedText : (itemRow.current ? root.accent : root.foreground)
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.title
-                    font.bold: itemRow.current
-                  }
-
-                  // Second line, e.g. a Bar Tweaks default.
-                  Text {
-                    visible: itemRow.sub !== ""
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                    textFormat: Text.PlainText
-                    text: itemRow.sub
-                    color: root.muted
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                  }
-
-                  // i — ручной ввод значения; Enter применяет, Esc отменяет.
-                  Rectangle {
-                    visible: itemRow.editing
-                    width: parent.width
-                    height: visible ? editInput.implicitHeight + Style.space(12) : 0
-                    radius: Math.max(4, root.innerRadius - 4)
-                    color: root.faint
-                    border.width: 1
-                    border.color: root.editError ? Color.urgent : root.accent
-                    TextInput {
-                      id: editInput
-                      anchors.fill: parent
-                      anchors.margins: Style.space(6)
-                      verticalAlignment: TextInput.AlignVCenter
-                      color: root.foreground
-                      selectionColor: Util.alpha(root.accent, 0.4)
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.body
-                      selectByMouse: true
-                      clip: true
-                      onTextEdited: root.editError = ""
-                      Keys.onReturnPressed: root.submitEdit(text)
-                      Keys.onEnterPressed: root.submitEdit(text)
-                      Keys.onEscapePressed: root.cancelEdit()
+                // Theme palette strip along the bottom edge.
+                Row {
+                  id: paletteStrip
+                  visible: root.category.key === "themes" && root.selectedRow !== null && root.paletteOf(root.selectedRow.note).length > 0
+                  anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+                  height: Style.space(30)
+                  Repeater {
+                    model: root.selectedRow ? root.paletteOf(root.selectedRow.note) : []
+                    delegate: Rectangle {
+                      required property string modelData
+                      width: paletteStrip.width / Math.max(1, root.paletteOf(root.selectedRow ? root.selectedRow.note : "").length)
+                      height: paletteStrip.height
+                      color: modelData
                     }
                   }
+                }
+
+                Column {
+                  anchors.centerIn: parent
+                  visible: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow) && !root.selectedRow.preview
+                  width: parent.width * 0.8
+                  spacing: Style.space(8)
                   Text {
-                    visible: itemRow.editing
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    text: root.editError ? "⚠ " + root.editError : root.tr("Enter — apply · Esc — cancel")
-                    color: root.editError ? Color.urgent : root.muted
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "󰋩"
+                    color: root.accent
                     font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.displayLarge * 2
+                  }
+                  Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: root.selectedRow && root.selectedRow.note ? root.selectedRow.note
+                      : root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
+                      : root.tr("No preview image")
+                    color: root.muted
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.title
+                  }
+                }
+
+                // Transparency / blur: two mock windows over the current wallpaper.
+                // Like Hyprland with xray on, each window blurs the wallpaper
+                // behind it and lays its own background on top at its opacity.
+                Item {
+                  id: opacityStage
+                  anchors.fill: parent
+                  visible: (root.category.key === "opacity" || root.category.key === "blur") && root.selectedRow !== null
+                  readonly property var values: root.stageOpacity()
+                  readonly property real blurAmount: root.stageBlur()
+                  readonly property url wallpaper: visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+
+                  Image {
+                    anchors.fill: parent
+                    source: opacityStage.wallpaper
+                    sourceSize.width: Math.max(1, stageArea.width)
+                    sourceSize.height: Math.max(1, stageArea.height)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
                   }
 
-                  // Theme palette dots.
-                  Row {
-                    visible: itemRow.palette.length > 0
-                    spacing: Style.space(3)
+                  Repeater {
+                    model: [
+                      { name: "inactive", x: 0.08, y: 0.12, w: 0.55, h: 0.55, value: 1 },
+                      { name: "active",   x: 0.36, y: 0.34, w: 0.56, h: 0.54, value: 0 }
+                    ]
+                    delegate: Item {
+                      id: mockWindow
+                      required property var modelData
+                      readonly property bool isActive: modelData.name === "active"
+                      readonly property real level: opacityStage.values[modelData.value]
+                      x: opacityStage.width * modelData.x
+                      y: opacityStage.height * modelData.y
+                      width: opacityStage.width * modelData.w
+                      height: opacityStage.height * modelData.h
+
+                      ClippingRectangle {
+                        anchors.fill: parent
+                        radius: root.innerRadius
+                        color: "transparent"
+
+                        Image {
+                          x: -mockWindow.x
+                          y: -mockWindow.y
+                          width: opacityStage.width
+                          height: opacityStage.height
+                          source: opacityStage.wallpaper
+                          sourceSize.width: Math.max(1, stageArea.width)
+                          sourceSize.height: Math.max(1, stageArea.height)
+                          fillMode: Image.PreserveAspectCrop
+                          asynchronous: true
+                          visible: opacityStage.blurAmount > 0
+                          layer.enabled: visible
+                          layer.effect: MultiEffect {
+                            blurEnabled: true
+                            blur: opacityStage.blurAmount
+                            blurMax: 48
+                            autoPaddingEnabled: false
+                          }
+                        }
+                      }
+
+                      Rectangle {
+                        anchors.fill: parent
+                        radius: root.innerRadius
+                        color: Util.alpha(Color.background, mockWindow.level)
+                        border.width: 2
+                        border.color: mockWindow.isActive ? root.accent : Util.alpha(root.foreground, 0.25)
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                      }
+
+                      Column {
+                        anchors.fill: parent
+                        anchors.margins: Style.space(14)
+                        spacing: Style.space(8)
+                        Row {
+                          spacing: Style.space(6)
+                          Repeater {
+                            model: 3
+                            delegate: Rectangle {
+                              width: Style.space(9); height: width; radius: width / 2
+                              color: Util.alpha(root.foreground, 0.35)
+                            }
+                          }
+                        }
+                        Text {
+                          text: (mockWindow.isActive ? "active" : "inactive") + "  " + mockWindow.level.toFixed(2)
+                          color: Color.foreground
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.heading
+                          font.bold: true
+                        }
+                        Repeater {
+                          model: [0.9, 0.7, 0.8, 0.5]
+                          delegate: Rectangle {
+                            required property real modelData
+                            width: (opacityStage.width * 0.4) * modelData
+                            height: Style.space(6)
+                            radius: 3
+                            color: Util.alpha(Color.foreground, 0.3)
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  // Which preset each half of the stage comes from.
+                  Pill {
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Style.space(12)
+                    tone: Color.foreground
+                    label: "opacity " + (root.category.key === "opacity" && root.selectedRow ? root.selectedRow.value : root.status.opacity || "—")
+                      + "  ·  blur " + (root.category.key === "blur" && root.selectedRow ? root.selectedRow.value : root.status.blur || "—")
+                  }
+                }
+
+                // Bar: a mock of kamradsmeshnyavy.bar over the wallpaper, then the row's note.
+                Item {
+                  id: barStage
+                  anchors.fill: parent
+                  visible: root.category.bar === true && root.selectedRow !== null
+                  readonly property url wallpaper: visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                  readonly property var bar: root.mockBar()
+                  readonly property bool vertical: bar.position === "left" || bar.position === "right"
+
+                  ClippingRectangle {
+                    id: barScreen
+                    anchors.fill: parent
+                    radius: root.innerRadius
+                    color: "transparent"
+
+                    Image {
+                      anchors.fill: parent
+                      source: barStage.wallpaper
+                      sourceSize.width: Math.max(1, stageArea.width)
+                      sourceSize.height: Math.max(1, stageArea.height)
+                      fillMode: Image.PreserveAspectCrop
+                      verticalAlignment: barStage.bar.position === "bottom" ? Image.AlignBottom : Image.AlignTop
+                      asynchronous: true
+                    }
+
+                    BarMock {
+                      anchors.fill: parent
+                      skin: root.mockSkin()
+                      bar: barStage.bar
+                      palette: root.themePalette
+                      screenWidth: panel.screen ? panel.screen.width : 1440
+                    }
+                  }
+
+                }
+
+                // Wallpaper FX: выбранный эффект крутится между текущими и следующими обоями.
+                Item {
+                  id: fxStage
+                  anchors.fill: parent
+                  visible: root.category.fx === true && root.selectedRow !== null
+                  readonly property string effect: {
+                    var row = root.selectedRow
+                    var e = row && !root.isTweakRow(row) ? row.value : String(root.activeFx.type || "slant")
+                    return e === "none" || e === "random" ? "fade" : e
+                  }
+                  readonly property int duration: Math.max(150, Number(root.activeFx.duration) || 420)
+
+                  ClippingRectangle {
+                    id: fxScreen
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width, parent.height * 16 / 9)
+                    height: width * 0.5625
+                    radius: root.innerRadius
+                    color: "transparent"
+
+                    Image {
+                      id: fxFrom
+                      anchors.fill: parent
+                      source: fxStage.visible && root.status["wallpaper-next"] ? root.fileUrl(root.status["wallpaper-next"]) : ""
+                      sourceSize.width: Math.max(1, fxScreen.width)
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                    }
+                    Image {
+                      id: fxTo
+                      anchors.fill: parent
+                      source: fxStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                      sourceSize.width: Math.max(1, fxScreen.width)
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                    }
+                    // Тот же шейдер переходов, что у обоев: берём его из плагина kamradsmeshnyavy.background,
+                    // если он стоит (без него категория Wallpaper FX скрыта).
+                    Loader {
+                      id: fxEffect
+                      anchors.fill: parent
+                      property real progress: 0
+                      active: root.isAvailable("wallpaper-fx")
+                      source: active ? "file://" + Quickshell.env("HOME") + "/.config/omarchy/plugins/kamradsmeshnyavy.background/TransitionEffect.qml" : ""
+                      visible: fxStage.visible && fxFrom.status === Image.Ready && fxTo.status === Image.Ready && status === Loader.Ready
+                      onLoaded: {
+                        item.fromItem = fxFrom
+                        item.toItem = fxTo
+                        item.origin = Qt.point(0.5, 0.5)
+                        item.effect = Qt.binding(function() { return fxStage.effect })
+                        item.angleDegrees = Qt.binding(function() { return Number(root.activeFx.angle || 0) })
+                        item.softness = Qt.binding(function() { return root.activeFx.softness !== undefined ? Number(root.activeFx.softness) : 0.02 })
+                        item.progress = Qt.binding(function() { return fxEffect.progress })
+                      }
+                      // Цикл: переход (длительность из настроек), пауза, заново.
+                      SequentialAnimation on progress {
+                        running: fxEffect.visible
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 0; to: 1; duration: fxStage.duration * 2; easing.type: Easing.InOutCubic }
+                        PauseAnimation { duration: 700 }
+                      }
+                    }
+                  }
+
+                }
+
+                // Theme Switcher: макет карусели в выбранном (или текущем) стиле.
+                Item {
+                  id: pickerStage
+                  anchors.fill: parent
+                  visible: root.category.picker === true && root.selectedRow !== null
+                  readonly property string style: {
+                    var row = root.selectedRow
+                    return row && /^style:/.test(row.value) ? row.value.slice(6) : String(root.activePicker.style || "slices")
+                  }
+
+                  Rectangle {
+                    id: pickerScreen
+                    anchors.fill: parent
+                    radius: root.innerRadius
+                    color: Util.alpha(Color.background, 0.9)
+                    clip: true
+                    PickerMock {
+                      anchors.fill: parent
+                      anchors.margins: Style.space(10)
+                      style: pickerStage.style
+                      config: root.activePicker
+                      images: root.status["picker-previews"] ? String(root.status["picker-previews"]).split("|") : []
+                    }
+                  }
+
+                }
+
+                // Global Presets: hero wallpaper preview + description and JSON summary.
+                Item {
+                  id: presetStage
+                  anchors.fill: parent
+                  visible: root.category.presetStage === true && root.selectedRow !== null
+                  readonly property var presetData: root.category.presetStage === true && root.previewText ? root.parseJson(root.previewText) : ({})
+                  onPresetDataChanged: presetHeroImage.missing = false
+                  readonly property string presetWallPath: {
+                    var w = String(presetData.wallpaper || "")
+                    if (!w) return ""
+                    if (w.indexOf("~/") === 0) return Quickshell.env("HOME") + "/" + w.slice(2)
+                    return w
+                  }
+
+                  ClippingRectangle {
+                    id: presetHero
+                    visible: presetStage.presetWallPath !== ""
+                    anchors.fill: parent
+                    radius: root.innerRadius
+                    color: root.faint
+
+                    Image {
+                      id: presetHeroImage
+                      anchors.fill: parent
+                      // Файла уже нет (пресет снят со старым путём) — показать текущие обои, а не пустое поле.
+                      property bool missing: false
+                      onStatusChanged: if (status === Image.Error && !missing) missing = true
+                      source: !presetStage.visible || !presetStage.presetWallPath ? ""
+                        : (missing && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : root.fileUrl(presetStage.presetWallPath))
+                      sourceSize.width: Math.max(1, presetHero.width)
+                      sourceSize.height: Math.max(1, presetHero.height)
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                    }
+
+                    Pill {
+                      visible: Boolean(presetStage.presetData.theme)
+                      anchors.left: parent.left
+                      anchors.bottom: parent.bottom
+                      anchors.margins: Style.space(10)
+                      tone: Color.foreground
+                      label: String(presetStage.presetData.theme || "")
+                        + (presetStage.presetData.barSkin ? "  ·  " + presetStage.presetData.barSkin : "")
+                    }
+                  }
+
+                }
+
+                // Fonts: образцы текста шрифтами профиля — заголовок (title), интерфейс (sans), код (mono).
+                Item {
+                  id: fontStage
+                  anchors.fill: parent
+                  anchors.margins: Style.space(14)
+                  visible: root.category.key === "fonts" && root.selectedRow !== null && !root.isHeader(root.selectedRow)
+                  readonly property var faces: visible ? String(root.selectedRow.sub).split(" · ") : []
+                  readonly property string sans: faces.length > 0 ? faces[0] : Style.font.family
+                  readonly property string mono: faces.length > 1 ? faces[1] : Style.font.family
+                  readonly property string title: faces.length > 2 ? faces[2] : sans
+
+                  Column {
+                    width: parent.width
+                    spacing: Style.space(14)
+                    Text {
+                      width: parent.width
+                      text: root.tr("Good ideas take time") + " · Хорошие идеи"
+                      font.family: fontStage.title
+                      font.pixelSize: Math.round(Style.font.title * 2)
+                      wrapMode: Text.Wrap
+                      color: root.foreground
+                    }
+                    Text {
+                      width: parent.width
+                      text: "Съешь же ещё этих мягких французских булок, да выпей чаю.\nThe quick brown fox jumps over the lazy dog. 0123456789"
+                      font.family: fontStage.sans
+                      font.pixelSize: Math.round(Style.font.body * 1.15)
+                      wrapMode: Text.Wrap
+                      lineHeight: 1.2
+                      color: root.foreground
+                      opacity: 0.9
+                    }
+                    Rectangle {
+                      width: parent.width
+                      height: codeSample.implicitHeight + Style.space(16)
+                      radius: root.innerRadius
+                      color: root.faint
+                      Text {
+                        id: codeSample
+                        anchors { fill: parent; margins: Style.space(8) }
+                        text: "fn main() -> Result<()> {  // != >= => ->\n    println!(\"привет, мир\");\n}"
+                        font.family: fontStage.mono
+                        font.pixelSize: Style.font.body
+                        color: root.foreground
+                      }
+                    }
+                  }
+                }
+
+                // Windows: мини-экран с тремя окнами — отступы, рамки, скругление, тень, затемнение и
+                // раскладка из windows.json (меняются h/l — сцена перерисовывается сразу).
+                Item {
+                  id: windowsStage
+                  anchors.fill: parent
+                  anchors.margins: Style.space(12)
+                  visible: root.category.key === "windows"
+                  property var cfg: ({})
+                  FileView {
+                    path: Quickshell.env("HOME") + "/.config/omarchy/customizer/windows.json"
+                    watchChanges: true; printErrors: false
+                    onFileChanged: reload()
+                    onLoaded: windowsStage.cfg = root.parseJson(text())
+                    onLoadFailed: windowsStage.cfg = ({})
+                  }
+                  function n(k, d) { var v = Number(cfg[k]); return cfg[k] === undefined || !isFinite(v) ? d : v }
+                  function b(k, d) { return cfg[k] === undefined ? d : cfg[k] === true }
+                  readonly property bool noGaps: b("windowNoGaps", false)
+                  readonly property real k: screenBox.width / 1440
+                  readonly property real gin: noGaps ? 0 : n("windowGapsIn", 2) * k
+                  readonly property real gout: noGaps ? 0 : n("windowGapsOut", 4) * k
+                  readonly property real bw: noGaps ? 0 : n("windowBorder", 2) > 0 ? Math.max(1, n("windowBorder", 2) * k) : 0
+                  readonly property real rad: noGaps ? 0 : n("windowDecoRounding", 10) * k
+                  readonly property bool shadow: b("windowShadow", true)
+                  readonly property bool dim: b("windowDim", true)
+                  readonly property real dimStrength: n("windowDimStrength", 0.1)
+                  readonly property bool master: String(cfg.windowLayout || "dwindle") === "master"
+
+                  ClippingRectangle {
+                    id: screenBox
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width, parent.height * 1.6)
+                    height: width / 1.6
+                    radius: root.innerRadius
+                    color: root.faint
+                    Image {
+                      anchors.fill: parent
+                      source: windowsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                      sourceSize.width: 640
+                    }
+                    Rectangle { width: parent.width; height: Math.max(6, parent.height * 0.045); color: Color.bar.background }
+                    Item {
+                      id: area
+                      x: windowsStage.gout
+                      y: Math.max(6, screenBox.height * 0.045) + windowsStage.gout
+                      width: screenBox.width - 2 * windowsStage.gout
+                      height: screenBox.height - y - windowsStage.gout
+                      readonly property real split: windowsStage.master ? 0.62 : 0.5
+                      Repeater {
+                        model: 3
+                        Rectangle {
+                          required property int index
+                          readonly property bool active: index === 0
+                          readonly property real g: windowsStage.gin / 2
+                          x: index === 0 ? 0 : area.width * area.split + g
+                          y: index === 2 ? area.height / 2 + g : 0
+                          width: index === 0 ? area.width * area.split - g : area.width * (1 - area.split) - g
+                          height: index === 0 ? area.height : area.height / 2 - g
+                          radius: windowsStage.rad
+                          color: Qt.tint(Color.background, Qt.rgba(0, 0, 0, !active && windowsStage.dim ? windowsStage.dimStrength : 0))
+                          border.width: windowsStage.bw
+                          border.color: active ? root.accent : Util.alpha(root.foreground, 0.25)
+                          layer.enabled: windowsStage.shadow
+                          layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "#000000"; shadowOpacity: 0.45; shadowBlur: 0.5; shadowVerticalOffset: 2 }
+                          Column {
+                            x: 8; y: 8; spacing: 4
+                            Repeater {
+                              model: 4
+                              Rectangle { required property int index; width: 30 + (index * 23) % 50; height: 3; radius: 1.5; color: Util.alpha(root.foreground, 0.3) }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // Widgets: мини-стол с раскладкой включённых виджетов (widgets.json): позиции по якорям, как
+                // place() в Widgets.qml; виджет выбранной строки подсвечен, наложения — красным.
+                Item {
+                  id: widgetsStage
+                  anchors.fill: parent
+                  anchors.margins: Style.space(12)
+                  visible: root.category.key === "widgets"
+                  property var cfg: ({})
+                  FileView {
+                    path: Quickshell.env("HOME") + "/.config/omarchy/widgets.json"
+                    watchChanges: true; printErrors: false
+                    onFileChanged: reload()
+                    onLoaded: widgetsStage.cfg = root.parseJson(text())
+                    onLoadFailed: widgetsStage.cfg = ({})
+                  }
+                  // Имя, ключ включения, якорь по умолчанию, размер на экране 1440 px (примерно как у виджетов).
+                  readonly property var defs: [
+                    { key: "clock", title: "Clock", on: true, anchor: "top-left", w: 280, h: 130 },
+                    { key: "network", title: "Network", on: false, anchor: "top-left", w: 320, h: 90 },
+                    { key: "media", title: "Now playing", on: true, anchor: "bottom-left", w: 400, h: 120 },
+                    { key: "sysinfo", title: "System rings", on: true, anchor: "top-right", w: 380, h: 110 },
+                    { key: "todo", title: "Todo", on: false, anchor: "right", w: 300, h: 170 },
+                    { key: "quote", title: "Quote", on: false, anchor: "bottom-right", w: 320, h: 110 },
+                    { key: "photo", title: "Photo", on: false, anchor: "left", w: 260, h: 210 }
+                  ]
+                  readonly property string focusKey: {
+                    var v = root.selectedRow ? String(root.selectedRow.value).replace(/^tweak:/, "") : ""
+                    for (var i = 0; i < defs.length; i++) if (v.indexOf(defs[i].key) === 0) return defs[i].key
+                    return v.indexOf("visualizer") === 0 ? "visualizer" : ""
+                  }
+                  readonly property real k: deskBox.width / 1440
+                  readonly property real margin: (cfg.edgeMargin !== undefined ? Number(cfg.edgeMargin) : 24) * k
+                  // Как place() в Widgets.qml: виджеты с одним якорем встают колонкой с зазором 14 px.
+                  readonly property var boxes: {
+                    var out = []
+                    var W = deskBox.width, H = deskBox.height, gap = 14 * k
+                    var groups = ({})
+                    for (var i = 0; i < defs.length; i++) {
+                      var d = defs[i]
+                      var on = cfg[d.key] === undefined ? d.on : cfg[d.key] === true
+                      if (!on) continue
+                      var a = String(cfg[d.key + "Anchor"] || d.anchor)
+                      if (!groups[a]) groups[a] = []
+                      groups[a].push({ key: d.key, title: d.title, w: d.w * k, h: d.h * k })
+                    }
+                    for (var a2 in groups) {
+                      var g = groups[a2], total = 0
+                      for (var j = 0; j < g.length; j++) total += g[j].h + (j < g.length - 1 ? gap : 0)
+                      var off = 0
+                      for (var j2 = 0; j2 < g.length; j2++) {
+                        var b = g[j2]
+                        b.x = a2.indexOf("left") !== -1 ? margin : a2.indexOf("right") !== -1 ? W - b.w - margin : (W - b.w) / 2
+                        b.y = a2.indexOf("top") !== -1 ? margin + off : a2.indexOf("bottom") !== -1 ? H - margin - total + off : (H - total) / 2 + off
+                        off += b.h + gap
+                        out.push(b)
+                      }
+                    }
+                    for (var p = 0; p < out.length; p++) {
+                      out[p].clash = false
+                      for (var q = 0; q < out.length; q++) {
+                        if (p === q) continue
+                        var A = out[p], B = out[q]
+                        if (A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h) out[p].clash = true
+                      }
+                    }
+                    return out
+                  }
+                  readonly property bool clash: boxes.some(function(b) { return b.clash })
+
+                  ClippingRectangle {
+                    id: deskBox
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width, parent.height * 1.6)
+                    height: width / 1.6
+                    radius: root.innerRadius
+                    color: root.faint
+                    Image {
+                      anchors.fill: parent
+                      source: widgetsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                      sourceSize.width: 640
+                    }
+                    Rectangle {
+                      visible: widgetsStage.cfg.visualizer !== false
+                      anchors.bottom: parent.bottom
+                      width: parent.width
+                      height: (widgetsStage.cfg.visualizerHeight !== undefined ? Number(widgetsStage.cfg.visualizerHeight) : 140) * widgetsStage.k
+                      color: Util.alpha(root.accent, widgetsStage.focusKey === "visualizer" ? 0.45 : 0.18)
+                    }
                     Repeater {
-                      model: itemRow.palette
-                      delegate: Rectangle {
-                        required property string modelData
-                        width: Style.space(10); height: width; radius: width / 2
-                        color: modelData
-                        border.width: 1
-                        border.color: root.hairline
+                      model: widgetsStage.boxes
+                      Rectangle {
+                        required property var modelData
+                        readonly property bool hot: modelData.key === widgetsStage.focusKey
+                        x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
+                        radius: 6
+                        color: Util.alpha(Color.background, hot ? 0.92 : 0.78)
+                        border.width: hot || modelData.clash ? 2 : 1
+                        border.color: modelData.clash ? Color.urgent : (hot ? root.accent : Util.alpha(root.foreground, 0.3))
+                        Text {
+                          anchors.centerIn: parent
+                          text: root.tr(modelData.title)
+                          color: parent.hot ? root.accent : root.foreground
+                          font.family: Style.font.family
+                          font.pixelSize: Math.max(9, Style.font.body - 2)
+                        }
                       }
                     }
                   }
                 }
 
                 Pill {
-                  id: activePill
-                  visible: itemRow.current
+                  id: headPill
                   anchors.right: parent.right
-                  anchors.rightMargin: Style.space(8)
-                  anchors.verticalCenter: parent.verticalCenter
-                  label: "ACTIVE"
+                  anchors.top: parent.top
+                  anchors.margins: Style.space(10)
+                  visible: root.selectedRow !== null && (root.selectedRow.current || root.previewing === root.category.key)
+                  label: root.selectedRow && root.selectedRow.current ? root.tr("IN USE") : root.tr("LIVE PREVIEW")
+                  tone: root.selectedRow && root.selectedRow.current ? root.primary : Color.urgent
+                }
+              }
+
+              Rectangle {
+                id: noteArea
+                anchors {
+                  top: parent.top; bottom: parent.bottom; right: parent.right
+                  left: stageArea.visible ? stageArea.right : parent.left
+                  leftMargin: stageArea.visible ? Style.space(12) : 0
+                }
+                radius: root.rCard
+                color: root.surface
+                border.width: root.dot ? 1 : 0
+                border.color: root.outline
+
+                Flickable {
+                  id: previewFlick
+                  anchors.fill: parent
+                  anchors.margins: Style.space(16)
+                  contentHeight: previewLabel.implicitHeight
+                  boundsBehavior: Flickable.StopAtBounds
+                  clip: true
+
+                  Text {
+                    id: previewLabel
+                    width: parent.width
+                    wrapMode: root.heroCode ? Text.WrapAnywhere : Text.Wrap
+                    textFormat: Text.PlainText
+                    text: root.heroNote()
+                    color: root.foreground
+                    opacity: 0.85
+                    font.family: Style.font.family
+                    font.pixelSize: root.heroCode ? Style.font.bodySmall : Style.font.body
+                    lineHeight: 1.18
+                  }
+                }
+              }
+            }
+
+            ListView {
+              id: itemList
+              visible: !root.homeOpen
+              anchors {
+                top: hero.visible ? hero.bottom : parent.top
+                topMargin: hero.visible ? Style.space(14) : 0
+                bottom: parent.bottom; left: parent.left; right: parent.right
+              }
+              model: viewModel
+              clip: true
+              spacing: Style.space(8)
+              cacheBuffer: Style.space(600)
+              boundsBehavior: Flickable.StopAtBounds
+              highlightFollowsCurrentItem: false
+
+              delegate: Item {
+                id: vrow
+                required property int index
+                required property string vkind
+                required property int idx
+                required property var tiles
+                required property string label
+                required property string value
+                required property string preview
+                required property string note
+                required property string sub
+                required property bool current
+                required property string kind
+                required property string args
+                required property string raw
+                required property string name
+
+                width: itemList.width
+                height: loader.item ? loader.item.height : 0
+
+                Loader {
+                  id: loader
+                  width: parent.width
+                  sourceComponent: vrow.vkind === "header" ? headerC
+                    : vrow.vkind === "setting" ? settingC
+                    : vrow.vkind === "tiles" ? tilesC : rowC
                 }
 
-                MouseArea {
-                  id: rowMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: {
-                    if (itemRow.header) return
-                    root.pane = 1
-                    root.selectedIndex = itemRow.index
-                    root.selectionChanged()
-                    root.activate()
+                // Заголовок раздела — крупно, как разделы в образце.
+                Component {
+                  id: headerC
+                  Item {
+                    width: vrow.width
+                    height: Style.space(vrow.idx === 0 ? 30 : 44)
+                    Text {
+                      anchors.left: parent.left
+                      anchors.leftMargin: Style.space(4)
+                      anchors.bottom: parent.bottom
+                      anchors.bottomMargin: Style.space(2)
+                      text: vrow.label
+                      color: root.foreground
+                      font.family: root.headFont
+                      font.pixelSize: Style.font.heading
+                      font.bold: true
+                    }
                   }
-                  // Only a pointer that actually moves takes the cursor. Qt also sends
-                  // hover events when rows are created or scrolled under a resting
-                  // pointer, which would steal the selection (and start a live
-                  // preview) as soon as a list loads; those keep the same window position.
-                  onPositionChanged: function(mouse) {
-                    var p = mapToItem(null, mouse.x, mouse.y)
-                    var last = root.lastPointer
-                    root.lastPointer = { x: p.x, y: p.y }
-                    if (!last || (Math.abs(p.x - last.x) < 1 && Math.abs(p.y - last.y) < 1)) return
-                    if (root.pane === 1 && !itemRow.header && root.selectedIndex !== itemRow.index) {
-                      root.selectedIndex = itemRow.index
-                      root.selectionChanged()
+                }
+
+                Component {
+                  id: settingC
+                  SettingCard {
+                    width: vrow.width
+                    height: implicitHeight
+                    t: root
+                    index: vrow.idx
+                    label: vrow.label
+                    name: vrow.name
+                    sub: vrow.sub
+                    note: vrow.note
+                    kind: vrow.kind
+                    args: vrow.args
+                    raw: vrow.raw
+                    selected: vrow.idx === root.selectedIndex
+                    focused: root.pane === 1 && !root.filtering
+                    editing: vrow.idx === root.editingIndex
+                    editInitial: root.editInitial
+                    editError: root.editError
+                    onSelectMe: root.clickSelect(vrow.idx)
+                    onStep: function(dir) { root.clickSelect(vrow.idx); root.tweak(dir > 0 ? "+" : "-") }
+                    onSetValue: function(v) { root.setTweakAt(vrow.idx, v) }
+                    onActivateMe: { root.clickSelect(vrow.idx); root.activate() }
+                    onReset: { root.clickSelect(vrow.idx); root.tweak("reset") }
+                    onSubmit: function(text) { root.submitEdit(text) }
+                    onCancel: root.cancelEdit()
+                    onStartEdit: { root.clickSelect(vrow.idx); root.startEdit() }
+                    onEdited: root.editError = ""
+                    onHoverAt: function(p) { root.hoverSelect(vrow.idx, p) }
+                  }
+                }
+
+                Component {
+                  id: rowC
+                  ListCard {
+                    width: vrow.width
+                    height: implicitHeight
+                    t: root
+                    index: vrow.idx
+                    label: vrow.label
+                    sub: vrow.sub
+                    current: vrow.current
+                    icon: root.category.icon
+                    palette: root.paletteOf(vrow.note)
+                    selected: vrow.idx === root.selectedIndex
+                    focused: root.pane === 1 && !root.filtering
+                    onActivated: { root.clickSelect(vrow.idx); root.activate() }
+                    onHoverAt: function(p) { root.hoverSelect(vrow.idx, p) }
+                  }
+                }
+
+                Component {
+                  id: tilesC
+                  Row {
+                    width: vrow.width
+                    height: root.tileHeight
+                    spacing: root.tileGap
+                    Repeater {
+                      model: vrow.tiles
+                      delegate: Tile {
+                        required index
+                        required label
+                        required preview
+                        required note
+                        required current
+                        readonly property int at: vrow.idx + index
+                        width: root.tileWidth
+                        height: root.tileHeight
+                        t: root
+                        icon: /folder|папк/i.test(label) || /^\.\.$/.test(label) ? "󰉋" : "󰋩"
+                        palette: root.paletteOf(note)
+                        selected: at === root.selectedIndex
+                        focused: root.pane === 1 && !root.filtering
+                        onActivated: { root.clickSelect(at); root.activate() }
+                        onHoverAt: function(p) { root.hoverSelect(at, p) }
+                      }
                     }
                   }
                 }
@@ -2124,905 +2975,46 @@ Item {
             // Раздел верхней видимой строки — закреплён над списком, пока его заголовок прокручен вверх.
             Rectangle {
               id: stickySection
-              readonly property int topIndex: { itemList.contentY; displayModel.count; return itemList.indexAt(Style.space(20), itemList.contentY + 2) }
+              readonly property int topView: { itemList.contentY; viewModel.count; return itemList.indexAt(Style.space(20), itemList.contentY + 2) }
+              readonly property int topIndex: topView >= 0 && topView < viewModel.count ? viewModel.get(topView).idx : -1
               readonly property string name: topIndex >= 0 ? root.sectionOf(topIndex) : ""
-              visible: name !== "" && topIndex >= 0 && !root.isHeader(displayModel.get(topIndex))
+              visible: itemList.visible && name !== "" && topIndex >= 0 && !root.isHeader(displayModel.get(topIndex)) && itemList.contentY > 0
               anchors { top: itemList.top; left: itemList.left; right: itemList.right }
-              height: Style.space(24)
-              radius: 6
+              height: Style.space(32)
+              radius: root.rSmall
               color: Qt.rgba(root.background.r, root.background.g, root.background.b, 1)
               z: 5
               Text {
                 anchors.left: parent.left
-                anchors.leftMargin: Style.space(10)
+                anchors.leftMargin: Style.space(8)
                 anchors.verticalCenter: parent.verticalCenter
                 text: stickySection.name
-                color: root.accent
+                color: root.primary
                 font.family: root.headFont
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Style.font.body
                 font.bold: true
-                font.capitalization: Font.AllUppercase
-                font.letterSpacing: 1
               }
-              Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: root.hairline }
+              Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: root.outline }
             }
 
             Column {
               anchors.centerIn: itemList
-              visible: displayModel.count === 0
+              visible: itemList.visible && displayModel.count === 0
               spacing: Style.space(6)
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.loading ? "󰔟" : "󰈈"
                 color: root.muted
-                font.family: root.fontFamily
+                font.family: root.iconFont
                 font.pixelSize: Style.font.displayLarge
               }
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 textFormat: Text.PlainText
-                text: root.loading ? "Loading…" : (root.filterText ? "No matches for “" + root.filterText + "”" : "Nothing here")
+                text: root.loading ? root.tr("Loading…") : (root.filterText ? root.tr("No matches for “%1”").arg(root.filterText) : root.tr("Nothing here"))
                 color: root.muted
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
-              }
-            }
-          }
-
-          Item {
-            id: rule2
-            anchors.left: listColumn.right
-            anchors.leftMargin: Style.space(14)
-            width: 1; height: parent.height
-          }
-
-          // Preview
-          Item {
-            id: previewColumn
-            anchors.left: rule2.right
-            anchors.leftMargin: Style.space(14)
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(10)
-            y: Style.space(10)
-            height: parent.height - Style.space(20)
-            transform: Translate { id: previewShift }
-
-            Item {
-              id: previewHead
-              width: parent.width
-              height: Math.max(root.rowHeight, headTitle.implicitHeight)
-
-              Text {
-                id: headTitle
-                anchors.left: parent.left
-                anchors.right: headPill.left
-                anchors.rightMargin: Style.space(8)
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: root.selectedRow ? root.selectedRow.label : root.category.title
-                wrapMode: Text.Wrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                color: root.foreground
-                font.family: root.headFont
-                font.pixelSize: Style.font.heading
-                font.bold: true
-              }
-
-              Pill {
-                id: headPill
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.selectedRow !== null && (root.selectedRow.current || root.previewing === root.category.key)
-                label: root.selectedRow && root.selectedRow.current ? "IN USE" : "LIVE PREVIEW"
-                tone: root.selectedRow && root.selectedRow.current ? root.accent : Color.urgent
-              }
-            }
-
-            ClippingRectangle {
-              id: previewBox
-              anchors { top: previewHead.bottom; topMargin: root.contentSpacing; bottom: actions.top; bottomMargin: root.contentSpacing; left: parent.left; right: parent.right }
-              radius: root.innerRadius
-              color: root.faint
-              border.width: 1
-              border.color: root.panelBorder
-
-              // Pictures: crop wallpapers to fill, keep theme screenshots whole.
-              Image {
-                id: previewImage
-                anchors.fill: parent
-                readonly property bool showImage: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow)
-                visible: showImage
-                source: showImage && root.selectedRow.preview ? root.fileUrl(root.selectedRow.preview) : ""
-                sourceSize.width: Math.max(1, previewBox.width * 2)
-                sourceSize.height: Math.max(1, previewBox.height * 2)
-                fillMode: root.category.key === "themes" ? Image.PreserveAspectFit : Image.PreserveAspectCrop
-                asynchronous: true
-                cache: false
-                opacity: status === Image.Ready ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 200 } }
-              }
-
-              // Картинки нет (снимок лока ещё не снят, файл удалён) — подсказка вместо пустого поля.
-              Text {
-                anchors.centerIn: parent
-                width: parent.width - Style.space(40)
-                visible: previewImage.showImage && !!root.selectedRow.preview && previewImage.status === Image.Error
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.Wrap
-                text: root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
-                  : root.tr("No preview for this item.")
-                color: root.foreground
-                opacity: 0.6
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-              }
-
-              // Theme palette strip along the bottom edge.
-              Row {
-                id: paletteStrip
-                visible: root.category.key === "themes" && root.selectedRow !== null && root.paletteOf(root.selectedRow.note).length > 0
-                anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                height: Style.space(30)
-                Repeater {
-                  model: root.selectedRow ? root.paletteOf(root.selectedRow.note) : []
-                  delegate: Rectangle {
-                    required property string modelData
-                    width: paletteStrip.width / Math.max(1, root.paletteOf(root.selectedRow ? root.selectedRow.note : "").length)
-                    height: paletteStrip.height
-                    color: modelData
-                  }
-                }
-              }
-
-              Column {
-                anchors.centerIn: parent
-                visible: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow) && !root.selectedRow.preview
-                width: parent.width * 0.8
-                spacing: Style.space(8)
-                Text {
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  text: "󰋩"
-                  color: root.accent
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.displayLarge * 2
-                }
-                Text {
-                  width: parent.width
-                  horizontalAlignment: Text.AlignHCenter
-                  wrapMode: Text.WordWrap
-                  text: root.selectedRow && root.selectedRow.note ? root.selectedRow.note
-                    : root.category.key === "lock" ? root.tr("No preview yet — T captures the missing ones, p shows the design live.")
-                    : root.tr("No preview image")
-                  color: root.muted
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.title
-                }
-              }
-
-              // Transparency / blur: two mock windows over the current wallpaper.
-              // Like Hyprland with xray on, each window blurs the wallpaper
-              // behind it and lays its own background on top at its opacity.
-              Item {
-                id: opacityStage
-                anchors.fill: parent
-                visible: (root.category.key === "opacity" || root.category.key === "blur") && root.selectedRow !== null
-                readonly property var values: root.stageOpacity()
-                readonly property real blurAmount: root.stageBlur()
-                readonly property url wallpaper: visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
-
-                Image {
-                  anchors.fill: parent
-                  source: opacityStage.wallpaper
-                  sourceSize.width: Math.max(1, previewBox.width)
-                  sourceSize.height: Math.max(1, previewBox.height)
-                  fillMode: Image.PreserveAspectCrop
-                  asynchronous: true
-                }
-
-                Repeater {
-                  model: [
-                    { name: "inactive", x: 0.08, y: 0.12, w: 0.55, h: 0.55, value: 1 },
-                    { name: "active",   x: 0.36, y: 0.34, w: 0.56, h: 0.54, value: 0 }
-                  ]
-                  delegate: Item {
-                    id: mockWindow
-                    required property var modelData
-                    readonly property bool isActive: modelData.name === "active"
-                    readonly property real level: opacityStage.values[modelData.value]
-                    x: opacityStage.width * modelData.x
-                    y: opacityStage.height * modelData.y
-                    width: opacityStage.width * modelData.w
-                    height: opacityStage.height * modelData.h
-
-                    ClippingRectangle {
-                      anchors.fill: parent
-                      radius: root.innerRadius
-                      color: "transparent"
-
-                      Image {
-                        x: -mockWindow.x
-                        y: -mockWindow.y
-                        width: opacityStage.width
-                        height: opacityStage.height
-                        source: opacityStage.wallpaper
-                        sourceSize.width: Math.max(1, previewBox.width)
-                        sourceSize.height: Math.max(1, previewBox.height)
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        visible: opacityStage.blurAmount > 0
-                        layer.enabled: visible
-                        layer.effect: MultiEffect {
-                          blurEnabled: true
-                          blur: opacityStage.blurAmount
-                          blurMax: 48
-                          autoPaddingEnabled: false
-                        }
-                      }
-                    }
-
-                    Rectangle {
-                      anchors.fill: parent
-                      radius: root.innerRadius
-                      color: Util.alpha(Color.background, mockWindow.level)
-                      border.width: 2
-                      border.color: mockWindow.isActive ? root.accent : Util.alpha(root.foreground, 0.25)
-                      Behavior on color { ColorAnimation { duration: 200 } }
-                    }
-
-                    Column {
-                      anchors.fill: parent
-                      anchors.margins: Style.space(14)
-                      spacing: Style.space(8)
-                      Row {
-                        spacing: Style.space(6)
-                        Repeater {
-                          model: 3
-                          delegate: Rectangle {
-                            width: Style.space(9); height: width; radius: width / 2
-                            color: Util.alpha(root.foreground, 0.35)
-                          }
-                        }
-                      }
-                      Text {
-                        text: (mockWindow.isActive ? "active" : "inactive") + "  " + mockWindow.level.toFixed(2)
-                        color: Color.foreground
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.heading
-                        font.bold: true
-                      }
-                      Repeater {
-                        model: [0.9, 0.7, 0.8, 0.5]
-                        delegate: Rectangle {
-                          required property real modelData
-                          width: (opacityStage.width * 0.4) * modelData
-                          height: Style.space(6)
-                          radius: 3
-                          color: Util.alpha(Color.foreground, 0.3)
-                        }
-                      }
-                    }
-                  }
-                }
-
-                // Which preset each half of the stage comes from.
-                Pill {
-                  anchors.left: parent.left
-                  anchors.bottom: parent.bottom
-                  anchors.margins: Style.space(12)
-                  tone: Color.foreground
-                  label: "opacity " + (root.category.key === "opacity" && root.selectedRow ? root.selectedRow.value : root.status.opacity || "—")
-                    + "  ·  blur " + (root.category.key === "blur" && root.selectedRow ? root.selectedRow.value : root.status.blur || "—")
-                }
-              }
-
-              // Bar: a mock of kamradsmeshnyavy.bar over the wallpaper, then the row's note.
-              Item {
-                id: barStage
-                anchors.fill: parent
-                visible: root.category.bar === true && root.selectedRow !== null
-                readonly property url wallpaper: visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
-                readonly property var bar: root.mockBar()
-                readonly property bool vertical: bar.position === "left" || bar.position === "right"
-
-                ClippingRectangle {
-                  id: barScreen
-                  anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(12) }
-                  // A strip of the screen: the edge the bar sits on and a bit of desktop.
-                  height: barStage.vertical ? parent.height * 0.62 : Math.max(Style.space(90), parent.height * 0.32)
-                  radius: root.innerRadius
-                  color: "transparent"
-
-                  Image {
-                    anchors.fill: parent
-                    source: barStage.wallpaper
-                    sourceSize.width: Math.max(1, previewBox.width)
-                    sourceSize.height: Math.max(1, previewBox.height)
-                    fillMode: Image.PreserveAspectCrop
-                    verticalAlignment: barStage.bar.position === "bottom" ? Image.AlignBottom : Image.AlignTop
-                    asynchronous: true
-                  }
-
-                  BarMock {
-                    anchors.fill: parent
-                    skin: root.mockSkin()
-                    bar: barStage.bar
-                    palette: root.themePalette
-                    screenWidth: panel.screen ? panel.screen.width : 1440
-                  }
-                }
-
-                Flickable {
-                  anchors { top: barScreen.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; margins: Style.space(14) }
-                  contentHeight: barNote.implicitHeight
-                  boundsBehavior: Flickable.StopAtBounds
-                  clip: true
-                  Text {
-                    id: barNote
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    lineHeight: 1.2
-                    text: !root.selectedRow ? ""
-                      : root.selectedRow.note + (root.category.key === "bar-skins" && root.previewText ? "\n\n" + root.previewText : "")
-                    color: root.foreground
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                  }
-                }
-              }
-
-              // Wallpaper FX: выбранный эффект крутится между текущими и следующими обоями.
-              Item {
-                id: fxStage
-                anchors.fill: parent
-                visible: root.category.fx === true && root.selectedRow !== null
-                readonly property string effect: {
-                  var row = root.selectedRow
-                  var e = row && !root.isTweakRow(row) ? row.value : String(root.activeFx.type || "slant")
-                  return e === "none" || e === "random" ? "fade" : e
-                }
-                readonly property int duration: Math.max(150, Number(root.activeFx.duration) || 420)
-
-                ClippingRectangle {
-                  id: fxScreen
-                  anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(12) }
-                  height: width * 0.5625
-                  radius: root.innerRadius
-                  color: "transparent"
-
-                  Image {
-                    id: fxFrom
-                    anchors.fill: parent
-                    source: fxStage.visible && root.status["wallpaper-next"] ? root.fileUrl(root.status["wallpaper-next"]) : ""
-                    sourceSize.width: Math.max(1, fxScreen.width)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                  }
-                  Image {
-                    id: fxTo
-                    anchors.fill: parent
-                    source: fxStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
-                    sourceSize.width: Math.max(1, fxScreen.width)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                  }
-                  // Тот же шейдер переходов, что у обоев: берём его из плагина kamradsmeshnyavy.background,
-                  // если он стоит (без него категория Wallpaper FX скрыта).
-                  Loader {
-                    id: fxEffect
-                    anchors.fill: parent
-                    property real progress: 0
-                    active: root.isAvailable("wallpaper-fx")
-                    source: active ? "file://" + Quickshell.env("HOME") + "/.config/omarchy/plugins/kamradsmeshnyavy.background/TransitionEffect.qml" : ""
-                    visible: fxStage.visible && fxFrom.status === Image.Ready && fxTo.status === Image.Ready && status === Loader.Ready
-                    onLoaded: {
-                      item.fromItem = fxFrom
-                      item.toItem = fxTo
-                      item.origin = Qt.point(0.5, 0.5)
-                      item.effect = Qt.binding(function() { return fxStage.effect })
-                      item.angleDegrees = Qt.binding(function() { return Number(root.activeFx.angle || 0) })
-                      item.softness = Qt.binding(function() { return root.activeFx.softness !== undefined ? Number(root.activeFx.softness) : 0.02 })
-                      item.progress = Qt.binding(function() { return fxEffect.progress })
-                    }
-                    // Цикл: переход (длительность из настроек), пауза, заново.
-                    SequentialAnimation on progress {
-                      running: fxEffect.visible
-                      loops: Animation.Infinite
-                      NumberAnimation { from: 0; to: 1; duration: fxStage.duration * 2; easing.type: Easing.InOutCubic }
-                      PauseAnimation { duration: 700 }
-                    }
-                  }
-                }
-
-                Flickable {
-                  anchors { top: fxScreen.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; margins: Style.space(14) }
-                  contentHeight: fxNote.implicitHeight
-                  boundsBehavior: Flickable.StopAtBounds
-                  clip: true
-                  Text {
-                    id: fxNote
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    lineHeight: 1.2
-                    text: (root.selectedRow ? root.selectedRow.note : "") + "\n\n" + root.tr("The preview plays the transition at half speed.")
-                    color: root.foreground
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                  }
-                }
-              }
-
-              // Theme Switcher: макет карусели в выбранном (или текущем) стиле.
-              Item {
-                id: pickerStage
-                anchors.fill: parent
-                visible: root.category.picker === true && root.selectedRow !== null
-                readonly property string style: {
-                  var row = root.selectedRow
-                  return row && /^style:/.test(row.value) ? row.value.slice(6) : String(root.activePicker.style || "slices")
-                }
-
-                Rectangle {
-                  id: pickerScreen
-                  anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(12) }
-                  height: width * 0.42
-                  radius: root.innerRadius
-                  color: Util.alpha(Color.background, 0.9)
-                  clip: true
-                  PickerMock {
-                    anchors.fill: parent
-                    anchors.margins: Style.space(10)
-                    style: pickerStage.style
-                    config: root.activePicker
-                    images: root.status["picker-previews"] ? String(root.status["picker-previews"]).split("|") : []
-                  }
-                }
-
-                Flickable {
-                  anchors { top: pickerScreen.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; margins: Style.space(14) }
-                  contentHeight: pickerNote.implicitHeight
-                  boundsBehavior: Flickable.StopAtBounds
-                  clip: true
-                  Text {
-                    id: pickerNote
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    lineHeight: 1.2
-                    text: root.selectedRow ? root.selectedRow.note : ""
-                    color: root.foreground
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                  }
-                }
-              }
-
-              // Global Presets: hero wallpaper preview + description and JSON summary.
-              Item {
-                id: presetStage
-                anchors.fill: parent
-                visible: root.category.presetStage === true && root.selectedRow !== null
-                readonly property var presetData: visible && root.previewText ? root.parseJson(root.previewText) : ({})
-                onPresetDataChanged: presetHeroImage.missing = false
-                readonly property string presetWallPath: {
-                  var w = String(presetData.wallpaper || "")
-                  if (!w) return ""
-                  if (w.indexOf("~/") === 0) return Quickshell.env("HOME") + "/" + w.slice(2)
-                  return w
-                }
-
-                ClippingRectangle {
-                  id: presetHero
-                  visible: presetStage.presetWallPath !== ""
-                  anchors { top: parent.top; left: parent.left; right: parent.right; margins: Style.space(12) }
-                  height: visible ? Math.round(parent.height * 0.48) : 0
-                  radius: root.innerRadius
-                  color: root.faint
-
-                  Image {
-                    id: presetHeroImage
-                    anchors.fill: parent
-                    // Файла уже нет (пресет снят со старым путём) — показать текущие обои, а не пустое поле.
-                    property bool missing: false
-                    onStatusChanged: if (status === Image.Error && !missing) missing = true
-                    source: !presetStage.visible || !presetStage.presetWallPath ? ""
-                      : (missing && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : root.fileUrl(presetStage.presetWallPath))
-                    sourceSize.width: Math.max(1, presetHero.width)
-                    sourceSize.height: Math.max(1, presetHero.height)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                  }
-
-                  Pill {
-                    visible: Boolean(presetStage.presetData.theme)
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
-                    anchors.margins: Style.space(10)
-                    tone: Color.foreground
-                    label: String(presetStage.presetData.theme || "")
-                      + (presetStage.presetData.barSkin ? "  ·  " + presetStage.presetData.barSkin : "")
-                  }
-                }
-
-                Flickable {
-                  anchors {
-                    top: presetHero.visible ? presetHero.bottom : parent.top
-                    bottom: parent.bottom; left: parent.left; right: parent.right
-                    margins: Style.space(14)
-                  }
-                  contentHeight: presetNote.implicitHeight
-                  boundsBehavior: Flickable.StopAtBounds
-                  clip: true
-                  Text {
-                    id: presetNote
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    lineHeight: 1.2
-                    text: !root.selectedRow ? ""
-                      : root.selectedRow.note + (root.previewText ? "\n\n" + root.previewText : "")
-                    color: root.foreground
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                  }
-                }
-              }
-
-              // Fonts: образцы текста шрифтами профиля — заголовок (title), интерфейс (sans), код (mono).
-              Item {
-                id: fontStage
-                anchors.fill: parent
-                anchors.margins: Style.space(18)
-                visible: root.category.key === "fonts" && root.selectedRow !== null && !root.isHeader(root.selectedRow)
-                readonly property var faces: visible ? String(root.selectedRow.sub).split(" · ") : []
-                readonly property string sans: faces.length > 0 ? faces[0] : Style.font.family
-                readonly property string mono: faces.length > 1 ? faces[1] : Style.font.family
-                readonly property string title: faces.length > 2 ? faces[2] : sans
-
-                Column {
-                  width: parent.width
-                  spacing: Style.space(14)
-                  Text {
-                    width: parent.width
-                    text: root.tr("Good ideas take time") + " · Хорошие идеи"
-                    font.family: fontStage.title
-                    font.pixelSize: Math.round(Style.font.title * 2)
-                    wrapMode: Text.Wrap
-                    color: root.foreground
-                  }
-                  Text {
-                    width: parent.width
-                    text: "Съешь же ещё этих мягких французских булок, да выпей чаю.\nThe quick brown fox jumps over the lazy dog. 0123456789"
-                    font.family: fontStage.sans
-                    font.pixelSize: Math.round(Style.font.body * 1.15)
-                    wrapMode: Text.Wrap
-                    lineHeight: 1.2
-                    color: root.foreground
-                    opacity: 0.9
-                  }
-                  Rectangle {
-                    width: parent.width
-                    height: codeSample.implicitHeight + Style.space(16)
-                    radius: root.innerRadius
-                    color: root.faint
-                    Text {
-                      id: codeSample
-                      anchors { fill: parent; margins: Style.space(8) }
-                      text: "fn main() -> Result<()> {  // != >= => ->\n    println!(\"привет, мир\");\n}"
-                      font.family: fontStage.mono
-                      font.pixelSize: Style.font.body
-                      color: root.foreground
-                    }
-                  }
-                  Text {
-                    width: parent.width
-                    text: fontStage.visible ? root.selectedRow.note + "\n\n" + root.tr("Interface") + ": " + fontStage.sans
-                      + "\n" + root.tr("Code") + ": " + fontStage.mono + "\n" + root.tr("Titles") + ": " + fontStage.title : ""
-                    wrapMode: Text.Wrap
-                    color: root.foreground
-                    opacity: 0.7
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
-                  }
-                }
-              }
-
-              // Windows: мини-экран с тремя окнами — отступы, рамки, скругление, тень, затемнение и
-              // раскладка из windows.json (меняются h/l — сцена перерисовывается сразу).
-              Item {
-                id: windowsStage
-                anchors.fill: parent
-                anchors.margins: Style.space(16)
-                visible: root.category.key === "windows"
-                property var cfg: ({})
-                FileView {
-                  path: Quickshell.env("HOME") + "/.config/omarchy/customizer/windows.json"
-                  watchChanges: true; printErrors: false
-                  onFileChanged: reload()
-                  onLoaded: windowsStage.cfg = root.parseJson(text())
-                  onLoadFailed: windowsStage.cfg = ({})
-                }
-                function n(k, d) { var v = Number(cfg[k]); return cfg[k] === undefined || !isFinite(v) ? d : v }
-                function b(k, d) { return cfg[k] === undefined ? d : cfg[k] === true }
-                readonly property bool noGaps: b("windowNoGaps", false)
-                readonly property real k: screenBox.width / 1440
-                readonly property real gin: noGaps ? 0 : n("windowGapsIn", 2) * k
-                readonly property real gout: noGaps ? 0 : n("windowGapsOut", 4) * k
-                readonly property real bw: noGaps ? 0 : n("windowBorder", 2) > 0 ? Math.max(1, n("windowBorder", 2) * k) : 0
-                readonly property real rad: noGaps ? 0 : n("windowDecoRounding", 10) * k
-                readonly property bool shadow: b("windowShadow", true)
-                readonly property bool dim: b("windowDim", true)
-                readonly property real dimStrength: n("windowDimStrength", 0.1)
-                readonly property bool master: String(cfg.windowLayout || "dwindle") === "master"
-
-                ClippingRectangle {
-                  id: screenBox
-                  width: parent.width
-                  height: Math.min(parent.height - Style.space(40), width * 10 / 16)
-                  radius: root.innerRadius
-                  color: root.faint
-                  Image {
-                    anchors.fill: parent
-                    source: windowsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    sourceSize.width: 640
-                  }
-                  Rectangle { width: parent.width; height: Math.max(6, parent.height * 0.045); color: Color.bar.background }
-                  Item {
-                    id: area
-                    x: windowsStage.gout
-                    y: Math.max(6, screenBox.height * 0.045) + windowsStage.gout
-                    width: screenBox.width - 2 * windowsStage.gout
-                    height: screenBox.height - y - windowsStage.gout
-                    readonly property real split: windowsStage.master ? 0.62 : 0.5
-                    Repeater {
-                      model: 3
-                      Rectangle {
-                        required property int index
-                        readonly property bool active: index === 0
-                        readonly property real g: windowsStage.gin / 2
-                        x: index === 0 ? 0 : area.width * area.split + g
-                        y: index === 2 ? area.height / 2 + g : 0
-                        width: index === 0 ? area.width * area.split - g : area.width * (1 - area.split) - g
-                        height: index === 0 ? area.height : area.height / 2 - g
-                        radius: windowsStage.rad
-                        color: Qt.tint(Color.background, Qt.rgba(0, 0, 0, !active && windowsStage.dim ? windowsStage.dimStrength : 0))
-                        border.width: windowsStage.bw
-                        border.color: active ? root.accent : Util.alpha(root.foreground, 0.25)
-                        layer.enabled: windowsStage.shadow
-                        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "#000000"; shadowOpacity: 0.45; shadowBlur: 0.5; shadowVerticalOffset: 2 }
-                        Column {
-                          x: 8; y: 8; spacing: 4
-                          Repeater {
-                            model: 4
-                            Rectangle { required property int index; width: 30 + (index * 23) % 50; height: 3; radius: 1.5; color: Util.alpha(root.foreground, 0.3) }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                Text {
-                  anchors.top: screenBox.bottom
-                  anchors.topMargin: Style.space(10)
-                  width: parent.width
-                  wrapMode: Text.Wrap
-                  color: root.foreground
-                  opacity: 0.7
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  text: windowsStage.noGaps ? root.tr("No gaps (Omarchy) is on: gaps, borders and rounding are off.")
-                    : (windowsStage.master ? "master" : "dwindle") + "  ·  " + root.tr("gaps") + " " + windowsStage.n("windowGapsIn", 2) + " / "
-                      + windowsStage.n("windowGapsOut", 4) + "  ·  " + root.tr("border") + " " + windowsStage.n("windowBorder", 2)
-                      + "  ·  " + root.tr("rounding") + " " + windowsStage.n("windowDecoRounding", 10)
-                }
-              }
-
-              // Widgets: мини-стол с раскладкой включённых виджетов (widgets.json): позиции по якорям, как
-              // place() в Widgets.qml; виджет выбранной строки подсвечен, наложения — красным.
-              Item {
-                id: widgetsStage
-                anchors.fill: parent
-                anchors.margins: Style.space(16)
-                visible: root.category.key === "widgets"
-                property var cfg: ({})
-                FileView {
-                  path: Quickshell.env("HOME") + "/.config/omarchy/widgets.json"
-                  watchChanges: true; printErrors: false
-                  onFileChanged: reload()
-                  onLoaded: widgetsStage.cfg = root.parseJson(text())
-                  onLoadFailed: widgetsStage.cfg = ({})
-                }
-                // Имя, ключ включения, якорь по умолчанию, размер на экране 1440 px (примерно как у виджетов).
-                readonly property var defs: [
-                  { key: "clock", title: "Clock", on: true, anchor: "top-left", w: 280, h: 130 },
-                  { key: "network", title: "Network", on: false, anchor: "top-left", w: 320, h: 90 },
-                  { key: "media", title: "Now playing", on: true, anchor: "bottom-left", w: 400, h: 120 },
-                  { key: "sysinfo", title: "System rings", on: true, anchor: "top-right", w: 380, h: 110 },
-                  { key: "todo", title: "Todo", on: false, anchor: "right", w: 300, h: 170 },
-                  { key: "quote", title: "Quote", on: false, anchor: "bottom-right", w: 320, h: 110 },
-                  { key: "photo", title: "Photo", on: false, anchor: "left", w: 260, h: 210 }
-                ]
-                readonly property string focusKey: {
-                  var v = root.selectedRow ? String(root.selectedRow.value).replace(/^tweak:/, "") : ""
-                  for (var i = 0; i < defs.length; i++) if (v.indexOf(defs[i].key) === 0) return defs[i].key
-                  return v.indexOf("visualizer") === 0 ? "visualizer" : ""
-                }
-                readonly property real k: deskBox.width / 1440
-                readonly property real margin: (cfg.edgeMargin !== undefined ? Number(cfg.edgeMargin) : 24) * k
-                // Как place() в Widgets.qml: виджеты с одним якорем встают колонкой с зазором 14 px.
-                readonly property var boxes: {
-                  var out = []
-                  var W = deskBox.width, H = deskBox.height, gap = 14 * k
-                  var groups = ({})
-                  for (var i = 0; i < defs.length; i++) {
-                    var d = defs[i]
-                    var on = cfg[d.key] === undefined ? d.on : cfg[d.key] === true
-                    if (!on) continue
-                    var a = String(cfg[d.key + "Anchor"] || d.anchor)
-                    if (!groups[a]) groups[a] = []
-                    groups[a].push({ key: d.key, title: d.title, w: d.w * k, h: d.h * k })
-                  }
-                  for (var a2 in groups) {
-                    var g = groups[a2], total = 0
-                    for (var j = 0; j < g.length; j++) total += g[j].h + (j < g.length - 1 ? gap : 0)
-                    var off = 0
-                    for (var j2 = 0; j2 < g.length; j2++) {
-                      var b = g[j2]
-                      b.x = a2.indexOf("left") !== -1 ? margin : a2.indexOf("right") !== -1 ? W - b.w - margin : (W - b.w) / 2
-                      b.y = a2.indexOf("top") !== -1 ? margin + off : a2.indexOf("bottom") !== -1 ? H - margin - total + off : (H - total) / 2 + off
-                      off += b.h + gap
-                      out.push(b)
-                    }
-                  }
-                  for (var p = 0; p < out.length; p++) {
-                    out[p].clash = false
-                    for (var q = 0; q < out.length; q++) {
-                      if (p === q) continue
-                      var A = out[p], B = out[q]
-                      if (A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h) out[p].clash = true
-                    }
-                  }
-                  return out
-                }
-                readonly property bool clash: boxes.some(function(b) { return b.clash })
-
-                ClippingRectangle {
-                  id: deskBox
-                  width: parent.width
-                  height: Math.min(parent.height - Style.space(40), width * 10 / 16)
-                  radius: root.innerRadius
-                  color: root.faint
-                  Image {
-                    anchors.fill: parent
-                    source: widgetsStage.visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    sourceSize.width: 640
-                  }
-                  Rectangle {
-                    visible: widgetsStage.cfg.visualizer !== false
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: (widgetsStage.cfg.visualizerHeight !== undefined ? Number(widgetsStage.cfg.visualizerHeight) : 140) * widgetsStage.k
-                    color: Util.alpha(root.accent, widgetsStage.focusKey === "visualizer" ? 0.45 : 0.18)
-                  }
-                  Repeater {
-                    model: widgetsStage.boxes
-                    Rectangle {
-                      required property var modelData
-                      readonly property bool hot: modelData.key === widgetsStage.focusKey
-                      x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
-                      radius: 6
-                      color: Util.alpha(Color.background, hot ? 0.92 : 0.78)
-                      border.width: hot || modelData.clash ? 2 : 1
-                      border.color: modelData.clash ? Color.urgent : (hot ? root.accent : Util.alpha(root.foreground, 0.3))
-                      Text {
-                        anchors.centerIn: parent
-                        text: root.tr(modelData.title)
-                        color: parent.hot ? root.accent : root.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Math.max(9, Style.font.body - 2)
-                      }
-                    }
-                  }
-                }
-                Text {
-                  anchors.top: deskBox.bottom
-                  anchors.topMargin: Style.space(10)
-                  width: parent.width
-                  wrapMode: Text.Wrap
-                  color: widgetsStage.clash ? Color.urgent : root.foreground
-                  opacity: widgetsStage.clash ? 1 : 0.7
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  text: widgetsStage.clash ? root.tr("Widgets overlap — move one of the red ones to another position.")
-                    : root.tr("Layout of the enabled widgets; the one you are editing is highlighted.")
-                }
-              }
-
-              // Text previews (animations, layouts, shaders) as a code block.
-              Flickable {
-                id: previewFlick
-                anchors.fill: parent
-                anchors.margins: Style.space(14)
-                visible: (!root.category.image || (root.selectedRow !== null && root.isTweakRow(root.selectedRow)))
-                  && !opacityStage.visible && !barStage.visible && !fxStage.visible && !pickerStage.visible && !presetStage.visible && !fontStage.visible && !windowsStage.visible && !widgetsStage.visible
-                contentHeight: previewLabel.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-                clip: true
-
-                Text {
-                  id: previewLabel
-                  width: parent.width
-                  wrapMode: Text.WrapAnywhere
-                  textFormat: Text.PlainText
-                  text: root.previewText || (root.selectedRow && root.selectedRow.note) || (root.category.key === "shaders" && root.selectedRow
-                    ? "Toggle: on/off (last used shader) / next shader in the list" : "")
-                  color: root.foreground
-                  opacity: 0.85
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  lineHeight: 1.15
-                }
-              }
-            }
-
-            // Action buttons
-            Row {
-              id: actions
-              anchors.bottom: parent.bottom
-              anchors.right: parent.right
-              height: root.rowHeight
-              spacing: Style.space(8)
-
-              Rectangle {
-                visible: root.category.key !== "walls" && root.category.key !== "dotify" && !root.category.presetStage && root.category.key !== "glyph" && !root.category.tweak
-                height: parent.height
-                width: randomRow.implicitWidth + Style.space(24)
-                radius: height / 2
-                color: randomHover.containsMouse ? Util.alpha(root.foreground, 0.14) : root.faint
-                border.width: 1
-                border.color: root.hairline
-                Row {
-                  id: randomRow
-                  anchors.centerIn: parent
-                  spacing: Style.space(8)
-                  Text { text: "󰒝"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "Surprise me"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
-                  Keycap { label: "r"; anchors.verticalCenter: parent.verticalCenter }
-                }
-                MouseArea { id: randomHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.randomPick() }
-              }
-
-              Rectangle {
-                height: parent.height
-                width: applyRow.implicitWidth + Style.space(28)
-                radius: height / 2
-                enabled: root.selectedRow !== null
-                opacity: enabled ? 1 : 0.4
-                color: applyHover.containsMouse ? Qt.lighter(root.accent, 1.12) : root.accent
-                Row {
-                  id: applyRow
-                  anchors.centerIn: parent
-                  spacing: Style.space(8)
-                  Text { text: "Apply"; color: root.background; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
-                  Text { text: "⏎"; color: Util.alpha(root.background, 0.7); font.family: root.fontFamily; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
-                }
-                MouseArea {
-                  id: applyHover
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.selectedRow) root.run(root.selectedRow.value)
-                }
               }
             }
           }
@@ -3033,9 +3025,10 @@ Item {
           anchors.fill: parent
           visible: opacity > 0
           opacity: root.helpOpen ? 1 : 0
-          Behavior on opacity { NumberAnimation { duration: 140 } }
-          color: Util.alpha(root.background, 0.94)
+          Behavior on opacity { NumberAnimation { duration: root.ms(140) } }
+          color: Util.alpha(root.background, 0.96)
           radius: root.innerRadius
+          z: 20
 
           MouseArea { anchors.fill: parent; enabled: root.helpOpen; onClicked: root.helpOpen = false }
 
@@ -3045,9 +3038,9 @@ Item {
 
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
-              text: "Keys"
+              text: root.tr("Keys")
               color: root.foreground
-              font.family: root.fontFamily
+              font.family: root.headFont
               font.pixelSize: Style.font.display
               font.bold: true
             }
@@ -3058,16 +3051,16 @@ Item {
               rowSpacing: Style.space(10)
               Repeater {
                 model: [
-                  ["j k  ↑ ↓", "move"], ["h l  ← →", "categories ⇄ list"],
+                  ["j k  ↑ ↓", "move"], ["h l  ← →", "rail ⇄ page · tiles"],
+                  ["Tab  ⇧Tab", "next / previous tab"], ["0 · 1 – " + root.groups.length, "home · section"],
                   ["gg  G", "first / last"], ["^d ^u  ^f ^b", "half / full page"],
-                  ["⏎", "apply"], ["r", "random pick (not Recolor)"],
-                  ["/", "search, ⏎ keeps, Esc clears"], ["J K", "scroll text preview"],
-                  ["Tab  ⇧Tab", "next / previous group"], ["1 – 6", "jump to group"],
-                  ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
-                  ["h l  − +", "Bar Tweaks: change (hold)"], ["x", "Bar Tweaks: reset to default"],
-                  ["⏎", "Bar Tweaks: step · pick color"], ["●", "Bar Tweaks: changed from default"],
-                  ["p", "Lock: show design live (Esc closes)"], ["T", "Lock: refresh previews"],
-                  ["p", "Wallpaper FX: play · Theme Switcher: open"], ["h l", "FX / Switcher: settings rows"],
+                  ["⏎", "apply · toggle · open"], ["/", "search all settings"],
+                  ["h l  − +", "settings: change (hold)"], ["x", "settings: reset to default"],
+                  ["i", "settings: type a value"], ["[ ]", "previous / next section"],
+                  ["v", "show / hide preview"], ["J K", "scroll the preview text"],
+                  ["r", "random pick (not Recolor)"], ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
+                  ["p", "Lock / FX / Switcher / Sounds: try it"], ["T", "Lock: refresh previews"],
+                  ["f", "Theme: favorite"], ["D", "delete own preset / skin"],
                   ["Esc", "back · revert live preview"], ["q", "close"]
                 ]
                 delegate: Row {
@@ -3076,7 +3069,7 @@ Item {
                   Keycap { label: modelData[0]; width: Style.space(120) }
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: modelData[1]
+                    text: root.tr(modelData[1])
                     color: root.foreground
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
@@ -3087,7 +3080,7 @@ Item {
 
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
-              text: "Press ? or Esc to close"
+              text: root.tr("Press ? or Esc to close")
               color: root.muted
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption

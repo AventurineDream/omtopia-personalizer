@@ -994,9 +994,10 @@ list_tweaks() {
     [[ $1 == TWEAKS ]] && na=$(bar_tweak_note "$key" "$shape" "$compact")
     [[ $1 != TWEAKS ]] && na=$(follow_bar_note "$key")
     [[ -n $na ]] && sub="○ $na"
-    printf '%s\t%s\t%s\t0\t%s\t%s\n' "$mark$(t "$label"):  ${long%% (*}" "$key" "$TW_FILE" \
+    # Поля 7–10 — для карточек overlay: тип, его аргументы, сырое значение, имя без значения.
+    printf '%s\t%s\t%s\t0\t%s\t%s\t%s\t%s\t%s\t%s\n' "$mark$(t "$label"):  ${long%% (*}" "$key" "$TW_FILE" \
       "$(t "Now: %s" "$long")"'\n'"$(t "Default: %s" "$deflong")${na:+\\n$na}"'\n\n'"$hint · $(t "x — reset to default")" \
-      "$sub"
+      "$sub" "$kind" "$args" "$v" "$(t "$label")"
   done
 }
 
@@ -1312,9 +1313,9 @@ list_font_profile() {
   cur=$(omarchy-font-profile)
   desc=$(omarchy-font-profile list | awk -F'\t' -v c="$cur" '$1 == c { print $2 }')
   printf '%s\t%s\t\t0\t\theader\n' "$(t "System fonts")" "section:System fonts"
-  printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "Font profile"):  $cur" "fontProfile" \
+  printf '%s\t%s\t\t0\t%s\t%s\tcycle\t\t%s\t%s\n' "$(t "Font profile"):  $cur" "fontProfile" \
     "$(t "$desc")"'\n\n'"$(t "h/l — stock · nothing · dot · pixel. Applies to terminals, GTK, VS Code, browser (Dark Reader, Stylus) and the DOT-MATRIX shell. x — back to stock.")" \
-    "$(t "$desc")"
+    "$(t "$desc")" "$cur" "$(t "Font profile")"
 }
 
 # Параметры виджетов (bool): id|key|default|label
@@ -1348,8 +1349,9 @@ list_bar_widgets() {
     while read -r id; do
       [[ -n $id ]] || continue
       seen[$id]=1
-      printf '%s\t%s\t\t0\t%s\t%s\n' "● $(widget_label "$id")" "tweak:w:$id" \
-        "$(t "On the bar · %s" "$id")"'\n\n'"$(t "h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar")" "$id"
+      printf '%s\t%s\t\t0\t%s\t%s\tmove\t\t\t%s\n' "● $(widget_label "$id")" "tweak:w:$id" \
+        "$(t "On the bar · %s" "$id")"'\n\n'"$(t "h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar")" "$id" \
+        "$(widget_label "$id")"
     done < <(jq -r --arg s "$sec" '.bar.layout[$s] // [] | .[] | if type == "object" then .id else . end' "$SHELL_JSON")
   done
   # Не на баре: убранные (с запомненным местом) и установленные виджеты-плагины. Стоковый
@@ -1360,15 +1362,17 @@ list_bar_widgets() {
       '.[] | select((.kinds // []) | index("bar-widget")) | select(.id as $i | $cloned | index($i) | not) | .id' <<<"$WIDGET_CATALOG"
   } | awk '!s[$0]++' | while read -r id; do
     [[ -n $id && -z ${seen[$id]:-} ]] || continue
-    printf '%s\t%s\t\t0\t%s\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
-      "$(t "Not on the bar · %s" "$id")"'\n\n'"$(t "⏎ — put on the bar (back to its old place if it was removed here)")" "$id"
+    printf '%s\t%s\t\t0\t%s\t%s\tadd\t\t\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
+      "$(t "Not on the bar · %s" "$id")"'\n\n'"$(t "⏎ — put on the bar (back to its old place if it was removed here)")" "$id" \
+      "$(widget_label "$id")"
   done
   printf '%s\t%s\t\t0\t\theader\n' "$(t "Widget settings")" "section:settings"
   for t in "${WIDGET_SETTINGS[@]}"; do
     IFS='|' read -r tid tkey def label <<<"$t"
     v=$(widget_setting_value "$tid" "$tkey" "$def")
     printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "$label"):  $v" "tweak:wset:$tid:$tkey" \
-      "$(t "Now: %s" "$v")"'\n'"$(t "Default: %s" "$def")"'\n\n'"$(t "h/l or ⏎ — on/off")" "$(t "default: %s" "$def")"
+      "$(t "Now: %s" "$v")"'\n'"$(t "Default: %s" "$def")"'\n\n'"$(t "h/l or ⏎ — on/off")" "$(t "default: %s" "$def")" \
+      bool "$def" "$v" "$(t "$label")"
   done
 }
 
@@ -2747,11 +2751,36 @@ available() {
   return 0
 }
 
+# Индекс для поиска по всем настройкам (/ в overlay): категория, value строки, подпись, раздел.
+# Без чтения значений — быстро; value совпадает с тем, что даёт list <категория>.
+search_index() {
+  local spec cat arr prefix t sec key label
+  # <категория>:<массив>[:t] — t: value строк с префиксом "tweak:" (как в list этой категории).
+  for spec in presets:PRESET_TWEAKS:t styles:STYLE_TWEAKS:t sounds:SOUND_TWEAKS:t \
+    dotify:DOTIFY_TWEAKS:t wallpaper-fx:FX_TWEAKS:t widgets:WIDGET_TWEAKS widgets:DOTMATRIX_TWEAKS \
+    dashboard:DASH_TWEAKS bar-tweaks:TWEAKS windows:WINDOW_LAYOUT_TWEAKS:t windows:WINDOW_TWEAKS:t \
+    osd:OSD_TWEAKS notifications:NOTIFY_TWEAKS glyph:GLYPH_TWEAKS:t lock-tweaks:LOCK_TWEAKS \
+    theme-switcher:PICKER_TWEAKS:t launcher:LAUNCHER_TWEAKS:t; do
+    IFS=: read -r cat arr prefix <<<"$spec"
+    [[ $prefix == t ]] && prefix="tweak:"
+    local -n table=$arr
+    sec=""
+    for t in "${table[@]}"; do
+      if [[ $t == '#'* ]]; then sec=$(t "${t#\#}"); continue; fi
+      IFS='|' read -r key _ _ label <<<"$t"
+      [[ $cat == sounds && $key == soundPack ]] && continue
+      printf '%s\t%s\t%s\t%s\n' "$cat" "$prefix$key" "$(t "$label")" "$sec"
+    done
+    unset -n table
+  done
+}
+
 mkdir -p "$RUN_DIR" "$STATE_DIR"
 case "${1:-}" in
 list) list "${2:-}" "${3:-}" ;;
 status) status ;;
 available) available ;;
+search-index) search_index ;;
 restore) restore ;;
 lang) echo "$UI_LANG" ;;
 thumbs) thumbs "${2:-}" "${3:-}" ;;
