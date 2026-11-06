@@ -511,6 +511,7 @@ Item {
   function close() {
     root.revertPreview()
     root.opened = false
+    backend.running = false
     root.syncBarPreview()
   }
 
@@ -1492,12 +1493,62 @@ Item {
   Timer { id: gTimer; interval: 700; onTriggered: root.pendingG = false }
   Timer { id: toastTimer; interval: 4000; onTriggered: root.toast = "" }
 
-  Process {
-    id: searchProc
-    command: [root.script, "search-index"]
-    stdout: StdioCollector {
-      onStreamFinished: root.loadSearchIndex(text)
+  // ── Бэкенд: один процесс, пока открыт overlay ───────────────────────
+  // backend/run.py serve — запрос/ответ строками JSON. Запускается при первом запросе,
+  // останавливается в close(): окно закрыто — процесса нет. В простое спит в read().
+  // Не перенесённые на Python команды бэкенд сам отдаёт старому customizer.sh.
+  property int rpcId: 0
+  property var rpcPending: ({})
+  property var rpcQueue: []
+  property bool backendReady: false
+  function call(args, cb) {
+    // Окно закрыто — бэкенд не поднимаем (энергия): отказ, но асинхронно и один раз.
+    if (!root.opened) { Qt.callLater(function() { cb({ code: 1, out: "", err: "closed" }) }); return }
+    var id = ++root.rpcId
+    root.rpcPending[id] = cb
+    var line = JSON.stringify({ id: id, cmd: args }) + "\n"
+    if (root.backendReady) backend.write(line)
+    else {
+      root.rpcQueue = root.rpcQueue.concat([line])
+      if (!backend.running) backend.running = true
     }
+  }
+  function onBackendLine(line) {
+    var r
+    try { r = JSON.parse(line) } catch (e) { return }
+    var cb = root.rpcPending[r.id]
+    delete root.rpcPending[r.id]
+    if (cb) cb(r)
+  }
+  // Процесс закончился (окно закрыли или он упал): ждущие ответа получают ошибку, чтобы
+  // флаги running у запросов не застряли.
+  function backendReset() {
+    root.backendReady = false
+    root.rpcQueue = []
+    var pending = root.rpcPending
+    root.rpcPending = ({})
+    for (var k in pending) pending[k]({ code: 1, out: "", err: "backend stopped" })
+  }
+  Process {
+    id: backend
+    command: ["/usr/bin/python3", "-I", root.pluginDir + "/backend/run.py", "serve"]
+    stdinEnabled: true
+    stdout: SplitParser { onRead: function(data) { root.onBackendLine(data) } }
+    stderr: SplitParser { onRead: function(data) { console.warn("customizer backend:", data) } }
+    onStarted: {
+      root.backendReady = true
+      var q = root.rpcQueue
+      root.rpcQueue = []
+      for (var i = 0; i < q.length; i++) backend.write(q[i])
+    }
+    onExited: root.backendReset()
+  }
+
+  BackendJob {
+    id: searchProc
+    host: root
+    command: [root.script, "search-index"]
+    onExited: root.loadSearchIndex(out)
   }
 
   FileView {
@@ -1509,24 +1560,17 @@ Item {
     onLoadFailed: root.look = ({})
   }
 
-  Process {
+  BackendJob {
     id: lister
+    host: root
     property string category: ""
-    // The first output line is the category the run was started for: a finished run of a previous
-    // tab (fast tab / group switching) must not be filed under the tab that is open now.
-    command: ["sh", "-c", 'printf "%s\\n" "$1"; shift; exec "$@"', "sh", category,
-      root.script, "list", category, category === "theme-walls" ? root.wallPath : ""]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var raw = String(text || "")
-        var nl = raw.indexOf("\n")
-        if (nl < 0) return
-        root.loadRows(raw.slice(0, nl), raw.slice(nl + 1))
-      }
-    }
+    // Ответ подписан категорией, с которой запрос ушёл (ranCommand): ответ для прошлой вкладки
+    // (быстрое переключение) не попадёт в открытую сейчас.
+    command: [root.script, "list", category, category === "theme-walls" ? root.wallPath : ""]
     onExited: {
+      root.loadRows(lister.ranCommand[2], lister.out)
       var key = root.category.key
-      if (root.loading && lister.category !== key && !root.cache[key] && !lister.running) {
+      if (root.opened && root.loading && lister.category !== key && !root.cache[key] && !lister.running) {
         lister.category = key
         lister.running = true
       }
@@ -1601,12 +1645,11 @@ Item {
     restoreProc.running = true
   }
 
-  Process {
+  BackendJob {
     id: statusProc
+    host: root
     command: [root.script, "status"]
-    stdout: StdioCollector {
-      onStreamFinished: root.loadStatus(text)
-    }
+    onExited: root.loadStatus(out)
   }
 
   FileView {
@@ -1620,22 +1663,24 @@ Item {
     onLoadFailed: root.previewText = ""
   }
 
-  Process {
+  BackendJob {
     id: tweaker
+    host: root
     property string key: ""
     onExited: root.tweakDone()
   }
 
-  Process {
+  BackendJob {
     id: favProc
+    host: root
     property string slug: ""
     onExited: root.reloadCategory()
   }
 
-  Process {
+  BackendJob {
     id: editor
+    host: root
     property string key: ""
-    stderr: StdioCollector { id: editorErr }
     onExited: function(code) {
       if (root.pendingSet !== null) {
         var ps = root.pendingSet
@@ -1651,7 +1696,7 @@ Item {
         if (root.editingIndex >= 0) root.cancelEdit()
         root.reloadCategory()
       } else {
-        var msg = editorErr.text.trim() || root.tr("Not applied")
+        var msg = editor.err.trim() || root.tr("Not applied")
         if (root.editingIndex >= 0) root.editError = msg
         else root.showToast(msg)
       }
