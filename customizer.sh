@@ -312,14 +312,33 @@ set_transparent() {
 skin_canon() { jq -S 'with_entries(select(.key | test("^note(_[a-z]+)?$") | not))' "$1" 2>/dev/null; }
 
 # Имя пресета, совпадающего с активным скином, иначе custom (stock, если файла нет).
-current_skin() {
+# Все скины — одним jq (строка на файл, ключи отсортированы). Пока работают list/status
+# (READ_ONLY=1), ответ запоминается: current_style_stem спрашивает его для каждого стиля.
+current_skin_compute() {
   [[ -s $BAR_SKIN ]] || { echo stock; return; }
-  local f cur
-  cur=$(skin_canon "$BAR_SKIN")
-  for f in "$USER_SKINS"/*.json "$BAR_DIR"/skins/*.json; do
-    [[ -f $f && $(skin_canon "$f") == "$cur" ]] && { basename "$f" .json; return; }
-  done
+  local f i
+  local -a files=() canon=()
+  for f in "$USER_SKINS"/*.json "$BAR_DIR"/skins/*.json; do [[ -f $f ]] && files+=("$f"); done
+  mapfile -t canon < <(jq -c -S 'with_entries(select(.key | test("^note(_[a-z]+)?$") | not))' "$BAR_SKIN" "${files[@]}" 2>/dev/null)
+  if ((${#canon[@]} == ${#files[@]} + 1)); then
+    for ((i = 0; i < ${#files[@]}; i++)); do
+      [[ ${canon[i + 1]} == "${canon[0]}" ]] && { basename "${files[i]}" .json; return; }
+    done
+  else
+    # Битый файл среди скинов — по одному, как раньше.
+    local cur
+    cur=$(skin_canon "$BAR_SKIN")
+    for f in "${files[@]}"; do [[ $(skin_canon "$f") == "$cur" ]] && { basename "$f" .json; return; }; done
+  fi
   echo custom
+}
+CURRENT_SKIN_MEMO=""
+current_skin_prime() {
+  [[ ${READ_ONLY:-} == 1 && -z $CURRENT_SKIN_MEMO ]] && CURRENT_SKIN_MEMO=$(current_skin_compute)
+  return 0
+}
+current_skin() {
+  if [[ -n $CURRENT_SKIN_MEMO ]]; then echo "$CURRENT_SKIN_MEMO"; else current_skin_compute; fi
 }
 
 # Описание пресета на языке интерфейса: note_<lang>, иначе note.
@@ -328,11 +347,17 @@ note_of() { jq -r --arg l "$UI_LANG" '.["note_" + $l] // .note // ""' "$1" 2>/de
 layout_canon() { jq -S '{position: (.position // "top"), centerAnchor: (.centerAnchor // ""), layout}' "$@" 2>/dev/null; }
 
 current_layout() {
-  local f cur
-  cur=$(jq '.bar' "$SHELL_JSON" | layout_canon)
-  for f in "$USER_LAYOUTS"/*.json "$BAR_DIR"/layouts/*.json; do
-    [[ -f $f && $(layout_canon "$f") == "$cur" ]] && { basename "$f" .json; return; }
-  done
+  local f i cur
+  local -a files=() canon=()
+  cur=$(jq -c -S '.bar | {position: (.position // "top"), centerAnchor: (.centerAnchor // ""), layout}' "$SHELL_JSON" 2>/dev/null)
+  for f in "$USER_LAYOUTS"/*.json "$BAR_DIR"/layouts/*.json; do [[ -f $f ]] && files+=("$f"); done
+  ((${#files[@]})) && mapfile -t canon < <(jq -c -S '{position: (.position // "top"), centerAnchor: (.centerAnchor // ""), layout}' "${files[@]}" 2>/dev/null)
+  if ((${#canon[@]} == ${#files[@]})); then
+    for ((i = 0; i < ${#files[@]}; i++)); do [[ ${canon[i]} == "$cur" ]] && { basename "${files[i]}" .json; return; }; done
+  else
+    cur=$(jq '.bar' "$SHELL_JSON" | layout_canon)
+    for f in "${files[@]}"; do [[ $(layout_canon "$f") == "$cur" ]] && { basename "$f" .json; return; }; done
+  fi
   echo custom
 }
 
@@ -428,7 +453,7 @@ default_label() {
   gradient:none) t "none" ;;
   font:) t "system" ;;
   *:bar) t "bar (theme colour)" ;;
-  *) echo "$2" ;;
+  *) if [[ -n ${T_OUT:-} ]]; then printf -v "$T_OUT" '%s' "$2"; else echo "$2"; fi ;;
   esac
 }
 
@@ -951,53 +976,73 @@ tweak_set() {
   esac
 }
 
+# Значения файла настроек одним jq (а не jq на каждую строку): TWV[key] = значение строкой.
+declare -gA TWV=()
+tw_load() {
+  TWV=()
+  [[ -s $1 ]] || return 0
+  local k v
+  while IFS=$'\x1f' read -r -d $'\x1e' k v; do TWV[$k]=$v; done < <(jq -j \
+    'if type == "object" then to_entries[] | select(.value != null) | .key, "\u001f", (.value | tostring), "\u001e" else empty end' "$1" 2>/dev/null)
+}
+
 # Строки Bar Tweaks / Lock Tweaks: $1 — имя массива параметров, $2 — файл настроек.
+# Без подоболочек на строку: переводы и подписи пишутся в переменные (T_OUT, printf -v).
 list_tweaks() {
   local -n table=$1
   TW_FILE=$2
-  local t key kind args label def v hint mark long deflong sub shape compact
+  tw_load "$TW_FILE"
+  local t key kind args label def v hint mark long deflong sub shape compact lo hi st
+  local _sec _lab _dl _dd _sub _na _now _def _x _tr _pfx
   if [[ $1 == TWEAKS ]]; then
-    shape=$(tweak_value shape full)
-    compact=$(tweak_value compact off)
+    shape=${TWV[shape]-full}
+    compact=${TWV[compact]-off}
   fi
   for t in "${table[@]}"; do
     # "#Раздел" — заголовок раздела: overlay рисует его линией и не выделяет.
     if [[ $t == '#'* ]]; then
-      printf '%s\t%s\t\t0\t\theader\n' "$(t "${t#\#}")" "section:${t#\#}"
+      T_OUT=_sec t "${t#\#}"
+      printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
-    num) def=${args##* } hint=$(t "h/l or −/+ — step %s, range %s" "$(awk '{print $3}' <<<"$args")" "$(awk '{print $1 " … " $2}' <<<"$args")") ;;
-    enum) def=${args%% *} hint=$(t "h/l — cycle: %s" "$args") ;;
-    color) def=$args hint=$(t "h/l — theme roles (bar = stock bar colour) · ⏎ — your own colour") ;;
-    bool) def=$args hint=$(t "h/l or ⏎ — on/off") ;;
-    font) def="" hint=$(t "h/l — Nerd fonts from fc-list; empty = system") ;;
-    text) def="" hint=$(t "⏎ — enter text") ;;
-    file) def="" hint=$(t "⏎ — pick an image") ;;
-    dir) def="" hint=$(t "⏎ — pick a folder · h/l — back to default") ;;
+    num) def=${args##* }; read -r lo hi st _ <<<"$args"; T_OUT=hint t "h/l or −/+ — step %s, range %s" "$st" "$lo … $hi" ;;
+    enum) def=${args%% *}; T_OUT=hint t "h/l — cycle: %s" "$args" ;;
+    color) def=$args; T_OUT=hint t "h/l — theme roles (bar = stock bar colour) · ⏎ — your own colour" ;;
+    bool) def=$args; T_OUT=hint t "h/l or ⏎ — on/off" ;;
+    font) def=""; T_OUT=hint t "h/l — Nerd fonts from fc-list; empty = system" ;;
+    text) def=""; T_OUT=hint t "⏎ — enter text" ;;
+    file) def=""; T_OUT=hint t "⏎ — pick an image" ;;
+    dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
-    v=$(tweak_value "$key" "$def")
+    if [[ $key == transparent ]]; then v=$(jq -r '.bar.transparent // false' "$SHELL_JSON")
+    else v=${TWV[$key]-$def}; fi
     mark=""
     [[ $v != "$def" ]] && mark="●  "
-    long=$(default_label "$key" "$v")
-    deflong=$(default_label "$key" "$def")
+    long="" deflong=""
+    T_OUT=long default_label "$key" "$v"
+    T_OUT=deflong default_label "$key" "$def"
     if [[ $kind == dir ]]; then
-      [[ -n $v ]] || long=$(t "default (current wallpaper)")
-      deflong=$(t "default (current wallpaper)")
+      [[ -n $v ]] || T_OUT=long t "default (current wallpaper)"
+      T_OUT=deflong t "default (current wallpaper)"
     fi
-    # В строке списка — короткое значение (до скобки), полностью — в превью.
-    # Заметка: литеральные \n, overlay превращает их в переводы строк.
-    # 6-е поле — подпись под строкой в списке (по умолчанию).
-    sub=$(t "default: %s" "${deflong%% (*}")
-    local na=""
-    [[ $1 == TWEAKS ]] && na=$(bar_tweak_note "$key" "$shape" "$compact")
-    [[ $1 != TWEAKS ]] && na=$(follow_bar_note "$key")
-    [[ -n $na ]] && sub="○ $na"
+    T_OUT=sub t "default: %s" "${deflong%% (*}"
+    _na=""
+    if [[ $1 == TWEAKS ]]; then T_OUT=_na bar_tweak_note "$key" "$shape" "$compact"
+    elif [[ $key =~ ^(dash|osd|notify)(Background|Alpha|Radius|Border)$ ]]; then
+      _pfx=${BASH_REMATCH[1]}
+      [[ ${TWV[${_pfx}FollowBar]-true} == false ]] || T_OUT=_na t "no effect while “Follow the bar style” is on"
+    fi
+    [[ -n $_na ]] && sub="○ $_na"
+    T_OUT=_lab t "$label"
+    T_OUT=_now t "Now: %s" "$long"
+    T_OUT=_def t "Default: %s" "$deflong"
+    T_OUT=_x t "x — reset to default"
     # Поля 7–10 — для карточек overlay: тип, его аргументы, сырое значение, имя без значения.
-    printf '%s\t%s\t%s\t0\t%s\t%s\t%s\t%s\t%s\t%s\n' "$mark$(t "$label"):  ${long%% (*}" "$key" "$TW_FILE" \
-      "$(t "Now: %s" "$long")"'\n'"$(t "Default: %s" "$deflong")${na:+\\n$na}"'\n\n'"$hint · $(t "x — reset to default")" \
-      "$sub" "$kind" "$args" "$v" "$(t "$label")"
+    printf '%s\t%s\t%s\t0\t%s\t%s\t%s\t%s\t%s\t%s\n' "$mark$_lab:  ${long%% (*}" "$key" "$TW_FILE" \
+      "$_now"'\n'"$_def${_na:+\\n$_na}"'\n\n'"$hint · $_x" \
+      "$sub" "$kind" "$args" "$v" "$_lab"
   done
 }
 
@@ -1384,8 +1429,7 @@ preset_name_of() {
   jq -r --arg l "$UI_LANG" --arg d "$base" '.["name_" + $l] // .name // $d' "$1" 2>/dev/null || echo "$base"
 }
 
-preset_summary() {
-  jq -r '[
+PRESET_SUMMARY_JQ='[
     (if .theme then "theme: " + .theme else empty end),
     (if .style then "style: " + .style else empty end),
     (if .barSkin then "bar: " + .barSkin elif .barSkinData then "bar: custom" else empty end),
@@ -1394,30 +1438,82 @@ preset_summary() {
     (if .launcher.skin then "launcher: " + .launcher.skin else empty end),
     (if .anims and .anims != "" then "anims: " + .anims else empty end),
     (if .glyph.glyphEnabled == true then "glyph: on" else empty end)
-  ] | join("  ·  ")' "$1" 2>/dev/null
+  ] | join("  ·  ")'
+preset_summary() {
+  jq -r "$PRESET_SUMMARY_JQ" "$1" 2>/dev/null
 }
 
+# Имя, заметка и сводка многих пресетов / стилей одним jq (а не 3–4 jq на файл):
+# meta_load <программа сводки> <файлы…> → META_NAME / META_NOTE / META_SUM[файл].
+# Битый JSON среди файлов — массивы пустые, meta_* ниже считают по одному, как раньше.
+declare -gA META_NAME=() META_NOTE=() META_SUM=()
+meta_load() {
+  local prog=$1 f n no su
+  shift
+  (($#)) || return 0
+  local -a got=()
+  while IFS=$'\x1f' read -r -d $'\x1e' f n no su; do got+=("$f"); META_NAME[$f]=$n; META_NOTE[$f]=$no; META_SUM[$f]=$su; done < <(
+    jq -j --arg l "$UI_LANG" "input_filename as \$f | [\$f,
+      (.[\"name_\" + \$l] // .name // (\$f | sub(\".*/\"; \"\") | sub(\"\\\\.json\$\"; \"\"))),
+      (.[\"note_\" + \$l] // .note // \"\"), ($prog)] | map(tostring) | join(\"\u001f\"), \"\u001e\"" "$@" 2>/dev/null)
+  if ((${#got[@]} != $#)); then META_NAME=() META_NOTE=() META_SUM=(); fi
+  return 0
+}
+# Как $(…) у старых функций: без переводов строк в конце.
+trim_nl() { local v=$1; while [[ $v == *$'\n' ]]; do v=${v%$'\n'}; done; printf '%s' "$v"; }
+meta_name() { if [[ -n ${META_NAME[$1]+x} ]]; then trim_nl "${META_NAME[$1]}"; else preset_name_of "$1"; fi; }
+meta_note() { if [[ -n ${META_NOTE[$1]+x} ]]; then trim_nl "${META_NOTE[$1]}"; else note_of "$1"; fi; }
+meta_preset_sum() { if [[ -n ${META_SUM[$1]+x} ]]; then trim_nl "${META_SUM[$1]}"; else preset_summary "$1"; fi; }
+meta_style_sum() { if [[ -n ${META_SUM[$1]+x} ]]; then trim_nl "${META_SUM[$1]}"; else style_summary "$1"; fi; }
+
 # Включён ли раздел: $1 — файл (preset-apply.json / style-apply.json), $2 — ключ; по умолчанию да.
+declare -gA SECTION_MEMO=()
 section_on() {
+  if [[ ${READ_ONLY:-} == 1 ]]; then
+    if [[ -z ${SECTION_MEMO["$1|"]-} ]]; then
+      SECTION_MEMO["$1|"]=1
+      local k v
+      while IFS=$'\x1f' read -r -d $'\x1e' k v; do SECTION_MEMO["$1|$k"]=$v; done < <(jq -j \
+        'if type == "object" then to_entries[] | .key, "\u001f", (.value | tostring), "\u001e" else empty end' "$1" 2>/dev/null)
+    fi
+    [[ ${SECTION_MEMO["$1|$2"]-true} != false ]]
+    return
+  fi
   [[ $(jq -r --arg k "$2" 'if has($k) then .[$k] | tostring else "true" end' "$1" 2>/dev/null || echo true) != false ]]
 }
+
+# Текущее состояние для сравнения с пресетами и стилями — один раз на команду list/status.
+MATCH_PRIMED=""
+CUR_THEME="" CUR_LOCK="" CUR_OPACITY=""
+match_prime() {
+  [[ ${READ_ONLY:-} == 1 && -z $MATCH_PRIMED ]] || return 0
+  MATCH_PRIMED=1
+  current_skin_prime
+  CUR_THEME=$(theme_name)
+  [[ -f $LOCK_PLUGIN/manifest.json ]] && CUR_LOCK=$(lock_current)
+  [[ -n $CUR_OPACITY ]] || CUR_OPACITY=$("$OPACITY" current 2>/dev/null)
+  return 0
+}
+cur_theme() { if [[ -n $MATCH_PRIMED ]]; then echo "$CUR_THEME"; else theme_name; fi; }
+cur_lock() { if [[ -n $MATCH_PRIMED ]]; then echo "$CUR_LOCK"; else lock_current; fi; }
+cur_opacity() { if [[ -n $MATCH_PRIMED ]]; then echo "$CUR_OPACITY"; else "$OPACITY" current 2>/dev/null; fi; }
 preset_on() { section_on "$PRESET_CFG" "$1"; }
 style_on() { section_on "$STYLE_CFG" "$1"; }
 
 # Сравниваются только разделы, которые пресет применяет.
 preset_matches() {
-  local f=$1 p_theme p_skin p_lock
+  local f=$1 p_theme="" p_skin="" p_lock=""
+  match_prime
+  IFS=$'\x1f' read -r -d $'\x1e' p_theme p_skin p_lock < <(jq -j \
+    '[(.theme // ""), (.barSkin // ""), (.lock.design // "")] | map(tostring) | join("\u001f"), "\u001e"' "$f" 2>/dev/null)
   if preset_on presetTheme; then
-    p_theme=$(jq -r '.theme // ""' "$f" 2>/dev/null)
-    [[ -n $p_theme && $p_theme != "$(theme_name)" ]] && return 1
+    [[ -n $p_theme && $p_theme != "$(cur_theme)" ]] && return 1
   fi
   if preset_on presetBar; then
-    p_skin=$(jq -r '.barSkin // ""' "$f" 2>/dev/null)
     [[ -n $p_skin && -f $BAR_DIR/manifest.json && $p_skin != "$(current_skin)" ]] && return 1
   fi
   if preset_on presetLock; then
-    p_lock=$(jq -r '.lock.design // ""' "$f" 2>/dev/null)
-    [[ -n $p_lock && -f $LOCK_PLUGIN/manifest.json && $p_lock != "$(lock_current)" ]] && return 1
+    [[ -n $p_lock && -f $LOCK_PLUGIN/manifest.json && $p_lock != "$(cur_lock)" ]] && return 1
   fi
   return 0
 }
@@ -1891,8 +1987,7 @@ style_theme_for() {
   esac
 }
 
-style_summary() {
-  jq -r '[
+STYLE_SUMMARY_JQ='[
     (if .hyprGeometry then "corners " + (.hyprGeometry.rounding | tostring) + (if .hyprGeometry.shadow then " · shadow" else "" end) else empty end),
     (if .barSkin then "bar: " + .barSkin elif .barSkinData then "bar: custom" else empty end),
     (if .lock.design then "lock: " + .lock.design else empty end),
@@ -1902,27 +1997,33 @@ style_summary() {
     (if .anims and .anims != "" then "anims: " + .anims else empty end),
     (if .fonts then "fonts: " + .fonts else empty end),
     (if (.theme | type) == "object" then "themes: " + .theme.dark + " / " + (.theme.light // .theme.dark) else empty end)
-  ] | join("  ·  ")' "$1" 2>/dev/null
+  ] | join("  ·  ")'
+style_summary() {
+  jq -r "$STYLE_SUMMARY_JQ" "$1" 2>/dev/null
 }
 
 # Совпадает ли стиль с текущим видом — по разделам, которые он применяет.
 style_matches() {
-  local f=$1 v checked=false
+  local f=$1 v checked=false s_skin="" s_data="" s_lock="" s_opacity=""
+  match_prime
+  IFS=$'\x1f' read -r -d $'\x1e' s_skin s_data s_lock s_opacity < <(jq -j \
+    '[(.barSkin // ""), (if (.barSkinData | type) == "object" then "1" else "" end), (.lock.design // ""), (.opacity // "")]
+     | map(tostring) | join("\u001f"), "\u001e"' "$f" 2>/dev/null)
   if style_on styleBar; then
-    v=$(jq -r '.barSkin // ""' "$f" 2>/dev/null)
+    v=$s_skin
     if [[ -n $v && -f $BAR_DIR/manifest.json ]]; then [[ $v == "$(current_skin)" ]] || return 1; checked=true; fi
-    if jq -e '.barSkinData | type == "object"' "$f" >/dev/null 2>&1; then
+    if [[ -n $s_data ]]; then
       [[ $(jq -S '.barSkinData | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))' "$f") == "$(skin_canon "$BAR_SKIN")" ]] || return 1
       checked=true
     fi
   fi
   if style_on styleLock; then
-    v=$(jq -r '.lock.design // ""' "$f" 2>/dev/null)
-    if [[ -n $v && -f $LOCK_PLUGIN/manifest.json ]]; then [[ $v == "$(lock_current)" ]] || return 1; checked=true; fi
+    v=$s_lock
+    if [[ -n $v && -f $LOCK_PLUGIN/manifest.json ]]; then [[ $v == "$(cur_lock)" ]] || return 1; checked=true; fi
   fi
   if style_on styleOpacity; then
-    v=$(jq -r '.opacity // ""' "$f" 2>/dev/null)
-    if [[ -n $v ]]; then [[ $v == "$("$OPACITY" current 2>/dev/null)" ]] || return 1; checked=true; fi
+    v=$s_opacity
+    if [[ -n $v ]]; then [[ $v == "$(cur_opacity)" ]] || return 1; checked=true; fi
   fi
   $checked
 }
@@ -2077,29 +2178,33 @@ list() {
   presets)
     local f cur stem label
     cur=$(current_preset_stem)
+    local -a mfiles=()
+    [[ -s $LAST_PRESET ]] && mfiles+=("$LAST_PRESET")
+    for f in "$USER_PRESETS"/*.json "$PRESET_DIR"/*.json; do [[ -f $f ]] && mfiles+=("$f"); done
+    meta_load "$PRESET_SUMMARY_JQ" "${mfiles[@]}"
     printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save current setup as a preset…")" "save" \
       "$(t "Snapshot your active theme, wallpaper, bar, animations, opacity, blur, lock screen, launcher, widgets, OSD, notifications, sounds and Glyph into %s." "${USER_PRESETS/#$HOME/\~}")"
     if [[ -s $LAST_PRESET ]]; then
       printf '%s\t%s\t%s\t0\t%s\t%s\n' "$(t "↩ Restore previous setup")" "$LAST_PRESET" "$LAST_PRESET" \
-        "$(note_of "$LAST_PRESET")" "$(preset_summary "$LAST_PRESET")"
+        "$(meta_note "$LAST_PRESET")" "$(meta_preset_sum "$LAST_PRESET")"
     fi
     for f in "$USER_PRESETS"/*.json; do
       [[ -f $f ]] || continue
       stem=$(basename "$f" .json)
-      label=$(preset_name_of "$f")
+      label=$(meta_name "$f")
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' "★ $label" "$f" "$f" \
         "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
-        "$(note_of "$f")"'\n\n'"$(preset_summary "$f")"'\n\n'"$(t "Your preset: %s" "${f/#$HOME/\~}")" \
-        "$(preset_summary "$f")"
+        "$(meta_note "$f")"'\n\n'"$(meta_preset_sum "$f")"'\n\n'"$(t "Your preset: %s" "${f/#$HOME/\~}")" \
+        "$(meta_preset_sum "$f")"
     done
     for f in "$PRESET_DIR"/*.json; do
       [[ -f $f ]] || continue
       stem=$(basename "$f" .json)
-      label=$(preset_name_of "$f")
+      label=$(meta_name "$f")
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$f" "$f" \
         "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
-        "$(note_of "$f")"'\n\n'"$(preset_summary "$f")" \
-        "$(preset_summary "$f")"
+        "$(meta_note "$f")"'\n\n'"$(meta_preset_sum "$f")" \
+        "$(meta_preset_sum "$f")"
     done
     list_tweaks PRESET_TWEAKS "$PRESET_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     ;;
@@ -2144,25 +2249,28 @@ list() {
   styles)
     local f cur stem label
     cur=$(current_style_stem)
+    local -a mfiles=()
+    for f in "$USER_STYLES"/*.json "$STYLE_DIR"/*.json; do [[ -f $f ]] && mfiles+=("$f"); done
+    meta_load "$STYLE_SUMMARY_JQ" "${mfiles[@]}"
     printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save current look as a style…")" "save" \
       "$(t "Snapshot the form of your desktop without colours — window geometry, bar, lock screen, launcher, widgets, OSD, notifications, animations, opacity, blur, sounds, Glyph and fonts — into %s. It works on any theme." "${USER_STYLES/#$HOME/\~}")"
     for f in "$USER_STYLES"/*.json; do
       [[ -f $f ]] || continue
       stem=$(basename "$f" .json)
-      label=$(preset_name_of "$f")
+      label=$(meta_name "$f")
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' "★ $label" "$f" "$f" \
         "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
-        "$(note_of "$f")"'\n\n'"$(style_summary "$f")"'\n\n'"$(t "Your style: %s" "${f/#$HOME/\~}")" \
-        "$(style_summary "$f")"
+        "$(meta_note "$f")"'\n\n'"$(meta_style_sum "$f")"'\n\n'"$(t "Your style: %s" "${f/#$HOME/\~}")" \
+        "$(meta_style_sum "$f")"
     done
     for f in "$STYLE_DIR"/*.json; do
       [[ -f $f ]] || continue
       stem=$(basename "$f" .json)
-      label=$(preset_name_of "$f")
+      label=$(meta_name "$f")
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$f" "$f" \
         "$([[ $stem == "$cur" ]] && echo 1 || echo 0)" \
-        "$(note_of "$f")"'\n\n'"$(style_summary "$f")" \
-        "$(style_summary "$f")"
+        "$(meta_note "$f")"'\n\n'"$(meta_style_sum "$f")" \
+        "$(meta_style_sum "$f")"
     done
     list_tweaks STYLE_TWEAKS "$STYLE_CFG" | awk -F'\t' 'BEGIN { OFS = "\t" } { if ($2 !~ /^section:/) $2 = "tweak:" $2; print }'
     ;;
@@ -2362,13 +2470,37 @@ STYLES
       find "$OMARCHY_PATH/themes" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null
     } | sort -u)
     mapfile -t favs < <(jq -r '.[]? | strings' "$FAV_THEMES" 2>/dev/null)
+    local -A is_fav=() pal=()
+    for slug in "${favs[@]}"; do is_fav[$slug]=1; done
+    # Палитры всех тем — одним gawk (а не awk на тему): «папка<TAB>#bg #fg …».
+    local d p
+    while IFS=$'\t' read -r d p; do pal[$d]=$p; done < <(
+      shopt -s nullglob
+      gawk -F'"' 'BEGINFILE { delete c } /^(background|foreground|accent|red|yellow|green|blue|magenta) *=/ { k = $1; sub(/ .*/, "", k); c[k] = $2 }
+        ENDFILE { n = split("background foreground accent red yellow green blue magenta", ks, " "); o = ""
+                  for (i = 1; i <= n; i++) if (c[ks[i]] != "") o = o (o != "" ? " " : "") c[ks[i]]
+                  d = FILENAME; sub(/\/colors\.toml$/, "", d); print d "\t" o }' \
+        "$HOME"/.config/omarchy/themes/*/colors.toml "$OMARCHY_PATH"/themes/*/colors.toml 2>/dev/null)
     theme_row() {
-      local slug=$1 star=$2 dir label
+      local slug=$1 star=$2 dir label w prev="" cur=0
       dir="$HOME/.config/omarchy/themes/$slug"
       [[ -d $dir ]] || dir="$OMARCHY_PATH/themes/$slug"
       [[ -d $dir ]] || return 0
-      label=$(sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g' <<<"$slug")
-      printf '%s\t%s\t%s\t%s\t%s\n' "$star$label" "$slug" "$(theme_preview "$dir")" "$([[ $slug == "$current" ]] && echo 1 || echo 0)" "$(theme_palette "$dir")"
+      # Как sed 's/(^|-)([a-z])/\u…/g; s/-/ /g': заглавная в начале и после дефиса.
+      local i c prevc=-
+      label=""
+      for ((i = 0; i < ${#slug}; i++)); do
+        c=${slug:i:1}
+        if [[ $c == - ]]; then label+=" "
+        elif [[ $prevc == - && $c == [a-z] ]]; then label+=${c^}
+        else label+=$c; fi
+        prevc=$c
+      done
+      shopt -s nullglob nocaseglob
+      for p in "$dir"/preview.{png,jpg,jpeg,webp} "$dir"/backgrounds/*.{jpg,jpeg,png,webp}; do [[ -f $p ]] && { prev=$p; break; }; done
+      shopt -u nullglob nocaseglob
+      [[ $slug == "$current" ]] && cur=1
+      printf '%s\t%s\t%s\t%s\t%s\n' "$star$label" "$slug" "$prev" "$cur" "${pal[$dir]-}"
     }
     if ((${#favs[@]})); then
       printf '%s\t%s\t\t0\t\theader\n' "$(t "Favorites")" "section:Favorites"
@@ -2377,7 +2509,7 @@ STYLES
     fi
     while read -r slug; do
       [[ -n $slug ]] || continue
-      printf '%s\n' "${favs[@]}" | grep -xF -- "$slug" >/dev/null && continue
+      [[ -n ${is_fav[$slug]-} ]] && continue
       theme_row "$slug" ""
     done <<<"$all"
     unset -f theme_row
@@ -2663,7 +2795,16 @@ thumbs() {
 }
 
 status() {
-  local anim=custom f
+  local anim=custom f olist blist ocur="" bcur="" ln a b c d e g
+  # Прозрачность и блюр: один `list` на каждый; текущий — строка с флагом 1 (иначе — `current`).
+  olist=$("$OPACITY" list 2>/dev/null)
+  blist=$("$BLUR" list 2>/dev/null)
+  while read -r a b c d _; do [[ $d == 1 ]] && { ocur=$a; break; }; done <<<"$olist"
+  while read -r a b c d e g _; do [[ $g == 1 ]] && { bcur=$a; break; }; done <<<"$blist"
+  [[ -n $ocur ]] || ocur=$("$OPACITY" current 2>/dev/null)
+  [[ -n $bcur ]] || bcur=$("$BLUR" current 2>/dev/null)
+  CUR_OPACITY=$ocur
+  match_prime   # текущие тема, скин, lock — один раз для пресетов и стилей ниже
   [[ -s $ANIM_ACTIVE ]] || anim=default
   while read -r f; do
     cmp -s "$f" "$ANIM_ACTIVE" && { anim=$(basename "$f" .lua); break; }
@@ -2676,8 +2817,8 @@ status() {
   printf 'wallpaper\t%s\n' "$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null)"
   printf 'anims\t%s\n' "$anim"
   printf 'shader\t%s\n' "$(current_shader)"
-  printf 'opacity\t%s\n' "$("$OPACITY" current 2>/dev/null)"
-  printf 'blur\t%s\n' "$("$BLUR" current 2>/dev/null)"
+  printf 'opacity\t%s\n' "$ocur"
+  printf 'blur\t%s\n' "$bcur"
   printf 'glyph\t%s\n' "$(glyph_status)"
   printf 'bar-skin\t%s\n' "$(current_skin)"
   printf 'bar-layout\t%s\n' "$(current_layout)"
@@ -2694,8 +2835,8 @@ status() {
       END { if (!c) c = 4; s = c - 3; if (s < 1) s = 1; e = s + 6; if (e > NR) e = NR
             for (i = s; i <= e; i++) printf "%s%s", (i > s ? "|" : ""), a[i] }')"
   # Numbers for the preview stage: "active inactive" / "size passes vibrancy noise".
-  printf 'opacity-values\t%s\n' "$("$OPACITY" list 2>/dev/null | awk '$4 == 1 { print $2, $3 }')"
-  printf 'blur-values\t%s\n' "$("$BLUR" list 2>/dev/null | awk '$6 == 1 { print $2, $3, $4, $5 }')"
+  printf 'opacity-values\t%s\n' "$(awk '$4 == 1 { print $2, $3 }' <<<"$olist")"
+  printf 'blur-values\t%s\n' "$(awk '$6 == 1 { print $2, $3, $4, $5 }' <<<"$blist")"
 }
 
 # Вернуть сохранённое после `hyprctl reload` (Customizer зовёт это на configreloaded и при старте
@@ -2777,8 +2918,8 @@ search_index() {
 
 mkdir -p "$RUN_DIR" "$STATE_DIR"
 case "${1:-}" in
-list) list "${2:-}" "${3:-}" ;;
-status) status ;;
+list) READ_ONLY=1 list "${2:-}" "${3:-}" ;;
+status) READ_ONLY=1 status ;;
 available) available ;;
 search-index) search_index ;;
 restore) restore ;;

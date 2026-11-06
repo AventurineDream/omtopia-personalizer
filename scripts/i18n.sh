@@ -30,9 +30,10 @@ t() {
     s=${s//\\/\\\\}
     s=${s//%/%%}
     s=${s//%%s/%s}
+    # T_OUT=<имя переменной> — записать туда, а не в stdout (без подоболочки $(t …)).
     # shellcheck disable=SC2059
-    printf -- "$s" "$@"
+    if [[ -n ${T_OUT:-} ]]; then printf -v "$T_OUT" -- "$s" "$@"; else printf -- "$s" "$@"; fi
   else
-    printf '%s' "$s"
+    if [[ -n ${T_OUT:-} ]]; then printf -v "$T_OUT" '%s' "$s"; else printf '%s' "$s"; fi
   fi
 }
