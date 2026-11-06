@@ -2575,28 +2575,43 @@ Item {
                   readonly property var bar: root.mockBar()
                   readonly property bool vertical: bar.position === "left" || bar.position === "right"
 
-                  ClippingRectangle {
-                    id: barScreen
-                    anchors.fill: parent
-                    radius: root.innerRadius
-                    color: "transparent"
+                  // Горизонтальный бар — полоса экрана в настоящем масштабе (как было). Вертикальный во всю
+                  // высоту экрана в низкую карточку не влезал и обрезался: экран рисуется в настоящем размере
+                  // и уменьшается так, чтобы вся его высота вошла в карточку, у той стороны, где бар.
+                  Item {
+                    id: barCanvas
+                    readonly property real sw: panel.screen ? panel.screen.width : 1440
+                    readonly property real sh: panel.screen ? panel.screen.height : 900
+                    readonly property real k: barStage.vertical ? Math.min(1, barStage.height / sh) : 1
+                    width: barStage.vertical ? Math.min(sw, barStage.width / k) : barStage.width
+                    height: barStage.vertical ? sh : barStage.height
+                    scale: k
+                    transformOrigin: Item.TopLeft
+                    x: barStage.vertical ? Math.round((barStage.width - width * k) / 2) : 0
 
-                    Image {
+                    ClippingRectangle {
+                      id: barScreen
                       anchors.fill: parent
-                      source: barStage.wallpaper
-                      sourceSize.width: Math.max(1, stageArea.width)
-                      sourceSize.height: Math.max(1, stageArea.height)
-                      fillMode: Image.PreserveAspectCrop
-                      verticalAlignment: barStage.bar.position === "bottom" ? Image.AlignBottom : Image.AlignTop
-                      asynchronous: true
-                    }
+                      radius: root.innerRadius / barCanvas.k
+                      color: "transparent"
 
-                    BarMock {
-                      anchors.fill: parent
-                      skin: root.mockSkin()
-                      bar: barStage.bar
-                      palette: root.themePalette
-                      screenWidth: panel.screen ? panel.screen.width : 1440
+                      Image {
+                        anchors.fill: parent
+                        source: barStage.wallpaper
+                        sourceSize.width: Math.max(1, barCanvas.width * barCanvas.k * 2)
+                        fillMode: Image.PreserveAspectCrop
+                        verticalAlignment: barStage.bar.position === "bottom" ? Image.AlignBottom : Image.AlignTop
+                        horizontalAlignment: barStage.bar.position === "right" ? Image.AlignRight : Image.AlignLeft
+                        asynchronous: true
+                      }
+
+                      BarMock {
+                        anchors.fill: parent
+                        skin: root.mockSkin()
+                        bar: barStage.bar
+                        palette: root.themePalette
+                        screenWidth: barCanvas.sw
+                      }
                     }
                   }
 
