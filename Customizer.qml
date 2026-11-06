@@ -160,7 +160,13 @@ Item {
   property var lastPointer: null     // window coords of the last hover event
   property string keepValue: ""      // row (by value) to stay on when a list reloads after a tweak
   property string wallPath: ""       // Wallpaper: папка-категория внутри ~/.config/omarchy/backgrounds/<тема>
-  property string pendingTweak: ""   // a step that came in while the previous one ran (held key)
+  // Шаги, пришедшие, пока предыдущий ещё выполняется (зажатая клавиша, быстрые клики):
+  // [{ key, dir }] — выполняются по очереди, ни один не теряется.
+  property var tweakQueue: []
+  // Значение (raw), показанное до ответа customizer.sh: value строки -> raw. Пока шаги идут,
+  // оно накладывается на перечитанный список, чтобы переключатель не мигал назад.
+  property var optimistic: ({})
+  property var pendingSet: null      // { index, value } — значение мышью, пока пишется предыдущее
   // Ручной ввод значения (i): строка, которую правят, её начальный текст и ошибка проверки.
   property int editingIndex: -1
   property string editInitial: ""
@@ -548,8 +554,10 @@ Item {
     last[categories[index].group] = index
     root.groupLast = last
     contentFade.restart()
-    root.pendingTweak = ""
     root.reloadQueued = false
+    root.tweakQueue = []
+    root.optimistic = ({})
+    root.pendingSet = null
     root.keepValue = ""
     root.filtering = false
     root.filterText = ""
@@ -601,6 +609,10 @@ Item {
       thumbsProc.running = true
     }
     if (key !== root.category.key) return
+    if (root.stepsInFlight()) {
+      for (var oi = 0; oi < rows.length; oi++)
+        if (root.optimistic[rows[oi].value] !== undefined) rows[oi].raw = root.optimistic[rows[oi].value]
+    } else root.optimistic = ({})
     root.loading = false
     root.items = rows
     // Индекс — в отфильтрованном списке (его показывает displayModel), заголовки разделов не выделяются.
@@ -1045,12 +1057,11 @@ Item {
     return row.note || root.previewText
   }
 
-  // Bar Tweaks: step the selected parameter and reload the list on the same row.
-  // The overlay stays open; the bar behind it and the mock follow bar-skin.json.
-  // A held key autorepeats faster than customizer.sh runs: the latest step waits
-  // in pendingTweak and runs when the previous one exits, and the list is only
-  // re-read once the steps stop. Killing a running lister to restart it used to
-  // deliver its partial output and drop the selection back to the first row.
+  // Шаг настройки: значение на экране меняется сразу (predictStep — те же правила, что у
+  // `customizer.sh tweak`), сам шаг уходит в customizer.sh. Зажатая клавиша шагает быстрее,
+  // чем отвечает скрипт: шаги встают в tweakQueue и выполняются по очереди, список
+  // перечитывается один раз, когда очередь опустела, — и правит предсказание, если оно
+  // разошлось. Убивать идущий lister нельзя: он отдавал половину вывода и сбрасывал выделение.
   // Строка-настройка: вся категория tweak или строка "tweak:<key>" внутри галереи.
   function isTweakRow(row) {
     return row !== null && !root.isHeader(row) && (root.category.tweak === true || /^tweak:/.test(row.value))
@@ -1075,21 +1086,82 @@ Item {
     }
   }
   // Значение мышью (ползунок, сегмент): tweak <key> set <value>, как ручной ввод (i).
+  // На экране — сразу; пока пишется предыдущее, ждёт последнее (pendingSet).
   function setTweakAt(index, value) {
-    if (index < 0 || index >= displayModel.count || editor.running) return
+    if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
     if (!root.isTweakRow(row)) return
     root.clickSelect(index)
+    if (row.kind === "num" || row.kind === "enum" || row.kind === "bool") root.setRowRaw(index, String(value))
+    if (editor.running) { root.pendingSet = { index: index, value: String(value) }; return }
     editor.key = root.tweakKey(row)
     editor.command = [root.script, "tweak", editor.key, "set", String(value)]
     editor.running = true
   }
 
+  // Что покажет строка после шага dir — те же правила, что у tweak() в customizer.sh.
+  // null — не берёмся угадывать (цвета, шрифты, виджеты бара): ждём ответа скрипта.
+  function predictStep(row, dir) {
+    var kind = String(row.kind || ""), args = String(row.args || ""), raw = String(row.raw || "")
+    var key = root.tweakKey(row)
+    if (/^(w|wset):/.test(key) || key === "fontProfile") return null
+    if (kind === "bool") {
+      if (dir === "reset") return args
+      return raw === "true" ? "false" : "true"
+    }
+    if (kind === "enum") {
+      var list = args.split(" ").filter(function(x) { return x !== "" })
+      if (dir === "reset") return list.length ? list[0] : null
+      var i = list.indexOf(raw)
+      if (i < 0 || list.length === 0) return null
+      return list[(i + (dir === "-" ? -1 : 1) + list.length) % list.length]
+    }
+    if (kind === "num") {
+      var a = args.split(" ").map(Number)
+      if (a.length < 4) return null
+      var lo = a[0], hi = a[1], st = a[2], def = a[3]
+      if (dir === "reset") return String(def)
+      var c = Number(raw), d = dir === "-" ? -1 : 1, v
+      if (!isFinite(c) || !(st > 0)) return null
+      // -1 = «как в стоке»: шаг вверх из него — 0, вниз до него — с нуля.
+      if (lo === -1 && c < 0) v = d > 0 ? 0 : -1
+      else {
+        v = c + d * st
+        v = (v >= 0 ? Math.floor(v / st + 0.5) : Math.ceil(v / st - 0.5)) * st
+        if (lo === -1 && v < 0) v = -1
+      }
+      v = Math.max(lo, Math.min(hi, v))
+      if (st === Math.floor(st)) return String(Math.round(v))
+      return v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")
+    }
+    return null
+  }
+  // Показать новое значение строки сразу (до ответа customizer.sh).
+  function setRowRaw(index, raw) {
+    if (index < 0 || index >= displayModel.count) return
+    var value = displayModel.get(index).value
+    var o = ({})
+    for (var k in root.optimistic) o[k] = root.optimistic[k]
+    o[value] = raw
+    root.optimistic = o
+    displayModel.setProperty(index, "raw", raw)
+    for (var i = 0; i < root.items.length; i++) if (root.items[i].value === value) root.items[i].raw = raw
+    var v = root.viewOf[index]
+    if (v !== undefined && v < viewModel.count && viewModel.get(v).idx === index) viewModel.setProperty(v, "raw", raw)
+    if (root.selectedIndex === index && root.selectedRow) {
+      var r = root.rowObject(displayModel.get(index))
+      root.selectedRow = r
+    }
+  }
+
   function tweak(dir) {
     if (root.pane !== 1 || !root.selectedRow || !root.isTweakRow(root.selectedRow)) return
-    if (tweaker.running) { root.pendingTweak = dir; return }
-    tweaker.key = root.tweakKey(root.selectedRow)
-    tweaker.command = [root.script, "tweak", tweaker.key, dir]
+    var key = root.tweakKey(root.selectedRow)
+    var next = root.predictStep(displayModel.get(root.selectedIndex), dir)
+    if (next !== null) root.setRowRaw(root.selectedIndex, next)
+    if (tweaker.running) { root.tweakQueue = root.tweakQueue.concat([{ key: key, dir: dir }]); return }
+    tweaker.key = key
+    tweaker.command = [root.script, "tweak", key, dir]
     tweaker.running = true
   }
 
@@ -1117,14 +1189,20 @@ Item {
   }
 
   function tweakDone() {
-    var next = root.pendingTweak
-    root.pendingTweak = ""
-    if (next && root.selectedRow && root.isTweakRow(root.selectedRow) && root.tweakKey(root.selectedRow) === tweaker.key) {
-      tweaker.command = [root.script, "tweak", tweaker.key, next]
+    if (root.tweakQueue.length > 0) {
+      var q = root.tweakQueue
+      var step = q[0]
+      root.tweakQueue = q.slice(1)
+      tweaker.key = step.key
+      tweaker.command = [root.script, "tweak", step.key, step.dir]
       tweaker.running = true
       return
     }
     root.reloadCategory()
+  }
+  // Шаги или запись ещё идут — перечитанный список не должен перебить показанное значение.
+  function stepsInFlight() {
+    return tweaker.running || root.tweakQueue.length > 0 || editor.running || root.pendingSet !== null
   }
 
   function reloadCategory() {
@@ -1515,6 +1593,16 @@ Item {
     property string key: ""
     stderr: StdioCollector { id: editorErr }
     onExited: function(code) {
+      if (root.pendingSet !== null) {
+        var ps = root.pendingSet
+        root.pendingSet = null
+        if (ps.index < displayModel.count) {
+          editor.key = root.tweakKey(displayModel.get(ps.index))
+          editor.command = [root.script, "tweak", editor.key, "set", ps.value]
+          editor.running = true
+          return
+        }
+      }
       if (code === 0) {
         if (root.editingIndex >= 0) root.cancelEdit()
         root.reloadCategory()
