@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""Команды, которых нет у bash-эталона (сверять не с чем): wall-delete, launcher-open.
+"""Команды, которых нет у bash-эталона (сверять не с чем): wall-delete, launcher-open, Wallpaper FX выкл.
 
   /usr/bin/python3 -I tests/test_new_commands.py
 
@@ -19,7 +19,7 @@ def sandbox():
     base = tempfile.mkdtemp(prefix="customizer-new.", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
     home, stubs, log = (os.path.join(base, n) for n in ("home", "stubs", "calls.log"))
     os.makedirs(stubs)
-    for name in ("gio", "omarchy-theme-bg-next", "notify-send", "setsid"):
+    for name in ("gio", "omarchy-theme-bg-next", "notify-send", "setsid", "omarchy"):
         extra = '[ "$1" = trash ] && mv "$2" "$2.trashed"\n' if name == "gio" else ""
         with open(os.path.join(stubs, name), "w") as f:
             f.write(f'#!/bin/sh\nprintf "%s\\n" "{name} $*" >> "{log}"\n{extra}')
@@ -94,6 +94,18 @@ def main():
     run(env, "apply", "launcher", "open")
     p = last_payload() or {}
     check("apply launcher open returns to its row", json.loads(p.get("returnTo", "{}")).get("value") == "open")
+
+    # ── Wallpaper FX выключен в shell.json → первая строка «включить», ⏎ — omarchy plugin enable ──
+    first = run(env, "list", "wallpaper-fx")[1].split("\n")[0].split("\t")
+    check("fx off: enable row first", len(first) > 1 and first[1] == "enable-plugin")
+    run(env, "apply", "wallpaper-fx", "enable-plugin")
+    check("fx off: enable-plugin calls omarchy plugin enable",
+          "omarchy plugin enable kamradsmeshnyavy.background" in calls(log))
+    shell = os.path.join(home, ".config/omarchy/shell.json")
+    with open(shell, "w") as fh:
+        json.dump({"plugins": [{"id": "kamradsmeshnyavy.background"}]}, fh)
+    first = run(env, "list", "wallpaper-fx")[1].split("\n")[0].split("\t")
+    check("fx on: no enable row", len(first) > 1 and first[1] != "enable-plugin")
 
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0

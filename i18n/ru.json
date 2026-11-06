@@ -704,5 +704,10 @@
   "delete": "удалить",
   "cancel": "отмена",
   "Only your own wallpapers can be deleted (theme copies come back on theme change)": "Удалять можно только свои обои (копии из темы вернутся при смене темы)",
-  "Could not move %s to the trash": "Не удалось удалить %s в корзину"
+  "Could not move %s to the trash": "Не удалось удалить %s в корзину",
+  "⚠ Wallpaper FX is off — ⏎ turn it on": "⚠ Wallpaper FX выключен — ⏎ включить",
+  "The plugin is installed but not enabled in shell.json, so wallpapers change with the stock slanted wipe and the effects below do nothing.": "Плагин установлен, но не включён в shell.json: обои меняются стоковым косым срезом, а эффекты ниже ни на что не влияют.",
+  "⏎ — enable it (omarchy plugin enable %s)": "⏎ — включить (omarchy plugin enable %s)",
+  "Enabled": "Включён",
+  "Could not enable the plugin": "Не удалось включить плагин"
 }

@@ -903,6 +903,10 @@ def apply(category, value):
         if value.startswith("tweak:"):
             tweak_pick(value)
             raise Exit(0)
+        if value == "enable-plugin":
+            code = sh(["omarchy", "plugin", "enable", "kamradsmeshnyavy.background"])[0]
+            notify("-t", "3000", "Wallpaper FX", t("Enabled") if code == 0 else t("Could not enable the plugin"))
+            raise Exit(code)
         tweak_ops.set_key(state.FX_CFG, "type", value)
         notify("-t", "2000", "Wallpaper FX", t("Transition: %s", value))
     elif category == "theme-switcher":

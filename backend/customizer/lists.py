@@ -1,6 +1,6 @@
 """`list <категория>` — строки для overlay (категории настроек и простые списки; остальное —
 lists_more.py)."""
-from . import jsonio, paths, tweaks
+from . import jsonio, paths, state, tweaks
 from .i18n import t
 
 FX_CFG = paths.CONFIG / "wallpaper-transition.json"
@@ -20,8 +20,17 @@ _FX_EFFECTS = [
 ]
 
 
+FX_PLUGIN = "kamradsmeshnyavy.background"
+
+
 def _wallpaper_fx():
-    out = tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
+    out = []
+    # Установлен, но выключен (например, shell.json переписан обновлением) — переходы молча стоковые.
+    if not state.plugin_enabled(FX_PLUGIN):
+        out.append(f"{t('⚠ Wallpaper FX is off — ⏎ turn it on')}\tenable-plugin\t\t0\t"
+                   f"{t('The plugin is installed but not enabled in shell.json, so wallpapers change with the stock slanted wipe and the effects below do nothing.')}"
+                   f"\\n\\n{t('⏎ — enable it (omarchy plugin enable %s)', FX_PLUGIN)}")
+    out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"
     for e, desc in _FX_EFFECTS:
         out.append(f"{e}\t{e}\t\t{1 if e == cur else 0}\t{t(desc)}\\n\\n{t('⏎ — select · p — play it on the desktop')}")

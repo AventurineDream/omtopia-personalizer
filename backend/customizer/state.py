@@ -56,6 +56,16 @@ def alt(*values):
     return values[-1] if values else None
 
 
+def plugin_enabled(pid: str) -> bool:
+    """Плагин включён в shell.json (.plugins или сам бар): установленный, но выключенный ничего не делает."""
+    shell = jsonio.read_object(paths.SHELL_JSON)
+    bar = shell.get("bar")
+    if isinstance(bar, dict) and bar.get("id") == pid:
+        return True
+    plugins = shell.get("plugins")
+    return isinstance(plugins, list) and any(isinstance(p, dict) and p.get("id") == pid for p in plugins)
+
+
 def theme_name() -> str:
     v = fsutil.read_text(paths.THEME_NAME)
     return "default" if v is None else v
