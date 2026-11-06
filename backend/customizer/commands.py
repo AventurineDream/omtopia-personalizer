@@ -3,7 +3,7 @@ CUSTOMIZER_LEGACY=1), пока перенос не закончен. Резул�
 import os
 import subprocess
 
-from . import i18n, lists, lists_more, paths, settings, state
+from . import i18n, lists, lists_more, paths, settings, state, tweak_ops
 
 
 def _search_index():
@@ -34,6 +34,8 @@ def legacy(args, stdin=None):
 def run(args):
     state.reset()   # «что стоит сейчас» считается заново для каждого запроса
     cmd = args[0] if args else ""
+    if cmd == "tweak" and len(args) >= 2:
+        return tweak_ops.run(args)
     if cmd == "status":
         return 0, _lines(lists_more.status()), ""
     if cmd == "available":
@@ -52,6 +54,6 @@ def run(args):
 def handled_here(args) -> bool:
     """Выполнит ли команду сам Python (для CLI: иначе — сразу exec в bash, без лишнего круга)."""
     cmd = args[0] if args else ""
-    if cmd in ("lang", "search-index", "status", "available"):
+    if cmd in ("lang", "search-index", "status", "available") or (cmd == "tweak" and len(args) >= 2):
         return True
     return cmd == "list" and len(args) >= 2 and (args[1] in lists.LISTS or args[1] == "theme-walls")
