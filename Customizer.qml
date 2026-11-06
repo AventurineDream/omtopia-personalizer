@@ -1054,7 +1054,7 @@ Item {
     else if (t === "K") root.scrollPreview(-1)
     else if (t === "r") root.randomPick()
     else if (t === "D") root.deletePreset()
-    else if (t === "f" && key === "themes") root.toggleFavoriteTheme()
+    else if (t === "f" && (key === "themes" || key === "theme-walls")) root.toggleFavorite()
     else if ((key === "walls" || key === "dotify") && t === "o") root.run("pick-files")
     else if ((key === "walls" || key === "dotify") && t === "O") root.run("pick-dir")
     else return false
@@ -1375,12 +1375,16 @@ Item {
   }
 
   // Wallpaper FX: выбрать эффект строки (если это эффект) и проиграть его на рабочем столе.
-  // Themes: f — в избранное / из избранного; оверлей открыт, список перечитывается, курсор остаётся на теме.
-  function toggleFavoriteTheme() {
+  // Темы и обои: f — в избранное / из избранного; оверлей открыт, список перечитывается,
+  // курсор остаётся на строке. У обоев — только файлы (не папки-категории).
+  function toggleFavorite() {
     var row = root.selectedRow
-    if (root.pane !== 1 || !row || root.isHeader(row) || /^dynamic:/.test(String(row.value)) || favProc.running) return
-    favProc.slug = String(row.value)
-    favProc.command = [root.script, "theme-fav", favProc.slug]
+    if (root.pane !== 1 || !row || root.isHeader(row) || favProc.running) return
+    var v = String(row.value)
+    var walls = root.category.key === "theme-walls"
+    if (walls ? /^dir:/.test(v) : /^dynamic:/.test(v)) return
+    favProc.slug = v
+    favProc.command = [root.script, walls ? "wall-fav" : "theme-fav", v]
     favProc.running = true
   }
 
@@ -1461,7 +1465,7 @@ Item {
       if (root.category.key === "lock") g.push(["p", "preview live"], ["T", "refresh previews"])
       else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
       else g.push(["r", "random"])
-      if (root.category.key === "themes") g.push(["f", "favorite"])
+      if (root.category.key === "themes" || root.category.key === "theme-walls") g.push(["f", "favorite"])
       g.push(["v", "preview"], ["z", "full size"], ["n", "description"], ["?", "keys"])
       return g
     }

@@ -16,6 +16,7 @@ TRANSPARENT_BACKUP = RUN / "bar-transparent"
 ANIM_BACKUP = RUN / "active_animations.lua"
 PLAY_SOUND = paths.PLUGIN / "scripts/play-sound.sh"
 FAV_THEMES = paths.CONFIG / "customizer/favorite-themes.json"
+FAV_WALLS = paths.CONFIG / "customizer/favorite-wallpapers.json"
 WINDOW_CFG = paths.CONFIG / "customizer/windows.json"
 HYPR_STATE = paths.STATE.parent / "hypr"
 NO_GAPS_FLAG = paths.STATE.parent / "omarchy/toggles/hypr/window-no-gaps.lua"
@@ -85,6 +86,18 @@ def theme_fav(slug):
     cur = cur if isinstance(cur, list) else []
     cur = [x for x in cur if x != slug] if slug in cur else cur + [slug]
     tweak_ops.write_inplace(FAV_THEMES, cur)
+    return 0, ""
+
+
+def wall_fav(path):
+    """Избранные обои: абсолютный путь файла — добавить в конец / убрать."""
+    path = os.path.abspath(os.path.expanduser(path or ""))
+    if not os.path.isfile(path):
+        return 1, ""
+    cur = jsonio.read(FAV_WALLS)
+    cur = [x for x in cur if isinstance(x, str)] if isinstance(cur, list) else []
+    cur = [x for x in cur if x != path] if path in cur else cur + [path]
+    tweak_ops.write_inplace(FAV_WALLS, cur)
     return 0, ""
 
 
@@ -246,6 +259,8 @@ def run(args):
         return sh(["omarchy-shell", "-q", "glyph", "test", a[0] or "false"])[0], ""
     if cmd == "theme-fav":
         return theme_fav(a[0])
+    if cmd == "wall-fav":
+        return wall_fav(a[0])
     if cmd == "skin-delete":
         return skin_delete(a[0])
     if cmd == "layout-delete":
@@ -261,5 +276,5 @@ def run(args):
 
 COMMANDS = {"opacity-preview", "opacity-restore", "blur-preview", "blur-restore", "bar-skins-preview",
             "bar-skins-restore", "anim-preview", "anim-restore", "lock-preview", "sound-preview", "fx-replay",
-            "picker-open", "launcher-open", "glyph-test", "theme-fav", "skin-delete", "layout-delete",
+            "picker-open", "launcher-open", "glyph-test", "theme-fav", "wall-fav", "skin-delete", "layout-delete",
             "preset-delete", "style-delete", "restore"}

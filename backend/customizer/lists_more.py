@@ -16,6 +16,7 @@ PICKER_CACHE = paths.CACHE / "omarchy/image-selector"
 LOCK_USER_DIR = paths.CONFIG / "lock-designs"
 BAR_HIDDEN = paths.CONFIG / "customizer/bar-hidden.json"
 FAV_THEMES = paths.CONFIG / "customizer/favorite-themes.json"
+FAV_WALLS = paths.CONFIG / "customizer/favorite-wallpapers.json"
 SOUND_EVENTS = ["open", "close", "switch", "menu", "notify", "critical", "lock", "power", "volume"]
 OMARCHY_PATH = os.environ.get("OMARCHY_PATH", "")
 
@@ -278,6 +279,16 @@ def theme_walls(rel: str):
         parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
         out.append(f"󰁝  ..\tdir:{parent}\t\t0\t{t('Back: %s', parent or t('all categories'))}\t{rel}")
     exts = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp")
+    # Избранные (f): в корне — разделом наверху, из любых папок; в списках файлов — со ★.
+    favs = jsonio.read(FAV_WALLS)
+    favs = [f for f in favs if isinstance(f, str) and os.path.isfile(f)] if isinstance(favs, list) else []
+    favset = set(favs)
+    star = lambda f: "★ " if f in favset else ""  # noqa: E731
+    if not rel and favs:
+        out.append(f"{t('Favorites')}\tsection:Favorites\t\t0\t\theader")
+        for f in favs:
+            out.append(f"★ {os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
+        out.append(f"{t('All wallpapers')}\tsection:All wallpapers\t\t0\t\theader")
     if os.path.isdir(d):
         subs = fsutil.lsort([os.path.join(d, n) for n in os.listdir(d)
                              if not n.startswith(".") and os.path.isdir(os.path.join(d, n))])
@@ -293,13 +304,13 @@ def theme_walls(rel: str):
             out.append(f"󰉋  {name}\tdir:{rel + '/' if rel else ''}{name}\t{first}\t{_cur(cur)}\t"
                        f"{t('Category — wallpapers: %s', n)}{NL}{NL}{t('⏎ — open · h — back')}\t{t('wallpapers: %s', n)}")
         for f in fsutil.images_in(d, 1):
-            out.append(f"{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
+            out.append(f"{star(f)}{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
     if not rel:
         bg = paths.CONFIG / "themes" / state.theme_name() / "backgrounds"
         if not bg.is_dir():
             bg = paths.HOME / ".local/state/omarchy/current/theme/backgrounds"
         for f in fsutil.images_in(bg, 1):
-            out.append(f"{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
+            out.append(f"{star(f)}{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
     return out
 
 

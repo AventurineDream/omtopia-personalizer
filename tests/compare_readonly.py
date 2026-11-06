@@ -5,6 +5,7 @@
 
 Безопасно на живом столе: list/search-index/lang ничего не меняют. Пока перенос не закончен,
 сравнивается с bash (CUSTOMIZER_LEGACY=1); каждая перенесённая команда добавляется сюда."""
+import json
 import os
 import subprocess
 import sys
@@ -38,7 +39,15 @@ def bash(args):
 
 def main():
     bad = 0
+    favs = os.path.join(os.environ["HOME"], ".config/omarchy/customizer/favorite-wallpapers.json")
+    try:
+        has_favs = bool(json.load(open(favs)))
+    except (OSError, ValueError):
+        has_favs = False
     for args in CASES:
+        if has_favs and args[:2] == ["list", "theme-walls"]:
+            print("skip  " + " ".join(args) + "  (избранные обои — новое, у bash их нет)")
+            continue
         want = bash(args)
         code, got, err = commands.run(args)
         ok = got == want and code == 0

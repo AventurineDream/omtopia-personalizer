@@ -24,7 +24,7 @@ set -uo pipefail
 # по-старому; бэкенд сам зовёт этот скрипт с CUSTOMIZER_LEGACY=1 для того, что ещё не перенесено.
 if [[ -z ${CUSTOMIZER_LEGACY:-} ]]; then
   case "${1:-}" in
-  list | status | available | search-index | lang | tweak | restore | theme-fav | \
+  list | status | available | search-index | lang | tweak | restore | theme-fav | wall-fav | \
     opacity-preview | opacity-restore | blur-preview | blur-restore | bar-skins-preview | bar-skins-restore | \
     anim-preview | anim-restore | lock-preview | sound-preview | fx-replay | picker-open | launcher-open | glyph-test | \
     skin-delete | layout-delete | preset-delete | style-delete | apply | thumbs | picker-cache | lock-thumbs)
