@@ -11,7 +11,9 @@ breadcrumbs, a title, search across every setting and the group's tabs, a live-p
 setting cards — switches, segmented buttons, sliders, colour swatches — or a gallery of tiles. Home shows what is in
 use right now and quick actions. It follows the theme, the glass / solid material and the DOT-MATRIX style.
 
-![Desktop](screenshots/desktop.webp)
+![Customizer](screenshots/home.webp)
+
+<!-- Demo video: repo-videos/omarchy-customizer.mp4 — drag it here when editing this file on GitHub -->
 
 | Group | What's inside |
 |---|---|
@@ -24,11 +26,21 @@ use right now and quick actions. It follows the theme, the glass / solid materia
 
 \* appears only when the matching companion plugin is installed — see below.
 
-| Bar | Windows |
+| Theme | Wallpaper (favourites, `D` to trash) |
 | :---: | :---: |
-| ![Bar](screenshots/bar.webp) | ![Windows](screenshots/windows.webp) |
-| **Lock** | **Pickers** |
-| ![Lock](screenshots/lock.webp) | ![Pickers](screenshots/pickers.webp) |
+| ![Theme](screenshots/themes.webp) | ![Wallpaper](screenshots/wallpaper.webp) |
+| **Style — live scene, `z` full size** | **Bar skin** |
+| ![Style](screenshots/styles-full.webp) | ![Bar skin](screenshots/bar-skins.webp) |
+| **Animations — the curves play in the card** | **Screen shaders** |
+| ![Animations](screenshots/anims.webp) | ![Shaders](screenshots/shaders.webp) |
+| **Launcher — the real skin, live** | **Fonts** |
+| ![Launcher](screenshots/launcher-full.webp) | ![Fonts](screenshots/fonts.webp) |
+| **Search across every setting** | **Dotify in DOT-MATRIX** |
+| ![Search](screenshots/search.webp) | ![Dotify](screenshots/dotmatrix-dotify.webp) |
+
+The window follows the style: Glass, Paper and DOT-MATRIX —
+
+![Styles](screenshots/styles.webp)
 
 ## Install
 

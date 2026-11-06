@@ -11,7 +11,9 @@
 настроек (переключатели, сегменты, ползунки, образцы цвета) или галерея плиток. На Главной — что стоит сейчас и
 быстрые действия. Окно следует теме, материалу (стекло / сплошной) и стилю DOT-MATRIX.
 
-![Рабочий стол](screenshots/desktop.webp)
+![Customizer](screenshots/home.webp)
+
+<!-- Demo video: repo-videos/omarchy-customizer.mp4 — drag it here when editing this file on GitHub -->
 
 | Группа | Что внутри |
 |---|---|
@@ -24,11 +26,21 @@
 
 \* появляется, только если стоит соответствующий плагин-компаньон — см. ниже.
 
-| Бар | Окна |
+| Тема | Обои (избранное, `D` — в корзину) |
 | :---: | :---: |
-| ![Бар](screenshots/bar.webp) | ![Окна](screenshots/windows.webp) |
-| **Блокировка** | **Пикеры** |
-| ![Блокировка](screenshots/lock.webp) | ![Пикеры](screenshots/pickers.webp) |
+| ![Тема](screenshots/themes.webp) | ![Обои](screenshots/wallpaper.webp) |
+| **Стиль — живая сцена, `z` на весь размер** | **Скин бара** |
+| ![Стиль](screenshots/styles-full.webp) | ![Скин бара](screenshots/bar-skins.webp) |
+| **Анимации — кривые проигрываются в карточке** | **Шейдеры экрана** |
+| ![Анимации](screenshots/anims.webp) | ![Шейдеры](screenshots/shaders.webp) |
+| **Лаунчер — настоящий скин вживую** | **Шрифты** |
+| ![Лаунчер](screenshots/launcher-full.webp) | ![Шрифты](screenshots/fonts.webp) |
+| **Поиск по всем настройкам** | **Dotify в DOT-MATRIX** |
+| ![Поиск](screenshots/search.webp) | ![Dotify](screenshots/dotmatrix-dotify.webp) |
+
+Окно следует стилю: Стекло, Бумага и DOT-MATRIX —
+
+![Стили](screenshots/styles.webp)
 
 ## Установка
 
