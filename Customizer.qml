@@ -2360,7 +2360,7 @@ Item {
                 if (c.key === "windows" || c.key === "widgets" || root.sceneCategories.indexOf(c.key) !== -1) return true
                 if (!row) return false
                 return c.key === "opacity" || c.key === "blur" || c.bar === true || c.fx === true || c.picker === true
-                  || (c.presetStage === true && presetStage.presetWallPath !== "")
+                  || c.presetStage === true || c.key === "anims" || c.key === "shaders"
                   || (c.key === "fonts" && !root.isHeader(row))
                   || (c.image === true && !root.isTweakRow(row))
               }
@@ -2711,51 +2711,50 @@ Item {
                 }
 
                 // Global Presets: hero wallpaper preview + description and JSON summary.
+                // Стиль / пресет: мини-стол с его баром, окнами и обоями (описание — по n).
                 Item {
                   id: presetStage
                   anchors.fill: parent
                   visible: root.category.presetStage === true && root.selectedRow !== null
-                  readonly property var presetData: root.category.presetStage === true && root.previewText ? root.parseJson(root.previewText) : ({})
-                  onPresetDataChanged: presetHeroImage.missing = false
-                  readonly property string presetWallPath: {
-                    var w = String(presetData.wallpaper || "")
-                    if (!w) return ""
-                    if (w.indexOf("~/") === 0) return Quickshell.env("HOME") + "/" + w.slice(2)
-                    return w
-                  }
-
-                  ClippingRectangle {
-                    id: presetHero
-                    visible: presetStage.presetWallPath !== ""
+                  // Строки-переключатели (что применять) и «Сохранить» — показывают стол как сейчас.
+                  readonly property var presetData: visible && root.selectedRow && !root.isTweakRow(root.selectedRow) && root.previewText
+                    ? root.parseJson(root.previewText) : ({})
+                  Previews.StylePreview {
                     anchors.fill: parent
-                    radius: root.innerRadius
-                    color: root.faint
-
-                    Image {
-                      id: presetHeroImage
-                      anchors.fill: parent
-                      // Файла уже нет (пресет снят со старым путём) — показать текущие обои, а не пустое поле.
-                      property bool missing: false
-                      onStatusChanged: if (status === Image.Error && !missing) missing = true
-                      source: !presetStage.visible || !presetStage.presetWallPath ? ""
-                        : (missing && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : root.fileUrl(presetStage.presetWallPath))
-                      sourceSize.width: Math.max(1, presetHero.width)
-                      sourceSize.height: Math.max(1, presetHero.height)
-                      fillMode: Image.PreserveAspectCrop
-                      asynchronous: true
-                    }
-
-                    Pill {
-                      visible: Boolean(presetStage.presetData.theme)
-                      anchors.left: parent.left
-                      anchors.bottom: parent.bottom
-                      anchors.margins: Style.space(10)
-                      tone: Color.foreground
-                      label: String(presetStage.presetData.theme || "")
-                        + (presetStage.presetData.barSkin ? "  ·  " + presetStage.presetData.barSkin : "")
-                    }
+                    anchors.margins: Style.space(10)
+                    t: root
+                    doc: presetStage.presetData
+                    currentWallpaper: root.wallpaperUrl
+                    activeSkin: root.activeSkin
+                    activeBar: root.activeBar
+                    palette: root.themePalette
+                    screenWidth: panel.screen ? panel.screen.width : 1440
+                    screenHeight: panel.screen ? panel.screen.height : 900
                   }
+                }
 
+                // Анимации: мини-сцена с кривыми пресета (код .lua — по n).
+                Previews.AnimsPreview {
+                  anchors.fill: parent
+                  anchors.margins: Style.space(10)
+                  visible: root.category.key === "anims" && root.selectedRow !== null
+                  t: root
+                  lua: visible ? root.previewText : ""
+                  wallpaper: visible ? root.wallpaperUrl : ""
+                  screenWidth: panel.screen ? panel.screen.width : 1440
+                  screenHeight: panel.screen ? panel.screen.height : 900
+                }
+
+                // Шейдер экрана: мини-стол через Qt-вариант шейдера (код .frag — по n).
+                Previews.ShaderPreview {
+                  anchors.fill: parent
+                  anchors.margins: Style.space(10)
+                  visible: root.category.key === "shaders" && root.selectedRow !== null
+                  t: root
+                  shader: !visible ? "" : /^(toggle|next)$/.test(root.selectedRow.value) ? String(root.status.shader || "") : String(root.selectedRow.value)
+                  wallpaper: visible ? root.wallpaperUrl : ""
+                  screenWidth: panel.screen ? panel.screen.width : 1440
+                  screenHeight: panel.screen ? panel.screen.height : 900
                 }
 
                 // Fonts: образцы текста шрифтами профиля — заголовок (title), интерфейс (sans), код (mono).
@@ -2769,39 +2768,54 @@ Item {
                   readonly property string mono: faces.length > 1 ? faces[1] : Style.font.family
                   readonly property string title: faces.length > 2 ? faces[2] : sans
 
-                  Column {
-                    width: parent.width
+                  // Специмен: три колонки — заголовки, интерфейс, код — крупное «Aa», алфавит, цифры.
+                  Row {
+                    anchors.fill: parent
                     spacing: Style.space(14)
-                    Text {
-                      width: parent.width
-                      text: root.tr("Good ideas take time") + " · Хорошие идеи"
-                      font.family: fontStage.title
-                      font.pixelSize: Math.round(Style.font.title * 2)
-                      wrapMode: Text.Wrap
-                      color: root.foreground
-                    }
-                    Text {
-                      width: parent.width
-                      text: "Съешь же ещё этих мягких французских булок, да выпей чаю.\nThe quick brown fox jumps over the lazy dog. 0123456789"
-                      font.family: fontStage.sans
-                      font.pixelSize: Math.round(Style.font.body * 1.15)
-                      wrapMode: Text.Wrap
-                      lineHeight: 1.2
-                      color: root.foreground
-                      opacity: 0.9
-                    }
-                    Rectangle {
-                      width: parent.width
-                      height: codeSample.implicitHeight + Style.space(16)
-                      radius: root.innerRadius
-                      color: root.faint
-                      Text {
-                        id: codeSample
-                        anchors { fill: parent; margins: Style.space(8) }
-                        text: "fn main() -> Result<()> {  // != >= => ->\n    println!(\"привет, мир\");\n}"
-                        font.family: fontStage.mono
-                        font.pixelSize: Style.font.body
-                        color: root.foreground
+                    Repeater {
+                      model: [
+                        { face: fontStage.title, role: "Titles" },
+                        { face: fontStage.sans, role: "Interface" },
+                        { face: fontStage.mono, role: "Code" }
+                      ]
+                      Rectangle {
+                        required property var modelData
+                        width: (parent.width - 2 * Style.space(14)) / 3
+                        height: parent.height
+                        radius: root.rCard
+                        color: root.surfaceLow
+                        Column {
+                          anchors.centerIn: parent
+                          width: parent.width - Style.space(28)
+                          spacing: Style.space(6)
+                          Text {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "Aa Яя"
+                            font.family: modelData.face
+                            font.pixelSize: Math.round(Math.min(parent.width / 3.2, fontStage.height * 0.28))
+                            color: root.foreground
+                          }
+                          Text {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            text: modelData.role === "Code" ? "{ } => != >= 0O 1lI" : "AaBbCc АаБбВв 0123"
+                            font.family: modelData.face
+                            font.pixelSize: Style.font.title
+                            elide: Text.ElideRight
+                            color: root.foreground
+                            opacity: 0.85
+                          }
+                          Text {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            text: root.tr(modelData.role) + " · " + modelData.face
+                            elide: Text.ElideRight
+                            font.family: root.fontFamily
+                            font.pixelSize: Style.font.caption
+                            color: root.muted
+                          }
+                        }
                       }
                     }
                   }
@@ -3045,7 +3059,7 @@ Item {
                   anchors.right: parent.right
                   anchors.bottom: parent.bottom
                   anchors.margins: Style.space(10)
-                  visible: hero.hasVisual && !root.heroCode
+                  visible: hero.hasVisual
                   height: Style.space(30)
                   width: infoRow.implicitWidth + Style.space(18)
                   radius: root.dot ? Style.space(3) : height / 2
