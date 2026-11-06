@@ -9,6 +9,7 @@ import qs.Commons
 import qs.Ui
 import "dotmatrix" as DotMatrix
 import "ui"
+import "previews" as Previews
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -154,6 +155,10 @@ Item {
   property var searchIndex: []
   property int searchSel: -1
   property bool heroCollapsed: false  // v — свернуть карточку превью
+  property bool noteOpen: false       // n — описание поверх сцены превью
+  // Значения настроек открытой категории (ключ -> raw, вместе с предсказанными): их читают сцены
+  // превью — сцена меняется сразу при шаге, без своего FileView.
+  property var tweakValues: ({})
   property bool pendingRandom: false  // «Случайная тема» с домашней: выбрать, как только темы загрузятся
   property string toast: ""           // ошибка записи значения мышью — в футере на 4 с
   property var status: ({})
@@ -707,7 +712,16 @@ Item {
       root.selectedIndex = root.selectableFrom(rows, root.selectedIndex, 1)
     root.buildView(!same)
     if (!same) Qt.callLater(root.ensureVisible)
+    root.refreshTweakValues()
     root.selectionChanged()
+  }
+  function refreshTweakValues() {
+    var out = ({})
+    for (var i = 0; i < root.items.length; i++) {
+      var r = root.items[i]
+      if (r.kind && !root.isHeader(r)) out[String(r.value).replace(/^tweak:/, "")] = r.raw
+    }
+    root.tweakValues = out
   }
 
   // Ряды страницы (viewModel): подряд идущие картинки (галерея) собираются по gridCols плиток,
@@ -1034,6 +1048,30 @@ Item {
     var c = root.category
     return c.image === true || c.bar === true || c.fx === true || c.picker === true || c.presetStage === true
       || ["opacity", "blur", "fonts", "windows", "widgets", "anims", "shaders"].indexOf(c.key) !== -1
+      || root.sceneCategories.indexOf(c.key) !== -1
+  }
+  // Категории с макетом из previews/ (сцена всегда, описание — по n).
+  readonly property var sceneCategories: ["dotify", "osd", "notifications", "dashboard", "lock-tweaks", "glyph", "sounds"]
+  readonly property string wallpaperUrl: root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
+  // Картинка для превью Dotify: файл строки, если это картинка, иначе текущие обои.
+  readonly property string dotifySource: {
+    var row = root.selectedRow
+    var p = row ? String(row.preview || "") : ""
+    if (/\.(jpe?g|png|webp|bmp|gif)$/i.test(p)) return root.fileUrl(p)
+    return root.wallpaperUrl
+  }
+  // Снимок дизайна экрана блокировки (как lock_thumb_name в customizer.sh).
+  readonly property string lockShot: root.status.lock
+    ? root.fileUrl(root.thumbDir.replace(/\/thumbs$/, "") + "/lock/" + String(root.status.lock).replace(/[^A-Za-z0-9._-]/g, "-") + ".jpg") : ""
+  // Звуки: пакет под курсором (pack:<имя>) или выбранный; его описание из строки списка.
+  readonly property string soundPack: {
+    var row = root.selectedRow
+    if (row && /^pack:/.test(row.value)) return row.value.slice(5)
+    return String(root.tweakValues.soundPack || root.status.sound || "theme")
+  }
+  readonly property string soundPackNote: {
+    for (var i = 0; i < root.items.length; i++) if (root.items[i].value === "pack:" + root.soundPack) return root.items[i].note
+    return ""
   }
   readonly property bool heroCode: root.category.key === "anims" || root.category.key === "shaders"
   // Текст справа от сцены: заметка строки и то, что раньше было под сценой.
@@ -1146,6 +1184,7 @@ Item {
     root.optimistic = o
     displayModel.setProperty(index, "raw", raw)
     for (var i = 0; i < root.items.length; i++) if (root.items[i].value === value) root.items[i].raw = raw
+    root.refreshTweakValues()
     var v = root.viewOf[index]
     if (v !== undefined && v < viewModel.count && viewModel.get(v).idx === index) viewModel.setProperty(v, "raw", raw)
     if (root.selectedIndex === index && root.selectedRow) {
@@ -1405,12 +1444,17 @@ Item {
       else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
       else g.push(["r", "random"])
       if (root.category.key === "themes") g.push(["f", "favorite"])
-      g.push(["v", "preview"], ["?", "keys"])
+      g.push(["v", "preview"], ["n", "description"], ["?", "keys"])
       return g
     }
     if (root.category.key === "lock-tweaks") return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["x", "default"], ["⏎", "step · pick"], ["p", "preview"], ["Esc", "back"]]
     if (root.category.key === "bar-widgets") return [["j k", "move"], ["h l", "move widget"], ["⏎ x", "on / off"], ["[ ]", "section"], ["Esc", "back"]]
-    if (root.category.tweak) return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["[ ]", "section"], ["x", "default"], ["⏎", "step · pick color"], ["Esc", "back"]]
+    if (root.category.tweak) {
+      var tw = [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["[ ]", "section"], ["x", "default"], ["⏎", "step · pick color"]]
+      if (root.sceneCategories.indexOf(root.category.key) !== -1) tw.push(["n", "description"])
+      tw.push(["Esc", "back"])
+      return tw
+    }
     if (root.category.fx || root.category.picker || root.category.key === "glyph" || root.category.key === "launcher" || root.category.key === "dotify") {
       var tw = root.isTweakRow(root.selectedRow)
       var pLabel = root.category.fx ? "play" : root.category.key === "glyph" ? "test" : "open"
@@ -1875,6 +1919,7 @@ Item {
           else if (!ctrl && t === "0") root.goHome()
           else if (!ctrl && t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)
           else if (!ctrl && t === "v" && !root.homeOpen) root.heroCollapsed = !root.heroCollapsed
+          else if (!ctrl && t === "n" && !root.homeOpen) root.noteOpen = !root.noteOpen
           else if (ctrl && k === Qt.Key_D) root.move(root.halfPage())
           else if (ctrl && k === Qt.Key_U) root.move(-root.halfPage())
           else if (ctrl && k === Qt.Key_F) root.move(root.halfPage() * 2)
@@ -2238,24 +2283,29 @@ Item {
             // Карточка превью: сцена слева, заметка справа (v — свернуть).
             Item {
               id: hero
+              clip: true
               visible: !root.homeOpen && root.heroAvailable && !root.heroCollapsed && root.selectedRow !== null
               anchors { top: parent.top; left: parent.left; right: parent.right }
-              height: visible ? Math.max(Style.space(200), Math.round(pageBody.height * 0.38)) : 0
+              // Макетам (previews/) — больше места: в них мелкие детали.
+              height: visible ? Math.max(Style.space(200), Math.round(pageBody.height
+                * (root.sceneCategories.indexOf(root.category.key) !== -1 ? 0.5 : 0.38))) : 0
               // Не через .visible сцен: они невидимы, пока невидим сам stageArea (замкнутый круг).
               readonly property bool hasVisual: {
                 var c = root.category, row = root.selectedRow
-                if (c.key === "windows" || c.key === "widgets") return true
+                if (c.key === "windows" || c.key === "widgets" || root.sceneCategories.indexOf(c.key) !== -1) return true
                 if (!row) return false
                 return c.key === "opacity" || c.key === "blur" || c.bar === true || c.fx === true || c.picker === true
                   || (c.presetStage === true && presetStage.presetWallPath !== "")
                   || (c.key === "fonts" && !root.isHeader(row))
                   || (c.image === true && !root.isTweakRow(row))
               }
+              // Описание поверх сцены (n / ⓘ); без сцены — описание и есть содержимое.
+              readonly property bool noteShown: !hasVisual || root.noteOpen
 
               ClippingRectangle {
                 id: stageArea
                 anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
-                width: hero.hasVisual ? Math.round(hero.width * 0.62) : 0
+                width: hero.hasVisual ? hero.width : 0
                 visible: width > 0
                 radius: root.rCard
                 color: root.surface
@@ -2266,7 +2316,7 @@ Item {
                 Image {
                   id: previewImage
                   anchors.fill: parent
-                  readonly property bool showImage: root.category.image && root.selectedRow !== null && !root.isTweakRow(root.selectedRow)
+                  readonly property bool showImage: root.category.image && root.category.key !== "dotify" && root.selectedRow !== null && !root.isTweakRow(root.selectedRow)
                   visible: showImage
                   source: showImage && root.selectedRow.preview ? root.fileUrl(root.selectedRow.preview) : ""
                   sourceSize.width: Math.max(1, stageArea.width * 2)
@@ -2868,6 +2918,70 @@ Item {
                   }
                 }
 
+                // Макеты из previews/ — по категории; значения — tweakValues (сразу при шаге).
+                Previews.DotifyPreview {
+                  anchors.fill: parent
+                  visible: root.category.key === "dotify"
+                  t: root
+                  v: root.tweakValues
+                  source: visible ? root.dotifySource : ""
+                  screenWidth: panel.screen ? panel.screen.width : 1440
+                  screenHeight: panel.screen ? panel.screen.height : 900
+                }
+                Previews.OsdPreview {
+                  anchors.fill: parent; anchors.margins: Style.space(12)
+                  visible: root.category.key === "osd"
+                  t: root; v: root.tweakValues; wallpaper: visible ? root.wallpaperUrl : ""
+                }
+                Previews.NotifyPreview {
+                  anchors.fill: parent; anchors.margins: Style.space(12)
+                  visible: root.category.key === "notifications"
+                  t: root; v: root.tweakValues; wallpaper: visible ? root.wallpaperUrl : ""
+                }
+                Previews.DashPreview {
+                  anchors.fill: parent; anchors.margins: Style.space(12)
+                  visible: root.category.key === "dashboard"
+                  t: root; v: root.tweakValues; wallpaper: visible ? root.wallpaperUrl : ""
+                }
+                Previews.LockPreview {
+                  anchors.fill: parent; anchors.margins: Style.space(12)
+                  visible: root.category.key === "lock-tweaks"
+                  t: root; v: root.tweakValues; image: visible ? root.lockShot : ""; design: String(root.status.lock || "")
+                }
+                Previews.GlyphPreview {
+                  anchors.fill: parent; anchors.margins: Style.space(12)
+                  visible: root.category.key === "glyph"
+                  t: root; v: root.tweakValues; wallpaper: visible ? root.wallpaperUrl : ""
+                }
+                Previews.SoundsPreview {
+                  anchors.fill: parent
+                  visible: root.category.key === "sounds"
+                  t: root; v: root.tweakValues; pack: root.soundPack; packNote: root.soundPackNote
+                  onPlay: function(pack, event) { Quickshell.execDetached([root.script, "sound-preview", pack, event]) }
+                }
+
+                // ⓘ — описание поверх сцены (n).
+                Rectangle {
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  anchors.margins: Style.space(10)
+                  visible: hero.hasVisual && !root.heroCode
+                  height: Style.space(30)
+                  width: infoRow.implicitWidth + Style.space(18)
+                  radius: root.dot ? Style.space(3) : height / 2
+                  color: infoHover.containsMouse || root.noteOpen ? root.secondaryContainer : Util.alpha(root.background, 0.8)
+                  z: 4
+                  Row {
+                    id: infoRow
+                    anchors.centerIn: parent
+                    spacing: Style.space(6)
+                    Text { text: "󰋽"; color: root.primary; font.family: root.iconFont; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: root.tr("Description"); color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+                    Keycap { label: "n"; anchors.verticalCenter: parent.verticalCenter }
+                  }
+                  MouseArea { id: infoHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.noteOpen = !root.noteOpen }
+                }
+
                 Pill {
                   id: headPill
                   anchors.right: parent.right
@@ -2881,13 +2995,14 @@ Item {
 
               Rectangle {
                 id: noteArea
-                anchors {
-                  top: parent.top; bottom: parent.bottom; right: parent.right
-                  left: stageArea.visible ? stageArea.right : parent.left
-                  leftMargin: stageArea.visible ? Style.space(12) : 0
-                }
+                anchors { top: parent.top; bottom: parent.bottom; topMargin: hero.hasVisual ? Style.space(8) : 0; bottomMargin: hero.hasVisual ? Style.space(48) : 0 }
+                width: hero.hasVisual ? Math.round(hero.width * 0.42) : hero.width
+                x: !hero.hasVisual ? 0 : hero.noteShown ? hero.width - width - Style.space(8) : hero.width + Style.space(8)
+                visible: hero.noteShown || x < hero.width
+                Behavior on x { NumberAnimation { duration: root.ms(200); easing.type: Easing.OutCubic } }
                 radius: root.rCard
-                color: root.surface
+                color: hero.hasVisual ? Qt.rgba(root.background.r, root.background.g, root.background.b, 0.94) : root.surface
+                z: 5
                 border.width: root.dot ? 1 : 0
                 border.color: root.outline
 
@@ -3145,7 +3260,8 @@ Item {
                   ["⏎", "apply · toggle · open"], ["/", "search all settings"],
                   ["h l  − +", "settings: change (hold)"], ["x", "settings: reset to default"],
                   ["i", "settings: type a value"], ["[ ]", "previous / next section"],
-                  ["v", "show / hide preview"], ["J K", "scroll the preview text"],
+                  ["v", "show / hide preview"], ["n", "show / hide the description"],
+                  ["J K", "scroll the description"],
                   ["r", "random pick (not Recolor)"], ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
                   ["p", "Lock / FX / Switcher / Sounds: try it"], ["T", "Lock: refresh previews"],
                   ["f", "Theme: favorite"], ["D", "delete own preset / skin"],
