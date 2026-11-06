@@ -62,8 +62,10 @@ def theme_name() -> str:
 
 
 def current_bg() -> str:
+    """readlink -f current/background: все компоненты, кроме последнего, должны существовать —
+    тогда путь канонизируется, даже если самой ссылки нет."""
     try:
-        return os.path.realpath(paths.CURRENT_BG) if os.path.lexists(paths.CURRENT_BG) else ""
+        return os.path.realpath(paths.CURRENT_BG) if os.path.isdir(os.path.dirname(paths.CURRENT_BG)) else ""
     except OSError:
         return ""
 

@@ -3,7 +3,7 @@ CUSTOMIZER_LEGACY=1), пока перенос не закончен. Резул�
 import os
 import subprocess
 
-from . import i18n, lists, lists_more, paths, preview_ops, settings, state, tweak_ops
+from . import apply_ops, i18n, lists, lists_more, paths, preview_ops, settings, state, tweak_ops
 
 
 def _search_index():
@@ -36,6 +36,9 @@ def run(args):
     os.makedirs(paths.RUN, exist_ok=True)     # как mkdir -p "$RUN_DIR" "$STATE_DIR" в начале customizer.sh
     os.makedirs(paths.STATE, exist_ok=True)
     cmd = args[0] if args else ""
+    if cmd in apply_ops.COMMANDS and len(args) >= 2 or cmd == "picker-cache":
+        code, out = apply_ops.run(args)
+        return code, out, ""
     if cmd in preview_ops.COMMANDS:
         code, out = preview_ops.run(args)
         return code, out, ""
@@ -59,6 +62,6 @@ def run(args):
 def handled_here(args) -> bool:
     """Выполнит ли команду сам Python (для CLI: иначе — сразу exec в bash, без лишнего круга)."""
     cmd = args[0] if args else ""
-    if cmd in ("lang", "search-index", "status", "available") or cmd in preview_ops.COMMANDS or (cmd == "tweak" and len(args) >= 2):
+    if cmd in ("lang", "search-index", "status", "available") or cmd in preview_ops.COMMANDS or cmd in apply_ops.COMMANDS or (cmd == "tweak" and len(args) >= 2):
         return True
     return cmd == "list" and len(args) >= 2 and (args[1] in lists.LISTS or args[1] == "theme-walls")

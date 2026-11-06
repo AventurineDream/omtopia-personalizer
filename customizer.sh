@@ -27,7 +27,7 @@ if [[ -z ${CUSTOMIZER_LEGACY:-} ]]; then
   list | status | available | search-index | lang | tweak | restore | theme-fav | \
     opacity-preview | opacity-restore | blur-preview | blur-restore | bar-skins-preview | bar-skins-restore | \
     anim-preview | anim-restore | lock-preview | sound-preview | fx-replay | picker-open | launcher-open | glyph-test | \
-    skin-delete | layout-delete | preset-delete | style-delete)
+    skin-delete | layout-delete | preset-delete | style-delete | apply | thumbs | picker-cache | lock-thumbs)
     exec /usr/bin/python3 -I "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/backend/run.py" "$@"
     ;;
   esac
