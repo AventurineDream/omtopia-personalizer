@@ -20,7 +20,7 @@ use right now and quick actions. It follows the theme, the glass / solid materia
 | **Bar*** | Bar Skin (plus “💾 Save the current skin” into `~/.config/omarchy/bar-skins/`, listed with ★; `D` deletes one after a confirmation), Bar Layout (own layouts the same way, in `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 settings, each with its default and a live preview |
 | **Windows** | Animations (18 presets), Transparency, Blur, OSD*, Notifications* (with tactile sound packs & Hyprland window/workspace sounds), Glyph (Nothing-inspired perimeter edge lighting & charger beams), Shader (CRT / TFT) |
 | **Lock*** | Lock design with previews in the current theme, Lock Tweaks |
-| **Pickers*** | Theme / wallpaper picker style, thumbnail cache, Launcher* skins |
+| **Pickers*** | Theme / wallpaper picker style, thumbnail cache, Launcher* skins (live preview of the real skin in the card) |
 
 \* appears only when the matching companion plugin is installed — see below.
 
@@ -105,7 +105,8 @@ Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/cu
 | / | search all settings (↑↓ pick a result in another section, ⏎ go there) |
 | v · z · n · J K | hide the preview · preview at full size · description over it · scroll the description |
 | f | favourite theme / wallpaper (Themes, Wallpaper) |
-| p | play / show live (transitions, lock designs, picker) |
+| D | delete your own preset / style / bar skin / layout; in Wallpaper — your own wallpaper to the trash (asks in the window) |
+| p | play / show live (transitions, lock designs, picker); in Launcher — open it with the skin under the cursor, back to Customizer on close |
 | r | surprise me |
 | ? · q / Esc | all keys · close |
 
@@ -191,7 +192,8 @@ turns it off and the borders come back.
   [`settings.json`](settings.json), one table per settings file. Labels are English; `i18n/<lang>.json` translates.
 - **Tests** — `tests/compare_*.py` run the backend against the previous bash implementation
   (`tests/legacy/customizer.sh`) in a throw-away sandbox HOME with stubbed `hyprctl`/`omarchy-shell`/`zenity`:
-  lists, commands, every setting step and every `apply` must match byte for byte.
+  lists, commands, every setting step and every `apply` must match byte for byte. Commands the bash version never had
+  (`wall-delete`, `launcher-open` with skin and return) are covered by `tests/test_new_commands.py`.
 - **Screen shader previews** — `scripts/build-preview-shaders.py` turns `shaders/*.frag` into Qt versions in
   `previews/shaders/screen/` (run it after editing a shader).
 

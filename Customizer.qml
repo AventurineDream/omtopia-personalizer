@@ -147,6 +147,9 @@ Item {
   property bool filtering: false     // "/" pressed: printable keys go to the filter
   property bool pendingG: false      // first "g" of "gg"
   property bool helpOpen: false
+  // Обои: D — спросить здесь же («в корзину?»), ⏎/y — да, Esc/n — нет.
+  property string wallDeletePath: ""
+  property string wallDeleteMsg: ""
   // Домашняя страница (пункт 0 рейла) и выделение на ней (карточки, потом действия).
   property bool homeOpen: false
   property bool everOpened: false
@@ -312,7 +315,7 @@ Item {
     if (a.id === "random-theme") { root.pendingRandom = true; root.jumpTo({ cat: "themes", value: "" }) }
     else if (a.id === "save-preset") { root.dismiss(); Quickshell.execDetached([root.script, "apply", "presets", "save"]) }
     else if (a.id === "picker") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
-    else if (a.id === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
+    else if (a.id === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open", "", "home"]) }
     else if (a.id === "keys") root.helpOpen = true
   }
 
@@ -493,7 +496,8 @@ Item {
     root.opened = true
     root.pane = 0
     // payload {"category": "<ключ>"} — открыть сразу на вкладке (например windows, widgets, themes).
-    var want = String(root.parseJson(payloadJson).category || "")
+    var payload = root.parseJson(payloadJson)
+    var want = String(payload.category || "")
     var idx = -1
     for (var i = 0; want !== "" && i < root.categories.length; i++) if (root.categories[i].key === want) idx = i
     // Первое открытие — домашняя; потом — где остановились; payload — сразу его вкладка.
@@ -502,6 +506,8 @@ Item {
     root.setCategory(idx >= 0 ? idx : root.categoryIndex, true)   // снимает homeOpen
     root.homeOpen = toHome
     if (idx >= 0) root.pane = 1
+    // payload.value — встать на эту строку (возврат из лаунчера после p).
+    if (idx >= 0 && payload.value) root.keepValue = String(payload.value)
     if (root.searchIndex.length === 0 && !searchProc.running) searchProc.running = true
     statusProc.running = false
     statusProc.running = true
@@ -1039,7 +1045,7 @@ Item {
     else if (!ctrl && t === "T" && key === "lock") root.run(root.hasRow("missing-thumbs") ? "missing-thumbs" : "regen-thumbs")
     else if (!ctrl && t === "p" && key === "wallpaper-fx") root.playFx()
     else if (!ctrl && t === "p" && key === "theme-switcher") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
-    else if (!ctrl && t === "p" && key === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open"]) }
+    else if (!ctrl && t === "p" && key === "launcher") root.openLauncher()
     else if (!ctrl && t === "p" && key === "glyph") Quickshell.execDetached([root.script, "glyph-test", "false"])
     else if (!ctrl && t === "p" && key === "sounds") root.listenSound()
     else if (ctrl && (key === "walls" || key === "dotify") && k === Qt.Key_O) root.run("pick-files")
@@ -1053,6 +1059,7 @@ Item {
     else if (t === "J") root.scrollPreview(1)
     else if (t === "K") root.scrollPreview(-1)
     else if (t === "r") root.randomPick()
+    else if (t === "D" && key === "theme-walls") root.askWallDelete()
     else if (t === "D") root.deletePreset()
     else if (t === "f" && (key === "themes" || key === "theme-walls")) root.toggleFavorite()
     else if ((key === "walls" || key === "dotify") && t === "o") root.run("pick-files")
@@ -1069,7 +1076,7 @@ Item {
       || root.sceneCategories.indexOf(c.key) !== -1
   }
   // Категории с макетом из previews/ (сцена всегда, описание — по n).
-  readonly property var sceneCategories: ["dotify", "osd", "notifications", "dashboard", "lock-tweaks", "glyph", "sounds"]
+  readonly property var sceneCategories: ["dotify", "osd", "notifications", "dashboard", "lock-tweaks", "glyph", "sounds", "launcher"]
   readonly property string wallpaperUrl: root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
   // Картинка для превью Dotify: файл строки, если это картинка, иначе текущие обои.
   readonly property string dotifySource: {
@@ -1377,6 +1384,38 @@ Item {
   // Wallpaper FX: выбрать эффект строки (если это эффект) и проиграть его на рабочем столе.
   // Темы и обои: f — в избранное / из избранного; оверлей открыт, список перечитывается,
   // курсор остаётся на строке. У обоев — только файлы (не папки-категории).
+  function isOwnWall(row) {
+    return !!row && root.category.key === "theme-walls"
+      && /\/\.config\/omarchy\/(backgrounds|themes\/[^/]+\/backgrounds)\/.+\.(jpe?g|png|webp|gif|bmp)$/i.test(String(row.value))
+  }
+  function askWallDelete() {
+    var row = root.selectedRow
+    if (!root.isOwnWall(row)) {
+      if (root.category.key === "theme-walls" && row && !/^dir:|^section:/.test(String(row.value)))
+        root.wallDeleteMsg = root.tr("Only your own wallpapers can be deleted (theme copies come back on theme change)")
+      return
+    }
+    root.wallDeleteMsg = ""
+    root.wallDeletePath = String(row.value)
+  }
+  function confirmWallDelete() {
+    var path = root.wallDeletePath
+    root.wallDeletePath = ""
+    if (!path) return
+    root.call(["wall-delete", path], function(r) {
+      root.wallDeleteMsg = r.code === 0 ? "" : (r.out || r.err || "").trim()
+      // Курсор — на соседнюю строку (удалённой в новом списке нет).
+      if (r.code === 0 && root.selectedRow && String(root.selectedRow.value) === path) {
+        var before = root.selectedIndex
+        if (root.isTileRow(root.selectedRow)) root.tileStep(1)
+        else root.move(1)
+        if (root.selectedIndex === before && root.isTileRow(root.selectedRow)) root.tileStep(-1)
+        if (root.selectedIndex === before) root.move(-1)
+      }
+      root.reloadCategory()
+    })
+  }
+
   function toggleFavorite() {
     var row = root.selectedRow
     if (root.pane !== 1 || !row || root.isHeader(row) || favProc.running) return
@@ -1398,6 +1437,15 @@ Item {
     var v = root.selectedRow ? String(root.selectedRow.value) : ""
     if (v.indexOf("pack:") === 0) Quickshell.execDetached([root.script, "sound-preview", v.slice(5), "notify"])
     else if (v.indexOf("test:") === 0) Quickshell.execDetached([root.script, "apply", "sounds", v])
+  }
+
+  // Launcher: p — открыть лаунчер; на строке скина — с этим скином (только на этот раз, без сохранения).
+  // После закрытия лаунчера Customizer открывается снова на той же строке.
+  function openLauncher() {
+    var v = root.selectedRow ? String(root.selectedRow.value) : ""
+    var skin = v.indexOf("skin:") === 0 ? v.slice(5) : ""
+    root.dismiss()
+    Quickshell.execDetached([root.script, "launcher-open", skin, v])
   }
 
   function playFx() {
@@ -1461,11 +1509,14 @@ Item {
     if (root.pane === 0) return [["j k", "sections"], ["l ⏎", "open"], ["Tab", "next tab"], ["0–" + root.groups.length, "jump"], ["/", "search"], ["?", "keys"], ["q", "close"]]
     if (root.homeOpen) return [["h j k l", "move"], ["⏎", "open"], ["Tab", "first section"], ["/", "search"], ["Esc", "back"], ["?", "keys"]]
     if (root.category.image && root.isTileRow(root.selectedRow)) {
-      var g = [["h j k l", "move"], ["⏎", "apply"], ["Tab", "next tab"], ["/", "search"]]
+      var g = [["h j k l", "move"], ["⏎", "apply"]]
+      if (root.category.key !== "theme-walls") g.push(["Tab", "next tab"])
+      g.push(["/", "search"])
       if (root.category.key === "lock") g.push(["p", "preview live"], ["T", "refresh previews"])
       else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
       else g.push(["r", "random"])
       if (root.category.key === "themes" || root.category.key === "theme-walls") g.push(["f", "favorite"])
+      if (root.isOwnWall(root.selectedRow)) g.push(["D", "to trash"])
       g.push(["v", "preview"], ["z", "full size"], ["n", "description"], ["?", "keys"])
       return g
     }
@@ -1487,7 +1538,10 @@ Item {
         return th
       }
       if (root.category.key === "dotify") return [["j k", "move"], ["⏎", "dotify"], ["o O", "pick"], ["/", "search"], ["h", "back"], ["?", "keys"]]
-      return [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : root.category.key === "glyph" ? "test sweep" : "open"], ["/", "search"], ["h", "back"], ["?", "keys"]]
+      var ph = [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : root.category.key === "glyph" ? "test sweep" : "open"], ["/", "search"], ["h", "back"]]
+      if (root.category.key === "launcher") ph.push(["v", "preview"], ["z", "full size"])
+      ph.push(["?", "keys"])
+      return ph
     }
     if (root.category.key === "lock") return [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"], ["?", "keys"]]
     if (root.category.key === "sounds" && !root.isTweakRow(root.selectedRow)) return [["j k", "move"], ["⏎", "use"], ["p", "listen"], ["/", "search"], ["h", "back"], ["?", "keys"]]
@@ -1954,6 +2008,14 @@ Item {
           if (ctrl && /^[a-z]$/i.test(lk)) k = Qt.Key_A + (lk.toUpperCase().charCodeAt(0) - 65)
           var pendingG = root.pendingG
           root.pendingG = false
+
+          if (root.wallDeletePath) {
+            if (k === Qt.Key_Return || k === Qt.Key_Enter || (lk || t) === "y") root.confirmWallDelete()
+            else root.wallDeletePath = ""
+            event.accepted = true
+            return
+          }
+          if (root.wallDeleteMsg) root.wallDeleteMsg = ""
 
           if (root.helpOpen) {
             if (k === Qt.Key_Escape || (lk || t) === "?" || (lk || t) === "q") root.helpOpen = false
@@ -3057,6 +3119,17 @@ Item {
                   visible: root.category.key === "glyph"
                   t: root; v: root.tweakValues; wallpaper: visible ? root.wallpaperUrl : ""
                 }
+                // Launcher: скин под курсором вживую (на твиках и «Открыть» — текущий).
+                Previews.LauncherPreview {
+                  anchors.fill: parent
+                  visible: root.category.key === "launcher"
+                  t: root
+                  skin: root.selectedRow && String(root.selectedRow.value).indexOf("skin:") === 0 ? String(root.selectedRow.value).slice(5) : ""
+                  backdrop: isFinite(Number(root.tweakValues.backdrop)) && root.tweakValues.backdrop !== undefined && root.tweakValues.backdrop !== "" ? Number(root.tweakValues.backdrop) : -1
+                  wallpaper: visible ? root.wallpaperUrl : ""
+                  screenWidth: panel.screen ? panel.screen.width : 1440
+                  screenHeight: panel.screen ? panel.screen.height : 900
+                }
                 Previews.SoundsPreview {
                   anchors.fill: parent
                   visible: root.category.key === "sounds"
@@ -3068,8 +3141,7 @@ Item {
                 Rectangle {
                   anchors.right: infoBtn.left
                   anchors.rightMargin: Style.space(6)
-                  anchors.bottom: parent.bottom
-                  anchors.bottomMargin: Style.space(10)
+                  anchors.bottom: infoBtn.bottom
                   visible: hero.hasVisual
                   height: Style.space(30)
                   width: zoomRow.implicitWidth + Style.space(18)
@@ -3091,7 +3163,9 @@ Item {
                   id: infoBtn
                   anchors.right: parent.right
                   anchors.bottom: parent.bottom
-                  anchors.margins: Style.space(10)
+                  anchors.rightMargin: Style.space(10)
+                  // Над полосой палитры темы, а не поверх неё.
+                  anchors.bottomMargin: Style.space(10) + (paletteStrip.visible ? paletteStrip.height : 0)
                   visible: hero.hasVisual
                   height: Style.space(30)
                   width: infoRow.implicitWidth + Style.space(18)
@@ -3350,6 +3424,47 @@ Item {
           }
         }
 
+        // ── Обои: «в корзину?» (D) или отказ ──────────────────────
+        Rectangle {
+          id: wallDeleteBar
+          readonly property bool asking: root.wallDeletePath !== ""
+          visible: asking || root.wallDeleteMsg !== ""
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: Style.space(64)
+          width: Math.min(parent.width - Style.space(48), wdRow.implicitWidth + Style.space(36))
+          height: Style.space(48)
+          radius: root.dot ? Style.space(3) : height / 2
+          // Непрозрачно: полоса лежит поверх плиток.
+          color: Qt.tint(root.background, asking ? Util.alpha(root.primary, 0.32) : Util.alpha(root.foreground, 0.12))
+          border.width: 1
+          border.color: Util.alpha(root.foreground, 0.15)
+          z: 19
+          Row {
+            id: wdRow
+            anchors.centerIn: parent
+            spacing: Style.space(10)
+            Text {
+              text: wallDeleteBar.asking ? "󰩹" : "󰀦"
+              color: root.foreground; font.family: root.iconFont; font.pixelSize: Style.font.title
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+              text: wallDeleteBar.asking
+                ? root.tr("Move %1 to the trash?").replace("%1", root.wallDeletePath.split("/").pop())
+                : root.wallDeleteMsg
+              color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
+              elide: Text.ElideMiddle
+              width: Math.min(implicitWidth, wallDeleteBar.parent.width * 0.5)
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Keycap { visible: wallDeleteBar.asking; label: "⏎ y"; anchors.verticalCenter: parent.verticalCenter }
+            Text { visible: wallDeleteBar.asking; text: root.tr("delete"); color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+            Keycap { visible: wallDeleteBar.asking; label: "Esc"; anchors.verticalCenter: parent.verticalCenter }
+            Text { visible: wallDeleteBar.asking; text: root.tr("cancel"); color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+          }
+        }
+
         // ── Key help overlay ("?") ─────────────────────────────────
         Rectangle {
           anchors.fill: parent
@@ -3392,7 +3507,7 @@ Item {
                   ["J K", "scroll the description"],
                   ["r", "random pick (not Recolor)"], ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
                   ["p", "Lock / FX / Switcher / Sounds: try it"], ["T", "Lock: refresh previews"],
-                  ["f", "Theme: favorite"], ["D", "delete own preset / skin"],
+                  ["f", "Theme: favorite"], ["D", "delete own preset / skin / wallpaper"],
                   ["Esc", "back · revert live preview"], ["q", "close"]
                 ]
                 delegate: Row {

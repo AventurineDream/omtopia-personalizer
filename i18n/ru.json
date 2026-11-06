@@ -697,5 +697,12 @@
   "preview full size / back": "превью на весь размер / назад",
   "full size": "на весь размер",
   "Hyprland's own animations": "Анимации из конфига Hyprland",
-  "All wallpapers": "Все обои"
+  "All wallpapers": "Все обои",
+  "to trash": "в корзину",
+  "delete own preset / skin / wallpaper": "удалить свой пресет / скин / обои",
+  "Move %1 to the trash?": "Удалить %1 в корзину?",
+  "delete": "удалить",
+  "cancel": "отмена",
+  "Only your own wallpapers can be deleted (theme copies come back on theme change)": "Удалять можно только свои обои (копии из темы вернутся при смене темы)",
+  "Could not move %s to the trash": "Не удалось удалить %s в корзину"
 }

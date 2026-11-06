@@ -46,7 +46,8 @@ def scenarios(home):
                        ["bar-skins-preview", "save"], ["bar-skins-restore"]]),
         ("anims", [["list", "anims"], ["anim-preview", anim], ["anim-restore"], ["anim-restore"]]),
         ("misc", [["lock-preview", "classic"], ["sound-preview", "glass", "notify"], ["glyph-test", "true"],
-                  ["fx-replay"], ["picker-open"], ["launcher-open"]]),
+                  ["fx-replay"], ["picker-open"]]),
+        # launcher-open — новое поведение (summon + skin/returnTo), у bash его нет: tests/test_new_commands.py.
         ("fav", [["theme-fav", "nord"], ["theme-fav", "nord"], ["theme-fav", "bad slug!"], ["theme-fav", "tokyo-night"]]),
         ("delete-yes", [["skin-delete", "{HOME}/.config/omarchy/bar-skins/mine.json", "y"],
                         ["layout-delete", "{HOME}/.config/omarchy/bar-layouts/mine.json", "y"],

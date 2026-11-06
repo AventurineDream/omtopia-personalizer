@@ -2,6 +2,7 @@
 *-preview / *-restore, anim-*, lock-preview, sound-preview, glyph-test, fx-replay, picker-open,
 launcher-open, theme-fav, *-delete и restore. Вывод вызванных скриптов возвращается в out
 (в режиме serve stdout занят протоколом)."""
+import json
 import os
 import re
 import shutil
@@ -99,6 +100,53 @@ def wall_fav(path):
     cur = [x for x in cur if x != path] if path in cur else cur + [path]
     tweak_ops.write_inplace(FAV_WALLS, cur)
     return 0, ""
+
+
+WALL_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp")
+
+
+def launcher_open(skin="", back=""):
+    """Лаунчер (клон kamradsmeshnyavy.menu под id omarchy.menu): skin — показать этим скином без сохранения;
+    back — строка Customizer, на которую вернуться после закрытия («home» — домашняя). Без back — как раньше."""
+    payload = {"menu": "root"}
+    if skin:
+        payload["skin"] = skin
+    if back:
+        ret = {} if back == "home" else {"category": "launcher", "value": back}
+        payload["returnTo"] = json.dumps(ret, ensure_ascii=False)
+    return sh(["setsid", "-f", "omarchy-shell", "shell", "summon", "omarchy.menu",
+               json.dumps(payload, ensure_ascii=False)])[0], ""
+
+
+def wall_deletable(path) -> bool:
+    """Свои обои: картинка в ~/.config/omarchy/backgrounds/… или ~/.config/omarchy/themes/<тема>/backgrounds/….
+    Копии темы в ~/.local/state/omarchy/current/theme вернутся при следующей смене темы — их не трогаем."""
+    path = str(path or "")
+    if not (os.path.isfile(path) and path.lower().endswith(WALL_EXT)):
+        return False
+    real = os.path.realpath(path)
+    walls = os.path.realpath(paths.CONFIG / "backgrounds") + os.sep
+    if real.startswith(walls):
+        return True
+    themes = os.path.realpath(paths.CONFIG / "themes") + os.sep
+    rest = real[len(themes):].split(os.sep) if real.startswith(themes) else []
+    return len(rest) >= 3 and rest[1] == "backgrounds"
+
+
+def wall_delete(path):
+    """Обои — в корзину (подтверждение — в overlay). Текущие сначала сменяются следующими; путь
+    убирается из избранного."""
+    path = os.path.abspath(os.path.expanduser(path or ""))
+    if not wall_deletable(path):
+        return 1, t("Only your own wallpapers can be deleted (theme copies come back on theme change)")
+    if os.path.realpath(path) == state.current_bg():
+        sh(["omarchy-theme-bg-next"])
+    if sh(["gio", "trash", path])[0] != 0:
+        return 1, t("Could not move %s to the trash", os.path.basename(path))
+    favs = jsonio.read(FAV_WALLS)
+    if isinstance(favs, list) and path in favs:
+        tweak_ops.write_inplace(FAV_WALLS, [x for x in favs if x != path])
+    return 0, t("Deleted %s", os.path.basename(path))
 
 
 # ── Удаление своих скинов, раскладок, пресетов, стилей (в корзину, с подтверждением) ──
@@ -254,13 +302,15 @@ def run(args):
     if cmd == "picker-open":
         return sh(["setsid", "-f", "omarchy-menu", "toggle", "theme"])[0], ""
     if cmd == "launcher-open":
-        return sh(["setsid", "-f", "omarchy-menu", "toggle"])[0], ""
+        return launcher_open(a[0], a[1])
     if cmd == "glyph-test":
         return sh(["omarchy-shell", "-q", "glyph", "test", a[0] or "false"])[0], ""
     if cmd == "theme-fav":
         return theme_fav(a[0])
     if cmd == "wall-fav":
         return wall_fav(a[0])
+    if cmd == "wall-delete":
+        return wall_delete(a[0])
     if cmd == "skin-delete":
         return skin_delete(a[0])
     if cmd == "layout-delete":
@@ -276,5 +326,5 @@ def run(args):
 
 COMMANDS = {"opacity-preview", "opacity-restore", "blur-preview", "blur-restore", "bar-skins-preview",
             "bar-skins-restore", "anim-preview", "anim-restore", "lock-preview", "sound-preview", "fx-replay",
-            "picker-open", "launcher-open", "glyph-test", "theme-fav", "wall-fav", "skin-delete", "layout-delete",
+            "picker-open", "launcher-open", "glyph-test", "theme-fav", "wall-fav", "wall-delete", "skin-delete", "layout-delete",
             "preset-delete", "style-delete", "restore"}

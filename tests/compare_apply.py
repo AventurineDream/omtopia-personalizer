@@ -93,7 +93,8 @@ def scenarios():
     out.append(("bar", [["list", "bar-skins"], ["apply", "bar-skins", os.path.join(bar, "skins", skins[0])],
                         ["apply", "bar-skins", "save", "my-test"], ["apply", "bar-layouts", os.path.join(bar, "layouts", layouts[0])],
                         ["apply", "bar-layouts", "save", "my-layout"]]))
-    out.append(("small", [["apply", "lock", "classic"], ["apply", "launcher", "skin:board"], ["apply", "launcher", "open"],
+    # «apply launcher open» не сверяется: теперь summon с возвратом в Customizer (tests/test_new_commands.py).
+    out.append(("small", [["apply", "lock", "classic"], ["apply", "launcher", "skin:board"],
                           ["apply", "wallpaper-fx", "fade"], ["apply", "theme-switcher", "style:cards"],
                           ["apply", "theme-switcher", "cache"], ["apply", "theme-switcher", "prune", "y"],
                           ["apply", "fonts", "stock"], ["apply", "sounds", "pack:glass"], ["apply", "sounds", "test:notify"],

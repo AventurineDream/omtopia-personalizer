@@ -871,7 +871,7 @@ def apply(category, value):
         if value.startswith("tweak:"):
             tweak_pick(value)
         elif value == "open":
-            sh(["setsid", "-f", "omarchy-menu", "toggle"])
+            preview_ops.launcher_open("", "open")
         elif value.startswith("skin:"):
             os.makedirs(os.path.dirname(str(state.MENU_CFG)), exist_ok=True)
             tweak_ops.set_key(state.MENU_CFG, "skin", value[5:])
