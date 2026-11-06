@@ -156,6 +156,7 @@ Item {
   property int searchSel: -1
   property bool heroCollapsed: false  // v — свернуть карточку превью
   property bool noteOpen: false       // n — описание поверх сцены превью
+  property bool heroFull: false       // z — превью на всё тело страницы
   // Значения настроек открытой категории (ключ -> raw, вместе с предсказанными): их читают сцены
   // превью — сцена меняется сразу при шаге, без своего FileView.
   property var tweakValues: ({})
@@ -233,6 +234,7 @@ Item {
   function goHome() {
     if (root.homeOpen) return
     root.revertPreview()
+    root.heroFull = false
     root.homeOpen = true
     root.filtering = false
     root.homeSel = Math.min(root.homeSel, Math.max(0, root.homeCards.length + root.homeActions.length - 1))
@@ -554,6 +556,7 @@ Item {
     if (index === root.categoryIndex && !force) return
     root.revertPreview()
     root.homeOpen = false
+    root.heroFull = false
     root.categoryIndex = index
     var last = ({})
     for (var g in root.groupLast) last[g] = root.groupLast[g]
@@ -1459,14 +1462,14 @@ Item {
       else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
       else g.push(["r", "random"])
       if (root.category.key === "themes") g.push(["f", "favorite"])
-      g.push(["v", "preview"], ["n", "description"], ["?", "keys"])
+      g.push(["v", "preview"], ["z", "full size"], ["n", "description"], ["?", "keys"])
       return g
     }
     if (root.category.key === "lock-tweaks") return [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["x", "default"], ["⏎", "step · pick"], ["p", "preview"], ["Esc", "back"]]
     if (root.category.key === "bar-widgets") return [["j k", "move"], ["h l", "move widget"], ["⏎ x", "on / off"], ["[ ]", "section"], ["Esc", "back"]]
     if (root.category.tweak) {
       var tw = [["j k", "move"], ["h l  − +", "change (hold)"], ["i", "type a value"], ["[ ]", "section"], ["x", "default"], ["⏎", "step · pick color"]]
-      if (root.sceneCategories.indexOf(root.category.key) !== -1) tw.push(["n", "description"])
+      if (root.sceneCategories.indexOf(root.category.key) !== -1) tw.push(["z", "full size"], ["n", "description"])
       tw.push(["Esc", "back"])
       return tw
     }
@@ -1985,6 +1988,8 @@ Item {
           else if (!ctrl && t >= "1" && t <= String(root.groups.length)) root.setGroup(Number(t) - 1)
           else if (!ctrl && t === "v" && !root.homeOpen) root.heroCollapsed = !root.heroCollapsed
           else if (!ctrl && t === "n" && !root.homeOpen) root.noteOpen = !root.noteOpen
+          else if (!ctrl && t === "z" && !root.homeOpen && root.heroAvailable) { root.heroFull = !root.heroFull; if (root.heroFull) root.heroCollapsed = false }
+          else if (k === Qt.Key_Escape && root.heroFull) root.heroFull = false
           else if (ctrl && k === Qt.Key_D) root.move(root.halfPage())
           else if (ctrl && k === Qt.Key_U) root.move(-root.halfPage())
           else if (ctrl && k === Qt.Key_F) root.move(root.halfPage() * 2)
@@ -2349,11 +2354,12 @@ Item {
             Item {
               id: hero
               clip: true
-              visible: !root.homeOpen && root.heroAvailable && !root.heroCollapsed && root.selectedRow !== null
+              visible: !root.homeOpen && root.heroAvailable && (!root.heroCollapsed || root.heroFull) && root.selectedRow !== null
               anchors { top: parent.top; left: parent.left; right: parent.right }
               // Макетам (previews/) — больше места: в них мелкие детали.
-              height: visible ? Math.max(Style.space(200), Math.round(pageBody.height
-                * (root.sceneCategories.indexOf(root.category.key) !== -1 ? 0.5 : 0.38))) : 0
+              height: !visible ? 0 : root.heroFull ? pageBody.height : Math.max(Style.space(200), Math.round(pageBody.height
+                * (root.sceneCategories.indexOf(root.category.key) !== -1 ? 0.5 : 0.38)))
+              Behavior on height { NumberAnimation { duration: root.ms(220); easing.type: Easing.OutCubic } }
               // Не через .visible сцен: они невидимы, пока невидим сам stageArea (замкнутый круг).
               readonly property bool hasVisual: {
                 var c = root.category, row = root.selectedRow
@@ -3054,8 +3060,31 @@ Item {
                   onPlay: function(pack, event) { Quickshell.execDetached([root.script, "sound-preview", pack, event]) }
                 }
 
+                // ⤢ — превью на всё тело страницы (z).
+                Rectangle {
+                  anchors.right: infoBtn.left
+                  anchors.rightMargin: Style.space(6)
+                  anchors.bottom: parent.bottom
+                  anchors.bottomMargin: Style.space(10)
+                  visible: hero.hasVisual
+                  height: Style.space(30)
+                  width: zoomRow.implicitWidth + Style.space(18)
+                  radius: root.dot ? Style.space(3) : height / 2
+                  color: zoomHover.containsMouse || root.heroFull ? root.secondaryContainer : Util.alpha(root.background, 0.8)
+                  z: 4
+                  Row {
+                    id: zoomRow
+                    anchors.centerIn: parent
+                    spacing: Style.space(6)
+                    Text { text: root.heroFull ? "󰘕" : "󰘖"; color: root.primary; font.family: root.iconFont; font.pixelSize: Style.font.body; anchors.verticalCenter: parent.verticalCenter }
+                    Keycap { label: "z"; anchors.verticalCenter: parent.verticalCenter }
+                  }
+                  MouseArea { id: zoomHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.heroFull = !root.heroFull }
+                }
+
                 // ⓘ — описание поверх сцены (n).
                 Rectangle {
+                  id: infoBtn
                   anchors.right: parent.right
                   anchors.bottom: parent.bottom
                   anchors.margins: Style.space(10)
@@ -3126,7 +3155,7 @@ Item {
 
             ListView {
               id: itemList
-              visible: !root.homeOpen
+              visible: !root.homeOpen && !root.heroFull
               anchors {
                 top: hero.visible ? hero.bottom : parent.top
                 topMargin: hero.visible ? Style.space(14) : 0
@@ -3355,6 +3384,7 @@ Item {
                   ["h l  − +", "settings: change (hold)"], ["x", "settings: reset to default"],
                   ["i", "settings: type a value"], ["[ ]", "previous / next section"],
                   ["v", "show / hide preview"], ["n", "show / hide the description"],
+                  ["z", "preview full size / back"],
                   ["J K", "scroll the description"],
                   ["r", "random pick (not Recolor)"], ["o  O  ^o", "Recolor / Dotify: image(s) / folder"],
                   ["p", "Lock / FX / Switcher / Sounds: try it"], ["T", "Lock: refresh previews"],
