@@ -79,7 +79,7 @@ Each is a separate plugin; the Customizer finds them on its own.
 
 Omarchy 4 (Quattro) with its shell. Tested on Omarchy 4.0.6 with Quickshell 0.3.2.
 
-- `jq` (ships with Omarchy).
+- `python3` and `jq` (both ship with Omarchy).
 - Optional: `libvips` (thumbnails), `zenity` (colour/text/file dialogs), `lutgen` (Recolor), `matugen` (theme from a wallpaper), `ffmpeg` and `pipewire` (`pw-play`) for sounds, `uv` (builds the Dotify fonts). Each feature hides itself when its program is missing.
 - Companion plugins are optional — see the table above.
 
@@ -103,12 +103,13 @@ Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/cu
 | ⏎ | apply · toggle · open |
 | h l, − + | change a setting · x — reset it · i — type a value |
 | / | search all settings (↑↓ pick a result in another section, ⏎ go there) |
-| v · J K | show / hide the preview card · scroll its text |
+| v · z · n · J K | hide the preview · preview at full size · description over it · scroll the description |
+| f | favourite theme / wallpaper (Themes, Wallpaper) |
 | p | play / show live (transitions, lock designs, picker) |
 | r | surprise me |
 | ? · q / Esc | all keys · close |
 
-Everything also works with the mouse: drag sliders, click switches, segments and tiles.
+Everything also works with the mouse: drag sliders, click switches, segments and tiles. Keys work in any keyboard layout (they follow the physical key, like in the US layout); typing in search stays as typed.
 
 ## How your choices survive a reload
 
@@ -177,11 +178,22 @@ complete. `hyprGeometry.noGaps` drives Omarchy's "no gaps" toggle (it also remov
 on so windows sit flush against the bezel frame, every other style — and a preset with `"hyprGeometry": null` —
 turns it off and the borders come back.
 
-## Settings file
+## How it works
 
-Every setting the Customizer shows — its type (switch, slider, choice, colour…), limits, default, label and the
-file it is written to — is described in [`settings.json`](settings.json), one table per settings file. Add or
-change a setting there; labels are English and `i18n/<lang>.json` translates them.
+- **Overlay** — `Customizer.qml` with its pieces in `ui/` (cards, controls, rail, tabs) and `previews/` (live scenes:
+  bar, windows, styles, animations, screen shaders, Dotify LED matrix, OSD, notifications, dashboard, lock, Glyph,
+  sounds).
+- **Backend** — Python, standard library only: `backend/customizer/`. While the overlay is open it talks to one
+  process (`backend/run.py serve`, JSON lines over stdin/stdout); the process exits when the overlay closes, so a
+  closed Customizer costs nothing and an idle open one sleeps in `read()`. A step plus list reload takes ~2 ms.
+  `customizer.sh <command> …` is a thin wrapper for everything else (theme hook, menu, fzf script).
+- **Settings file** — every setting (type, limits, default, label, file it writes) is described in
+  [`settings.json`](settings.json), one table per settings file. Labels are English; `i18n/<lang>.json` translates.
+- **Tests** — `tests/compare_*.py` run the backend against the previous bash implementation
+  (`tests/legacy/customizer.sh`) in a throw-away sandbox HOME with stubbed `hyprctl`/`omarchy-shell`/`zenity`:
+  lists, commands, every setting step and every `apply` must match byte for byte.
+- **Screen shader previews** — `scripts/build-preview-shaders.py` turns `shaders/*.frag` into Qt versions in
+  `previews/shaders/screen/` (run it after editing a shader).
 
 ## Language
 
