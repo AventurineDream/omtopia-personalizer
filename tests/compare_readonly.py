@@ -14,7 +14,20 @@ sys.path.insert(0, os.path.join(PLUGIN, "backend"))
 
 from customizer import commands, lists  # noqa: E402
 
-CASES = [["lang"], ["search-index"]] + [["list", c] for c in sorted(lists.LISTS)]
+def _walls_subdir():
+    """Первая подпапка обоев темы — чтобы проверить и вход в категорию (list theme-walls <путь>)."""
+    from customizer import state
+    root = os.path.join(os.environ["HOME"], ".config/omarchy/backgrounds", state.theme_name())
+    try:
+        subs = sorted(n for n in os.listdir(root) if os.path.isdir(os.path.join(root, n)) and not n.startswith("."))
+    except OSError:
+        subs = []
+    return subs[:1]
+
+
+CASES = ([["lang"], ["search-index"], ["status"], ["available"], ["list", "theme-walls"]]
+         + [["list", "theme-walls", s] for s in _walls_subdir()]
+         + [["list", c] for c in sorted(lists.LISTS)])
 
 
 def bash(args):

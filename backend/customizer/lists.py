@@ -49,7 +49,19 @@ LISTS = {
 }
 
 
-def list_category(category: str):
+from . import lists_more as _m  # noqa: E402
+
+LISTS.update({
+    "presets": _m.presets, "styles": _m.styles, "windows": _m.windows, "sounds": _m.sounds, "fonts": _m.fonts,
+    "dotify": _m.dotify, "walls": _m.walls, "themes": _m.themes, "anims": _m.anims, "opacity": _m.opacity,
+    "blur": _m.blur, "shaders": _m.shaders, "bar-layouts": _m.bar_layouts, "bar-skins": _m.bar_skins,
+    "bar-widgets": _m.bar_widgets, "lock": _m.lock, "launcher": _m.launcher, "theme-switcher": _m.theme_switcher,
+})
+
+
+def list_category(category: str, extra: str = ""):
     """Строки категории или None, если она ещё не перенесена."""
+    if category == "theme-walls":
+        return _m.theme_walls(extra)
     fn = LISTS.get(category)
     return None if fn is None else fn()

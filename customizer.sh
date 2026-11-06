@@ -1148,7 +1148,7 @@ list_bar_widgets() {
   for t in "${WIDGET_SETTINGS[@]}"; do
     IFS='|' read -r tid tkey def label <<<"$t"
     v=$(widget_setting_value "$tid" "$tkey" "$def")
-    printf '%s\t%s\t\t0\t%s\t%s\n' "$(t "$label"):  $v" "tweak:wset:$tid:$tkey" \
+    printf '%s\t%s\t\t0\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(t "$label"):  $v" "tweak:wset:$tid:$tkey" \
       "$(t "Now: %s" "$v")"'\n'"$(t "Default: %s" "$def")"'\n\n'"$(t "h/l or ⏎ — on/off")" "$(t "default: %s" "$def")" \
       bool "$def" "$v" "$(t "$label")"
   done
