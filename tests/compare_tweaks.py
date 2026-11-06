@@ -80,7 +80,7 @@ def run(env, impl, args, zenity=""):
     e = dict(env, ZENITY_ANSWER=zenity)
     if impl == "bash":
         e["CUSTOMIZER_LEGACY"] = "1"
-        cmd = ["bash", os.path.join(PLUGIN, "customizer.sh"), *args]
+        cmd = ["bash", os.path.join(PLUGIN, "tests/legacy/customizer.sh"), *args]
     else:
         cmd = ["/usr/bin/python3", "-I", os.path.join(PLUGIN, "backend/run.py"), *args]
     p = subprocess.run(cmd, capture_output=True, text=True, env=e)

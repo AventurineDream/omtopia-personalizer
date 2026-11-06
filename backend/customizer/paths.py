@@ -11,7 +11,6 @@ RUN = Path(os.environ.get("XDG_RUNTIME_DIR") or "/tmp") / "omarchy-customizer"
 
 SETTINGS_JSON = PLUGIN / "settings.json"
 I18N_DIR = PLUGIN / "i18n"
-LEGACY = PLUGIN / "customizer.sh"
 
 SHELL_JSON = CONFIG / "shell.json"
 BAR_SKIN = CONFIG / "bar-skin.json"

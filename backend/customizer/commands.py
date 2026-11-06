@@ -1,7 +1,5 @@
-"""Команды бэкенда. Перенесённые выполняются здесь; остальные — старым bash (customizer.sh c
-CUSTOMIZER_LEGACY=1), пока перенос не закончен. Результат: (код, stdout, stderr)."""
+"""Команды бэкенда: разбор команды и вызов модуля. Результат: (код, stdout, stderr)."""
 import os
-import subprocess
 
 from . import apply_ops, i18n, lists, lists_more, paths, preview_ops, settings, state, tweak_ops
 
@@ -24,11 +22,7 @@ def _lines(rows) -> str:
     return "".join(r + "\n" for r in rows)
 
 
-def legacy(args, stdin=None):
-    """Не перенесённая команда — старый bash."""
-    env = dict(os.environ, CUSTOMIZER_LEGACY="1")
-    p = subprocess.run(["bash", str(paths.LEGACY), *args], capture_output=True, text=True, env=env, input=stdin)
-    return p.returncode, p.stdout, p.stderr
+USAGE = "usage: customizer.sh list|status|available|search-index|restore|lang|thumbs|anim-preview|anim-restore|opacity-preview|opacity-restore|blur-preview|blur-restore|bar-skins-preview|bar-skins-restore|tweak|apply|theme-fav|wall-fav ...\n"
 
 
 def run(args):
@@ -54,14 +48,5 @@ def run(args):
         return 0, _lines(_search_index()), ""
     if cmd == "list" and len(args) >= 2:
         rows = lists.list_category(args[1], args[2] if len(args) > 2 else "")
-        if rows is not None:
-            return 0, _lines(rows), ""
-    return legacy(args)
-
-
-def handled_here(args) -> bool:
-    """Выполнит ли команду сам Python (для CLI: иначе — сразу exec в bash, без лишнего круга)."""
-    cmd = args[0] if args else ""
-    if cmd in ("lang", "search-index", "status", "available") or cmd in preview_ops.COMMANDS or cmd in apply_ops.COMMANDS or (cmd == "tweak" and len(args) >= 2):
-        return True
-    return cmd == "list" and len(args) >= 2 and (args[1] in lists.LISTS or args[1] == "theme-walls")
+        return 0, _lines(rows or []), ""   # неизвестная категория — пусто и 0, как в bash
+    return 1, "", USAGE

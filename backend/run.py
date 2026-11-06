@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from customizer import commands, paths, serve  # noqa: E402
+from customizer import commands, serve  # noqa: E402
 
 
 def main():
@@ -19,10 +19,6 @@ def main():
     if args[:1] == ["serve"]:
         serve.main()
         return 0
-    if not commands.handled_here(args):
-        # Ещё не перенесено — сразу старый bash, без лишнего круга через subprocess.
-        os.environ["CUSTOMIZER_LEGACY"] = "1"
-        os.execv("/bin/bash", ["bash", str(paths.LEGACY), *args])
     code, out, err = commands.run(args)
     sys.stdout.write(out)
     sys.stderr.write(err)

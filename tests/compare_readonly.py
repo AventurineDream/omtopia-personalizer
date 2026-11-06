@@ -33,7 +33,7 @@ CASES = ([["lang"], ["search-index"], ["status"], ["available"], ["list", "theme
 
 def bash(args):
     env = dict(os.environ, CUSTOMIZER_LEGACY="1")
-    return subprocess.run(["bash", os.path.join(PLUGIN, "customizer.sh"), *args],
+    return subprocess.run(["bash", os.path.join(PLUGIN, "tests/legacy/customizer.sh"), *args],
                           capture_output=True, text=True, env=env).stdout
 
 

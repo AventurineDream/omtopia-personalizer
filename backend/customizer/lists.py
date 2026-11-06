@@ -1,5 +1,5 @@
-"""`list <категория>` — строки для overlay. Перенесённые категории — здесь; остальные пока отдаёт
-bash (customizer.sh с CUSTOMIZER_LEGACY=1), см. commands.py."""
+"""`list <категория>` — строки для overlay (категории настроек и простые списки; остальное —
+lists_more.py)."""
 from . import jsonio, paths, tweaks
 from .i18n import t
 
