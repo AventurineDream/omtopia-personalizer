@@ -18,12 +18,26 @@ _FX_EFFECTS = [
     ("burn", "Burns through in spots with a glowing edge"), ("waterdrop", "A drop: waves from a point, fading out"),
     ("hexagon", "Honeycomb opening from the centre"),
     ("contagion", "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour"),
-    ("outline", "Draws the character's outline, fills it in, then the world grows out of it (needs the cut-out model, otherwise contagion)"),
+    ("outline", "Draws the character's outline, fills it in, then the world grows out of it. Wallpapers that are not cut out yet, or have no clear character, get their own lines drawn instead"),
     ("random", "A random effect every time"), ("none", "No animation"),
 ]
 
 # Карты outline режет scripts/wallpaper-fx-outline плагина обоев (venv с BiRefNet, ставится по запросу).
 FX_OUTLINE_VENV = paths.HOME / ".local/share/wallpaper-fx/venv/bin/python"
+FX_OUTLINE_CACHE = paths.CACHE / "wallpaper-fx"
+
+
+def _outline_status():
+    """Устройство и очередь — из файлов воркера, без запуска python."""
+    try:
+        device = (FX_OUTLINE_CACHE / "device").read_text().strip()
+    except OSError:
+        device = "—"
+    try:
+        queued = sum(1 for l in (FX_OUTLINE_CACHE / "outline/queue").read_text().splitlines() if l)
+    except OSError:
+        queued = 0
+    return t("Device: %s · in queue: %s", device, str(queued))
 
 
 FX_PLUGIN = "kamradsmeshnyavy.background"
@@ -39,10 +53,11 @@ def _wallpaper_fx():
     out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
     if FX_OUTLINE_VENV.exists():
         out.append(f"{t('Outline: cut out the theme wallpapers')}\toutline-warm\t\t0\t"
-                   f"{t('Finds the character on every wallpaper of the current theme ahead of time, so outline starts instantly. Wallpapers without a clear character get contagion.')}")
+                   f"{t('Queues the current theme wallpapers: one background process finds the character on each (NPU / GPU if the Intel drivers are installed). Until then, and on wallpapers without a clear character, outline draws the picture own lines.')}"
+                   f"\\n\\n{_outline_status()}")
     else:
         out.append(f"{t('Outline: install the cut-out model (~1 GB)')}\toutline-install\t\t0\t"
-                   f"{t('outline needs BiRefNet (rembg + onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then outline plays as contagion.')}"
+                   f"{t('To find characters, outline needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.')}"
                    f"\\n\\n{t('⏎ — install in a terminal, then cut out the theme wallpapers')}")
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"
     for e, desc in _FX_EFFECTS:

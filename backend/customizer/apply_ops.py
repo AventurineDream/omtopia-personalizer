@@ -48,6 +48,16 @@ class Exit(Exception):
         self.code = code
 
 
+def spawn(args):
+    """Запустить и не ждать: свой сеанс, без наших пайпов. sh() ждёт вывод, а отсоединённый
+    потомок держал бы его пайп — и apply висел бы, пока тот не закончит."""
+    try:
+        subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True, close_fds=True)
+    except OSError:
+        pass
+
+
 def notify(*args):
     sh(["notify-send", *args])
 
@@ -908,15 +918,16 @@ def apply(category, value):
             code = sh(["omarchy", "plugin", "enable", "kamradsmeshnyavy.background"])[0]
             notify("-t", "3000", "Wallpaper FX", t("Enabled") if code == 0 else t("Could not enable the plugin"))
             raise Exit(code)
-        if value in ("outline-install", "outline-warm"):
-            script = shlex.quote(str(state.PLUGINS / "kamradsmeshnyavy.background/scripts/wallpaper-fx-outline"))
+        if value in ("outline-install", "outline-warm", "outline-status"):
+            script = str(state.PLUGINS / "kamradsmeshnyavy.background/scripts/wallpaper-fx-outline")
             if value == "outline-install":
-                sh(["setsid", "-f", "omarchy-launch-floating-terminal-with-presentation",
-                    f"{script} install && {script} warm"])
-            else:
-                sh(["setsid", "-f", "bash", "-c", f"{script} warm >/dev/null 2>&1 && "
-                    f"notify-send -t 3000 'Wallpaper FX' {shlex.quote(t('Outline: wallpapers are ready'))}"])
-                notify("-t", "2000", "Wallpaper FX", t("Cutting out the theme wallpapers…"))
+                spawn(["omarchy-launch-floating-terminal-with-presentation",
+                       f"{shlex.quote(script)} install && {shlex.quote(script)} warm"])
+            elif value == "outline-warm":
+                # warm только ставит обои в очередь; режет один фоновый воркер (flock) — сколько
+                # ни нажимай, процесс один
+                spawn([script, "warm"])
+                notify("-t", "2500", "Wallpaper FX", t("Theme wallpapers queued for cut-out (one background process)"))
             raise Exit(0)
         tweak_ops.set_key(state.FX_CFG, "type", value)
         notify("-t", "2000", "Wallpaper FX", t("Transition: %s", value))

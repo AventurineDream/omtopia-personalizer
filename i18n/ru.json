@@ -711,16 +711,16 @@
   "Enabled": "Включён",
   "Could not enable the plugin": "Не удалось включить плагин",
   "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour": "Колонии пикселей прогрызают старые обои, фронт вспыхивает самым ярким цветом новой темы",
-  "Draws the character's outline, fills it in, then the world grows out of it (needs the cut-out model, otherwise contagion)": "Рисует контур персонажа, заливает его, потом из него вырастает мир (нужна модель вырезки, иначе contagion)",
   "Outline: cut out the theme wallpapers": "Outline: вырезать персонажей на обоях темы",
-  "Finds the character on every wallpaper of the current theme ahead of time, so outline starts instantly. Wallpapers without a clear character get contagion.": "Заранее находит персонажа на всех обоях текущей темы, чтобы outline стартовал сразу. Обои без явного персонажа получат contagion.",
   "Outline: install the cut-out model (~1 GB)": "Outline: установить модель вырезки (~1 ГБ)",
-  "outline needs BiRefNet (rembg + onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then outline plays as contagion.": "outline нужен BiRefNet (rembg + onnxruntime) в отдельном venv: ~/.local/share/wallpaper-fx/venv. Пока его нет, outline играет как contagion.",
   "⏎ — install in a terminal, then cut out the theme wallpapers": "⏎ — установить в терминале, затем вырезать обои темы",
-  "Outline: wallpapers are ready": "Outline: обои готовы",
-  "Cutting out the theme wallpapers…": "Вырезаю персонажей на обоях темы…",
   "Contagion / outline: duration, ms": "Contagion / outline: длительность, мс",
   "Contagion / outline: cell size, px": "Contagion / outline: размер клетки, px",
   "Contagion: glow": "Contagion: свечение фронта",
-  "Outline: line width, px": "Outline: толщина линии, px"
+  "Outline: line width, px": "Outline: толщина линии, px",
+  "Draws the character's outline, fills it in, then the world grows out of it. Wallpapers that are not cut out yet, or have no clear character, get their own lines drawn instead": "Рисует контур персонажа, заливает его, потом из него вырастает мир. Обои, которые ещё не вырезаны или без явного персонажа, получают свои собственные линии",
+  "To find characters, outline needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.": "Чтобы находить персонажей, outline нужен BiRefNet (onnxruntime) в отдельном venv: ~/.local/share/wallpaper-fx/venv. Пока его нет, рисуются линии самой картинки.",
+  "Queues the current theme wallpapers: one background process finds the character on each (NPU / GPU if the Intel drivers are installed). Until then, and on wallpapers without a clear character, outline draws the picture own lines.": "Ставит обои текущей темы в очередь: один фоновый процесс находит на каждых персонажа (на NPU / GPU, если стоят драйверы Intel). А пока, и на обоях без явного персонажа, outline рисует линии самой картинки.",
+  "Theme wallpapers queued for cut-out (one background process)": "Обои темы в очереди на вырезку (один фоновый процесс)",
+  "Device: %s · in queue: %s": "Устройство: %s · в очереди: %s"
 }

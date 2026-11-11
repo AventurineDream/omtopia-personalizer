@@ -19,7 +19,8 @@ def sandbox():
     base = tempfile.mkdtemp(prefix="customizer-new.", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
     home, stubs, log = (os.path.join(base, n) for n in ("home", "stubs", "calls.log"))
     os.makedirs(stubs)
-    for name in ("gio", "omarchy-theme-bg-next", "notify-send", "setsid", "omarchy"):
+    for name in ("gio", "omarchy-theme-bg-next", "notify-send", "setsid", "omarchy",
+                 "omarchy-launch-floating-terminal-with-presentation"):
         extra = '[ "$1" = trash ] && mv "$2" "$2.trashed"\n' if name == "gio" else ""
         with open(os.path.join(stubs, name), "w") as f:
             f.write(f'#!/bin/sh\nprintf "%s\\n" "{name} $*" >> "{log}"\n{extra}')
@@ -121,7 +122,15 @@ def main():
     run(env, "apply", "wallpaper-fx", "outline-install")
     check("fx: outline-install opens a terminal with install && warm",
           any("omarchy-launch-floating-terminal-with-presentation" in c and "install &&" in c for c in calls(log)[n:]))
-    run(env, "apply", "wallpaper-fx", "outline-install")
+    import time
+    t0 = time.time()
+    try:
+        subprocess.run(["/usr/bin/python3", "-I", RUN, "apply", "wallpaper-fx", "outline-warm"], env=env,
+                       capture_output=True, text=True, timeout=5)
+        quick = time.time() - t0 < 5
+    except subprocess.TimeoutExpired:
+        quick = False
+    check("fx: outline-warm returns at once (does not wait for the cut-out)", quick)
     cfg = os.path.join(home, ".config/omarchy/wallpaper-transition.json")
     check("fx: outline-install does not become the effect type",
           not os.path.exists(cfg) or json.load(open(cfg)).get("type") != "outline-install")
