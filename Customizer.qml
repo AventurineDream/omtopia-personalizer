@@ -2696,7 +2696,10 @@ Item {
                   visible: root.category.fx === true && root.selectedRow !== null
                   readonly property string effect: {
                     var row = root.selectedRow
-                    var e = row && !root.isTweakRow(row) ? row.value : String(root.activeFx.type || "slant")
+                    // Строки-действия и заголовки — не переходы: на них превью играет текущий переход.
+                    var action = !row || root.isTweakRow(row) || root.isHeader(row)
+                      || ["outline-warm", "outline-install", "enable-plugin"].indexOf(String(row.value)) !== -1
+                    var e = action ? String(root.activeFx.type || "slant") : row.value
                     return e === "none" || e === "random" ? "fade" : e
                   }
                   readonly property bool scene: effect === "contagion" || effect === "outline" || effect === "outline-cut"

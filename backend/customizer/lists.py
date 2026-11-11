@@ -51,18 +51,24 @@ def _wallpaper_fx():
         out.append(f"{t('⚠ Wallpaper FX is off — ⏎ turn it on')}\tenable-plugin\t\t0\t"
                    f"{t('The plugin is installed but not enabled in shell.json, so wallpapers change with the stock slanted wipe and the effects below do nothing.')}"
                    f"\\n\\n{t('⏎ — enable it (omarchy plugin enable %s)', FX_PLUGIN)}")
+    hdr = lambda title, sid: f"{t(title)}\tsection:{sid}\t\t0\t\theader"
+    out.append(hdr("Settings", "settings"))
     out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
-    if FX_OUTLINE_VENV.exists():
-        out.append(f"{t('Outline-cut: queue the theme wallpapers')}\toutline-warm\t\t0\t"
-                   f"{t('Queues the current theme wallpapers: one background process finds the character on each (NPU / GPU if the Intel drivers are installed). Until then, and on wallpapers without a clear character, outline draws the picture own lines.')}"
-                   f"\\n\\n{_outline_status()}")
-    else:
-        out.append(f"{t('Outline-cut: install the cut-out model')}\toutline-install\t\t0\t"
-                   f"{t('To find characters, outline needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.')}"
-                   f"\\n\\n{t('⏎ — install in a terminal, then cut out the theme wallpapers')}")
+    out.append(hdr("Transitions", "transitions"))
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"
     for e, desc in _FX_EFFECTS:
         out.append(f"{e}\t{e}\t\t{1 if e == cur else 0}\t{t(desc)}\\n\\n{t('⏎ — select · p — play it on the desktop')}")
+    # Разовые действия — отдельным разделом и с ⚡ (как ⚡ Cache thumbnails), чтобы не путались с переходами.
+    out.append(hdr("Actions", "actions"))
+    one_off = t("One-off action for outline-cut — not a transition.")
+    if FX_OUTLINE_VENV.exists():
+        out.append(f"{t('⚡ Prepare characters for the whole theme')}\toutline-warm\t\t0\t{one_off}\\n\\n"
+                   f"{t('Queues every wallpaper of the current theme for cut-out, so the first change to any of them already shows the character instead of lines. Without it, wallpapers are cut out one by one as you switch to them.')}"
+                   f"\\n\\n{_outline_status()}\\n\\n{t('⏎ — run')}")
+    else:
+        out.append(f"{t('⚡ Install the cut-out model')}\toutline-install\t\t0\t{one_off}\\n\\n"
+                   f"{t('To find characters, outline-cut needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.')}"
+                   f"\\n\\n{t('⏎ — install in a terminal, then prepare the theme wallpapers')}")
     return out
 
 

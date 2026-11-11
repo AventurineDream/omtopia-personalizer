@@ -118,6 +118,10 @@ def main():
     open(venv_py, "w").close()
     values = [r.split("\t")[1] for r in run(env, "list", "wallpaper-fx")[1].split("\n") if "\t" in r]
     check("fx: venv → warm row", "outline-warm" in values and "outline-install" not in values)
+    order = [r.split("\t")[1] for r in run(env, "list", "wallpaper-fx")[1].split("\n") if "\t" in r]
+    check("fx: actions sit under their own header, after the transitions",
+          "section:actions" in order and order.index("section:actions") < order.index("outline-warm")
+          and order.index("section:transitions") < order.index("outline") < order.index("section:actions"))
     n = len(calls(log))
     run(env, "apply", "wallpaper-fx", "outline-install")
     check("fx: outline-install opens a terminal with install && warm",
