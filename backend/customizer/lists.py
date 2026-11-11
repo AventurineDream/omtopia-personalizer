@@ -18,7 +18,8 @@ _FX_EFFECTS = [
     ("burn", "Burns through in spots with a glowing edge"), ("waterdrop", "A drop: waves from a point, fading out"),
     ("hexagon", "Honeycomb opening from the centre"),
     ("contagion", "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour"),
-    ("outline", "Draws the character's outline, fills it in, then the world grows out of it. Wallpapers that are not cut out yet, or have no clear character, get their own lines drawn instead"),
+    ("outline", "Draws the picture's own lines, then the world grows out of them. Light: no model, no background work"),
+    ("outline-cut", "Outline with cut-out: draws the character's outline, fills it in, then the world grows out of it. The character is found by BiRefNet in the background (NPU / GPU); until a wallpaper is cut out, its own lines are drawn"),
     ("random", "A random effect every time"), ("none", "No animation"),
 ]
 
@@ -52,11 +53,11 @@ def _wallpaper_fx():
                    f"\\n\\n{t('⏎ — enable it (omarchy plugin enable %s)', FX_PLUGIN)}")
     out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
     if FX_OUTLINE_VENV.exists():
-        out.append(f"{t('Outline: cut out the theme wallpapers')}\toutline-warm\t\t0\t"
+        out.append(f"{t('Outline-cut: queue the theme wallpapers')}\toutline-warm\t\t0\t"
                    f"{t('Queues the current theme wallpapers: one background process finds the character on each (NPU / GPU if the Intel drivers are installed). Until then, and on wallpapers without a clear character, outline draws the picture own lines.')}"
                    f"\\n\\n{_outline_status()}")
     else:
-        out.append(f"{t('Outline: install the cut-out model (~1 GB)')}\toutline-install\t\t0\t"
+        out.append(f"{t('Outline-cut: install the cut-out model')}\toutline-install\t\t0\t"
                    f"{t('To find characters, outline needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.')}"
                    f"\\n\\n{t('⏎ — install in a terminal, then cut out the theme wallpapers')}")
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"

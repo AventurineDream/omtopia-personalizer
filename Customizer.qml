@@ -2699,7 +2699,7 @@ Item {
                     var e = row && !root.isTweakRow(row) ? row.value : String(root.activeFx.type || "slant")
                     return e === "none" || e === "random" ? "fade" : e
                   }
-                  readonly property bool scene: effect === "contagion" || effect === "outline"
+                  readonly property bool scene: effect === "contagion" || effect === "outline" || effect === "outline-cut"
                   // contagion / outline — «сцены»: своя длительность, линейно (кривые внутри шейдера)
                   readonly property int duration: scene ? Math.max(600, Number(root.activeFx.durationScene) || 1900) / 2
                                                         : Math.max(150, Number(root.activeFx.duration) || 420)
