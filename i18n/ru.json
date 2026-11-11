@@ -709,5 +709,18 @@
   "The plugin is installed but not enabled in shell.json, so wallpapers change with the stock slanted wipe and the effects below do nothing.": "Плагин установлен, но не включён в shell.json: обои меняются стоковым косым срезом, а эффекты ниже ни на что не влияют.",
   "⏎ — enable it (omarchy plugin enable %s)": "⏎ — включить (omarchy plugin enable %s)",
   "Enabled": "Включён",
-  "Could not enable the plugin": "Не удалось включить плагин"
+  "Could not enable the plugin": "Не удалось включить плагин",
+  "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour": "Колонии пикселей прогрызают старые обои, фронт вспыхивает самым ярким цветом новой темы",
+  "Draws the character's outline, fills it in, then the world grows out of it (needs the cut-out model, otherwise contagion)": "Рисует контур персонажа, заливает его, потом из него вырастает мир (нужна модель вырезки, иначе contagion)",
+  "Outline: cut out the theme wallpapers": "Outline: вырезать персонажей на обоях темы",
+  "Finds the character on every wallpaper of the current theme ahead of time, so outline starts instantly. Wallpapers without a clear character get contagion.": "Заранее находит персонажа на всех обоях текущей темы, чтобы outline стартовал сразу. Обои без явного персонажа получат contagion.",
+  "Outline: install the cut-out model (~1 GB)": "Outline: установить модель вырезки (~1 ГБ)",
+  "outline needs BiRefNet (rembg + onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then outline plays as contagion.": "outline нужен BiRefNet (rembg + onnxruntime) в отдельном venv: ~/.local/share/wallpaper-fx/venv. Пока его нет, outline играет как contagion.",
+  "⏎ — install in a terminal, then cut out the theme wallpapers": "⏎ — установить в терминале, затем вырезать обои темы",
+  "Outline: wallpapers are ready": "Outline: обои готовы",
+  "Cutting out the theme wallpapers…": "Вырезаю персонажей на обоях темы…",
+  "Contagion / outline: duration, ms": "Contagion / outline: длительность, мс",
+  "Contagion / outline: cell size, px": "Contagion / outline: размер клетки, px",
+  "Contagion: glow": "Contagion: свечение фронта",
+  "Outline: line width, px": "Outline: толщина линии, px"
 }

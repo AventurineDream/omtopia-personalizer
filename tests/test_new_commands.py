@@ -107,6 +107,25 @@ def main():
     first = run(env, "list", "wallpaper-fx")[1].split("\n")[0].split("\t")
     check("fx on: no enable row", len(first) > 1 and first[1] != "enable-plugin")
 
+    # ── outline: без venv — строка установки, с ним — вырезка; оба эффекта в списке ──
+    rows = [r.split("\t") for r in run(env, "list", "wallpaper-fx")[1].split("\n")]
+    values = [r[1] for r in rows if len(r) > 1]
+    check("fx: contagion and outline listed", "contagion" in values and "outline" in values)
+    check("fx: no venv → install row", "outline-install" in values and "outline-warm" not in values)
+    venv_py = os.path.join(home, ".local/share/wallpaper-fx/venv/bin/python")
+    os.makedirs(os.path.dirname(venv_py))
+    open(venv_py, "w").close()
+    values = [r.split("\t")[1] for r in run(env, "list", "wallpaper-fx")[1].split("\n") if "\t" in r]
+    check("fx: venv → warm row", "outline-warm" in values and "outline-install" not in values)
+    n = len(calls(log))
+    run(env, "apply", "wallpaper-fx", "outline-install")
+    check("fx: outline-install opens a terminal with install && warm",
+          any("omarchy-launch-floating-terminal-with-presentation" in c and "install &&" in c for c in calls(log)[n:]))
+    run(env, "apply", "wallpaper-fx", "outline-install")
+    cfg = os.path.join(home, ".config/omarchy/wallpaper-transition.json")
+    check("fx: outline-install does not become the effect type",
+          not os.path.exists(cfg) or json.load(open(cfg)).get("type") != "outline-install")
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 

@@ -2699,7 +2699,10 @@ Item {
                     var e = row && !root.isTweakRow(row) ? row.value : String(root.activeFx.type || "slant")
                     return e === "none" || e === "random" ? "fade" : e
                   }
-                  readonly property int duration: Math.max(150, Number(root.activeFx.duration) || 420)
+                  readonly property bool scene: effect === "contagion" || effect === "outline"
+                  // contagion / outline — «сцены»: своя длительность, линейно (кривые внутри шейдера)
+                  readonly property int duration: scene ? Math.max(600, Number(root.activeFx.durationScene) || 1900) / 2
+                                                        : Math.max(150, Number(root.activeFx.duration) || 420)
 
                   ClippingRectangle {
                     id: fxScreen
@@ -2742,12 +2745,19 @@ Item {
                         item.angleDegrees = Qt.binding(function() { return Number(root.activeFx.angle || 0) })
                         item.softness = Qt.binding(function() { return root.activeFx.softness !== undefined ? Number(root.activeFx.softness) : 0.02 })
                         item.progress = Qt.binding(function() { return fxEffect.progress })
+                        if (item.cell !== undefined) {
+                          item.cell = Qt.binding(function() { return Number(root.activeFx.cell) || 6 })
+                          item.glow = Qt.binding(function() { return root.activeFx.frontGlow !== undefined ? Number(root.activeFx.frontGlow) : 0.9 })
+                          item.lineW = Qt.binding(function() { return Number(root.activeFx.lineWidth) || 1.5 })
+                          item.capturePalette()
+                        }
                       }
                       // Цикл: переход (длительность из настроек), пауза, заново.
                       SequentialAnimation on progress {
                         running: fxEffect.visible
                         loops: Animation.Infinite
-                        NumberAnimation { from: 0; to: 1; duration: fxStage.duration * 2; easing.type: Easing.InOutCubic }
+                        NumberAnimation { from: 0; to: 1; duration: fxStage.duration * 2
+                          easing.type: fxStage.scene ? Easing.Linear : Easing.InOutCubic }
                         PauseAnimation { duration: 700 }
                       }
                     }

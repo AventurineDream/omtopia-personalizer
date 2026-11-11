@@ -16,8 +16,14 @@ _FX_EFFECTS = [
     ("crosszoom", "Radial blur with zoom"), ("slide", "The new wallpaper pushes the old one out (along the “Angle”)"),
     ("zoom", "The old one flies forward, the new one fades in"), ("glitch", "Torn stripes and channel split"),
     ("burn", "Burns through in spots with a glowing edge"), ("waterdrop", "A drop: waves from a point, fading out"),
-    ("hexagon", "Honeycomb opening from the centre"), ("random", "A random effect every time"), ("none", "No animation"),
+    ("hexagon", "Honeycomb opening from the centre"),
+    ("contagion", "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour"),
+    ("outline", "Draws the character's outline, fills it in, then the world grows out of it (needs the cut-out model, otherwise contagion)"),
+    ("random", "A random effect every time"), ("none", "No animation"),
 ]
+
+# Карты outline режет scripts/wallpaper-fx-outline плагина обоев (venv с BiRefNet, ставится по запросу).
+FX_OUTLINE_VENV = paths.HOME / ".local/share/wallpaper-fx/venv/bin/python"
 
 
 FX_PLUGIN = "kamradsmeshnyavy.background"
@@ -31,6 +37,13 @@ def _wallpaper_fx():
                    f"{t('The plugin is installed but not enabled in shell.json, so wallpapers change with the stock slanted wipe and the effects below do nothing.')}"
                    f"\\n\\n{t('⏎ — enable it (omarchy plugin enable %s)', FX_PLUGIN)}")
     out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
+    if FX_OUTLINE_VENV.exists():
+        out.append(f"{t('Outline: cut out the theme wallpapers')}\toutline-warm\t\t0\t"
+                   f"{t('Finds the character on every wallpaper of the current theme ahead of time, so outline starts instantly. Wallpapers without a clear character get contagion.')}")
+    else:
+        out.append(f"{t('Outline: install the cut-out model (~1 GB)')}\toutline-install\t\t0\t"
+                   f"{t('outline needs BiRefNet (rembg + onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then outline plays as contagion.')}"
+                   f"\\n\\n{t('⏎ — install in a terminal, then cut out the theme wallpapers')}")
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"
     for e, desc in _FX_EFFECTS:
         out.append(f"{e}\t{e}\t\t{1 if e == cur else 0}\t{t(desc)}\\n\\n{t('⏎ — select · p — play it on the desktop')}")

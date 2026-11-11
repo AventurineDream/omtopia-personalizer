@@ -437,6 +437,42 @@
           "step": 0.01,
           "default": 0.02,
           "label": "Edge softness"
+        },
+        {
+          "key": "durationScene",
+          "type": "num",
+          "min": 600,
+          "max": 5000,
+          "step": 100,
+          "default": 1900,
+          "label": "Contagion / outline: duration, ms"
+        },
+        {
+          "key": "cell",
+          "type": "num",
+          "min": 2,
+          "max": 24,
+          "step": 1,
+          "default": 6,
+          "label": "Contagion / outline: cell size, px"
+        },
+        {
+          "key": "frontGlow",
+          "type": "num",
+          "min": 0,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.9,
+          "label": "Contagion: glow"
+        },
+        {
+          "key": "lineWidth",
+          "type": "num",
+          "min": 0.5,
+          "max": 6,
+          "step": 0.5,
+          "default": 1.5,
+          "label": "Outline: line width, px"
         }
       ]
     },
