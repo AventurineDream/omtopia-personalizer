@@ -780,5 +780,13 @@
   "Live wallpapers": "Живые обои",
   "Live wallpaper (owe) · live": "Живые обои (owe) · live",
   "Recolored frame by frame with ffmpeg (slow); a video becomes mp4.": "Перекрашивается покадрово через ffmpeg (медленно); видео станет mp4.",
-  "GIF / video is recolored frame by frame (ffmpeg) — this takes a while": "GIF / видео перекрашивается покадрово (ffmpeg) — это займёт время"
+  "GIF / video is recolored frame by frame (ffmpeg) — this takes a while": "GIF / видео перекрашивается покадрово (ffmpeg) — это займёт время",
+  "RunCat (runs faster with CPU load)": "RunCat (бежит быстрее под нагрузкой CPU)",
+  "CPU / RAM rings": "Кольца CPU / RAM",
+  "Cava dots (while music plays)": "Cava точками (пока играет музыка)",
+  "Focus timer (pomodoro)": "Таймер фокуса (помодоро)",
+  "GitHub: contribution graph (needs a GitHub user)": "GitHub: график вкладов (нужно имя пользователя)",
+  "GitHub: user name (the public contributions API gets only this name)": "GitHub: имя пользователя (публичный API вкладов получает только его)",
+  "GitHub: position": "GitHub: положение",
+  "GitHub: weeks shown": "GitHub: сколько недель показывать"
 }

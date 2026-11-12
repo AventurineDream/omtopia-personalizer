@@ -311,6 +311,18 @@ def _widget_show(wid):
         write_inplace(paths.SHELL_JSON, shell)
         write_inplace(BAR_HIDDEN, {k: v for k, v in hidden.items() if k != wid})
     else:
+        from .lists_more import BAR_MODULES
+        if wid in BAR_MODULES:
+            # Новый QML-модуль бара: в конец правой секции записью {id, type: qml, source}.
+            shell, lay = _layout()
+            shell = dict(shell)
+            shell["bar"] = dict(shell.get("bar") or {})
+            shell["bar"]["layout"] = dict(lay)
+            entry = {"id": wid, "type": "qml",
+                     "source": f"~/.config/omarchy/plugins/kamradsmeshnyavy.bar/modules/{BAR_MODULES[wid]}"}
+            shell["bar"]["layout"]["right"] = list(lay.get("right") or []) + [entry]
+            write_inplace(paths.SHELL_JSON, shell)
+            return
         _quiet(["omarchy-shell", "shell", "putBarWidget", wid, "{}"])
 
 

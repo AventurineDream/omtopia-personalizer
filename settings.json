@@ -1005,6 +1005,32 @@
           "step": 1,
           "default": 10,
           "label": "Photo: change every, minutes"
+        },
+        {
+          "key": "contrib",
+          "type": "bool",
+          "default": false,
+          "label": "GitHub: contribution graph (needs a GitHub user)"
+        },
+        {
+          "key": "githubUser",
+          "type": "text",
+          "label": "GitHub: user name (the public contributions API gets only this name)"
+        },
+        {
+          "key": "contribAnchor",
+          "type": "enum",
+          "values": ["bottom-right", "bottom", "bottom-left", "right", "left", "center", "top-right", "top", "top-left", "free"],
+          "label": "GitHub: position"
+        },
+        {
+          "key": "contribWeeks",
+          "type": "num",
+          "min": 8,
+          "max": 53,
+          "step": 1,
+          "default": 26,
+          "label": "GitHub: weeks shown"
         }
       ]
     },

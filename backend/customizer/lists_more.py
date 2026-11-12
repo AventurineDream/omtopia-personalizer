@@ -460,7 +460,12 @@ def bar_skins():
 
 
 _WIDGET_LABEL = {"dotmatrix-mark": "DOT-MATRIX logo", "active-app": "Active app", "battery-gauge": "Battery (LED)",
-                 "dot-clock": "Clock (Doto)", "privacy-led": "Microphone LED"}
+                 "dot-clock": "Clock (Doto)", "privacy-led": "Microphone LED", "runcat": "RunCat (runs faster with CPU load)",
+                 "cpu-ram": "CPU / RAM rings", "cava-dots": "Cava dots (while music plays)", "focus-timer": "Focus timer (pomodoro)"}
+# QML-модули бара (kamradsmeshnyavy.bar/modules): ставятся в «Не на баре» даже если их никогда не было на баре.
+BAR_MODULES = {"dotmatrix-mark": "DotMatrixMark.qml", "active-app": "ActiveAppIcon.qml", "battery-gauge": "BatteryGauge.qml",
+               "dot-clock": "DotClock.qml", "privacy-led": "PrivacyLed.qml", "runcat": "RunCat.qml",
+               "cpu-ram": "CpuRamRings.qml", "cava-dots": "CavaDots.qml", "focus-timer": "FocusTimer.qml"}
 WIDGET_SETTINGS = [
     ("kamradsmeshnyavy.tray", "collapse", "false", "Tray: collapse into a drawer (opens on hover)"),
     ("kamradsmeshnyavy.tray", "monochrome", "true", "Tray: monochrome icons (colour on hover)"),
@@ -513,6 +518,8 @@ def bar_widgets():
     for p in catalog:
         if isinstance(p, dict) and "bar-widget" in (p.get("kinds") or []) and p.get("id") not in cloned:
             cand.append(jsonio.tostring(p.get("id")))
+    if (state.BAR_DIR / "modules").is_dir():
+        cand += [m for m, f in BAR_MODULES.items() if (state.BAR_DIR / "modules" / f).is_file()]
     done = set()
     for wid in cand:
         if wid in done:
