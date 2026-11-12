@@ -1144,7 +1144,7 @@
         {
           "key": "dashAnimation",
           "type": "enum",
-          "values": ["grow", "slide", "fade"],
+          "values": ["grow", "slide", "fade", "liquid"],
           "label": "Animation"
         },
         {
