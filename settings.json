@@ -645,7 +645,7 @@
         {
           "key": "clockAnchor",
           "type": "enum",
-          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"],
+          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"],
           "label": "Clock: position"
         },
         {
@@ -672,7 +672,7 @@
         {
           "key": "mediaAnchor",
           "type": "enum",
-          "values": ["bottom-left", "bottom", "bottom-right", "top-left", "top", "top-right", "left", "center", "right"],
+          "values": ["bottom-left", "bottom", "bottom-right", "top-left", "top", "top-right", "left", "center", "right", "free"],
           "label": "Now playing: position"
         },
         {
@@ -735,7 +735,7 @@
         {
           "key": "sysinfoAnchor",
           "type": "enum",
-          "values": ["top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "top-left", "top"],
+          "values": ["top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "top-left", "top", "free"],
           "label": "System rings: position"
         },
         {
@@ -747,7 +747,7 @@
         {
           "key": "networkAnchor",
           "type": "enum",
-          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"],
+          "values": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right", "free"],
           "label": "Network: position"
         },
         {
@@ -762,7 +762,7 @@
         {
           "key": "todoAnchor",
           "type": "enum",
-          "values": ["right", "top-right", "top-left", "top", "left", "center", "bottom-left", "bottom", "bottom-right"],
+          "values": ["right", "top-right", "top-left", "top", "left", "center", "bottom-left", "bottom", "bottom-right", "free"],
           "label": "Todo: position"
         },
         {
@@ -786,7 +786,7 @@
         {
           "key": "quoteAnchor",
           "type": "enum",
-          "values": ["bottom-right", "bottom", "bottom-left", "right", "left", "center", "top-right", "top", "top-left"],
+          "values": ["bottom-right", "bottom", "bottom-left", "right", "left", "center", "top-right", "top", "top-left", "free"],
           "label": "Quote: position"
         },
         {
@@ -801,7 +801,7 @@
         {
           "key": "photoAnchor",
           "type": "enum",
-          "values": ["left", "right", "center", "top-left", "top", "top-right", "bottom-left", "bottom", "bottom-right"],
+          "values": ["left", "right", "center", "top-left", "top", "top-right", "bottom-left", "bottom", "bottom-right", "free"],
           "label": "Photo: position"
         },
         {
