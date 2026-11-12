@@ -755,5 +755,11 @@
   "Home: greeting": "Дом: приветствие",
   "Home: date": "Дом: дата",
   "Home (glyph): weather, battery and network line": "Дом (glyph): строка погоды, батареи и сети",
-  "Home: blinking clock colon": "Дом: мигающее двоеточие часов"
+  "Home: blinking clock colon": "Дом: мигающее двоеточие часов",
+  "Deck": "Deck",
+  "Deck: dashboard slides up from the bottom edge on hover (as in glyph-rice)": "Deck: дашборд выезжает из-под нижнего края по наведению (как в glyph-rice)",
+  "Deck: sections in order — clock weather perf net media": "Deck: секции по порядку — clock weather perf net media",
+  "Deck: card — flat as in glyph-rice · in the style material": "Deck: карточка — плоская как в glyph-rice · в материале стиля",
+  "Deck: size": "Deck: размер",
+  "Deck: hover delay at the edge, ms": "Deck: задержка у края, мс"
 }

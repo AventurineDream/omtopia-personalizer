@@ -671,6 +671,44 @@
           "label": "Home: hide anchored widgets while it is shown"
         },
         {
+          "section": "Deck"
+        },
+        {
+          "key": "deck",
+          "type": "bool",
+          "default": false,
+          "label": "Deck: dashboard slides up from the bottom edge on hover (as in glyph-rice)"
+        },
+        {
+          "key": "deckSections",
+          "type": "text",
+          "label": "Deck: sections in order — clock weather perf net media"
+        },
+        {
+          "key": "deckCards",
+          "type": "enum",
+          "values": ["glyph", "style"],
+          "label": "Deck: card — flat as in glyph-rice · in the style material"
+        },
+        {
+          "key": "deckScale",
+          "type": "num",
+          "min": 0.5,
+          "max": 1.6,
+          "step": 0.05,
+          "default": 1,
+          "label": "Deck: size"
+        },
+        {
+          "key": "deckDelay",
+          "type": "num",
+          "min": 0,
+          "max": 1000,
+          "step": 50,
+          "default": 150,
+          "label": "Deck: hover delay at the edge, ms"
+        },
+        {
           "section": "Style"
         },
         {
