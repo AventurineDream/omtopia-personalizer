@@ -619,6 +619,7 @@ def lock():
     designs = designs if isinstance(designs, list) else []
     ids = [jsonio.tostring(d.get("id")) for d in designs if isinstance(d, dict)]
     ids += ["my:" + os.path.basename(f) for f in fsutil.glob_sorted(LOCK_USER_DIR, ".qml")]
+    ids += sddm_lock_ids()
     missing = sum(1 for i in ids if not (CACHE_LOCK / f"{state.lock_thumb_name(i)}.jpg").is_file())
     out = []
     if missing > 0:
@@ -641,7 +642,29 @@ def lock():
         did = "my:" + name
         out.append(f"{name[:-4]}\t{did}\t{CACHE_LOCK}/{state.lock_thumb_name(did)}.jpg\t{_cur(did == cur)}\t"
                    f"{t('Your design: %s', f)}{NL}{NL}{t('p — show it live · ⏎ — select')}\tcustom")
+    # SDDM-темы (qylock): скачанные — дизайны "sddm:<тема>", скачать ещё — omarchy-lock-themes.
+    if fsutil.which("omarchy-lock-themes"):
+        out.append(f"{t('SDDM themes (qylock)')}\tsection:sddm\t\t0\t\theader")
+        out.append(f"{t('⬇ Download a qylock theme…')}\tsddm-fetch\t\t0\t"
+                   + t("Pick one of ~40 SDDM themes (NieR, Genshin, pixel art, Windows 7…) — it is downloaded to ~/.local/share/omarchy-lock-themes, not into dotfiles. The password still goes through the stock PAM; Ctrl+Alt+Enter on the lock screen falls back to the stock field."))
+        out.append(f"{t('⬇ Download all qylock themes (~520 MB)')}\tsddm-fetch-all\t\t0\t"
+                   + t("Every theme with its video backgrounds, in a terminal."))
+        for did in sddm_lock_ids():
+            out.append(f"{did[5:]}\t{did}\t{CACHE_LOCK}/{state.lock_thumb_name(did)}.jpg\t{_cur(did == cur)}\t"
+                       f"{t('SDDM theme from qylock (GPL-3.0, downloaded): %s', did[5:])}{NL}{NL}{t('p — show it live · ⏎ — select')}\tsddm")
     return out
+
+
+SDDM_THEMES = paths.HOME / ".local/share/omarchy-lock-themes/qylock/themes"
+
+
+def sddm_lock_ids():
+    """Скачанные SDDM-темы → id дизайнов экрана блокировки."""
+    try:
+        names = sorted(n for n in os.listdir(SDDM_THEMES) if os.path.isfile(SDDM_THEMES / n / "Main.qml"))
+    except OSError:
+        names = []
+    return ["sddm:" + n for n in names]
 
 
 def _skin_desc(sk: str) -> str:

@@ -814,5 +814,15 @@
   "⏎ — unpin": "⏎ — открепить",
   "Honeycomb: a big hexagon in the middle, neighbours in rings of hexagons around it (after Vitreus)": "Соты: крупный шестиугольник в центре, соседи — кольцами шестиугольников вокруг (по мотивам Vitreus)",
   "Round thumbnails; the preview assembles from dots in a wave (after glyph-rice)": "Круглые миниатюры; превью собирается из точек волной (по мотивам glyph-rice)",
-  "Honeycomb cells each opening from their own middle in a wave, with a lit rim (after Vitreus)": "Соты: каждая клетка раскрывается из своей середины волной, кромка подсвечена (по мотивам Vitreus)"
+  "Honeycomb cells each opening from their own middle in a wave, with a lit rim (after Vitreus)": "Соты: каждая клетка раскрывается из своей середины волной, кромка подсвечена (по мотивам Vitreus)",
+  "SDDM themes (qylock)": "SDDM-темы (qylock)",
+  "⬇ Download a qylock theme…": "⬇ Скачать тему qylock…",
+  "Pick one of ~40 SDDM themes (NieR, Genshin, pixel art, Windows 7…) — it is downloaded to ~/.local/share/omarchy-lock-themes, not into dotfiles. The password still goes through the stock PAM; Ctrl+Alt+Enter on the lock screen falls back to the stock field.": "Выбрать одну из ~40 SDDM-тем (NieR, Genshin, пиксель-арт, Windows 7…) — она скачивается в ~/.local/share/omarchy-lock-themes, не в dotfiles. Пароль по-прежнему проверяет стоковый PAM; Ctrl+Alt+Enter на экране блокировки — стоковое поле пароля.",
+  "⬇ Download all qylock themes (~520 MB)": "⬇ Скачать все темы qylock (~520 МБ)",
+  "Every theme with its video backgrounds, in a terminal.": "Все темы с видеофонами, в терминале.",
+  "SDDM theme from qylock (GPL-3.0, downloaded): %s": "SDDM-тема из qylock (GPL-3.0, скачана): %s",
+  "qylock theme": "Тема qylock",
+  "Downloading %s…": "Скачиваю %s…",
+  "Downloaded: %s — pick it in the list": "Скачано: %s — выбери в списке",
+  "Download failed: %s": "Не скачалось: %s"
 }

@@ -808,6 +808,7 @@ def lock_thumbs(only_missing=False):
     designs = jsonio.read(state.LOCK_PLUGIN / "designs/designs.json")
     ids = [jq_str(d.get("id")) for d in designs if isinstance(d, dict)] if isinstance(designs, list) else []
     ids += ["my:" + os.path.basename(f) for f in fsutil.glob_sorted(lists_more.LOCK_USER_DIR, ".qml")]
+    ids += lists_more.sddm_lock_ids()
     if only_missing:
         ids = [i for i in ids if not (LOCK_THUMBS / f"{state.lock_thumb_name(i)}.jpg").is_file()]
     for i in ids:
@@ -993,6 +994,21 @@ def apply(category, value):
             raise Exit(0)
         if value == "missing-thumbs":
             lock_thumbs(True)
+            raise Exit(0)
+        if value == "sddm-fetch-all":
+            spawn(["omarchy-launch-floating-terminal-with-presentation", "omarchy-lock-themes fetch --all"])
+            raise Exit(0)
+        if value == "sddm-fetch":
+            remote = fsutil.run(["omarchy-lock-themes", "list", "--remote"]).split()
+            have = {i[5:] for i in lists_more.sddm_lock_ids()}
+            rows = [x for n in remote if n not in have for x in (n,)]
+            pick = _zenity(["--list", f"--title={t('qylock theme')}", "--width=420", "--height=620",
+                            f"--column={t('Theme')}", *rows])
+            if pick:
+                name = pick.strip().split("|")[0]
+                notify("-t", "3000", "Lock", t("Downloading %s…", name))
+                code = sh(["omarchy-lock-themes", "fetch", name])[0]
+                notify("-t", "3000", "Lock", t("Downloaded: %s — pick it in the list", name) if code == 0 else t("Download failed: %s", name))
             raise Exit(0)
         tweak_ops.set_key(state.LOCK_CFG, "design", value)
         notify("-t", "2000", "Lock", t("Design: %s", value))
