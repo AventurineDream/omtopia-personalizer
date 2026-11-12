@@ -731,5 +731,15 @@
   "⏎ — run": "⏎ — запустить",
   "Reading mode on": "Режим чтения включён",
   "Press again to return to the desktop": "Нажми ещё раз, чтобы вернуться к рабочему столу",
-  "Reading mode off": "Режим чтения выключен"
+  "Reading mode off": "Режим чтения выключен",
+  "📖 Reading mode (now: %s)": "📖 Режим чтения (сейчас: %s)",
+  "The screen as a printed page: ink on paper, flat windows, no animations. Super+Alt+R. Settings are below the shader list.": "Экран как печатная страница: чернила на бумаге, плоские окна, без анимаций. Super+Alt+R. Настройки — под списком шейдеров.",
+  "Reading mode": "Режим чтения",
+  "Dark theme as a page: auto (invert when dark) · paper · invert": "Тёмная тема как страница: auto (инвертировать, если тёмная) · paper · invert",
+  "Page shader": "Шейдер страницы",
+  "Paper texture strength": "Сила текстуры бумаги",
+  "Screen brightness while reading, % (0 — don't touch)": "Яркость экрана при чтении, % (0 — не трогать)",
+  "Theme while reading (empty — keep the current one)": "Тема на время чтения (пусто — оставить текущую)",
+  "Flat windows: no gaps, black 1 px border, square corners": "Плоские окна: без отступов, чёрная рамка 1 px, прямые углы",
+  "Keep animations": "Оставить анимации"
 }

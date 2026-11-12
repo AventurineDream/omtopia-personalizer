@@ -1228,6 +1228,65 @@
       ]
     },
     {
+      "id": "READING_TWEAKS",
+      "category": "shaders",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/reading-mode.json",
+      "comment": "Режим чтения (scripts/reading-mode.sh) — reading-mode.json. Строки во вкладке «Шейдер» под «Режим чтения»;\nпри изменении во время чтения скрипт перепекает шейдер и перезагружает Hyprland.",
+      "items": [
+        {
+          "section": "Reading mode"
+        },
+        {
+          "key": "readingPage",
+          "type": "enum",
+          "values": ["auto", "paper", "invert"],
+          "label": "Dark theme as a page: auto (invert when dark) · paper · invert"
+        },
+        {
+          "key": "readingShader",
+          "type": "enum",
+          "values": ["reading", "paper", "film", "gameboy", "none"],
+          "label": "Page shader"
+        },
+        {
+          "key": "readingTexture",
+          "type": "num",
+          "min": 0,
+          "max": 2,
+          "step": 0.25,
+          "default": 1,
+          "label": "Paper texture strength"
+        },
+        {
+          "key": "readingBrightness",
+          "type": "num",
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "default": 40,
+          "label": "Screen brightness while reading, % (0 — don't touch)"
+        },
+        {
+          "key": "readingTheme",
+          "type": "text",
+          "label": "Theme while reading (empty — keep the current one)"
+        },
+        {
+          "key": "readingFlat",
+          "type": "bool",
+          "default": true,
+          "label": "Flat windows: no gaps, black 1 px border, square corners"
+        },
+        {
+          "key": "readingAnimations",
+          "type": "bool",
+          "default": false,
+          "label": "Keep animations"
+        }
+      ]
+    },
+    {
       "id": "DOTIFY_TWEAKS",
       "category": "dotify",
       "valuePrefix": "tweak:",

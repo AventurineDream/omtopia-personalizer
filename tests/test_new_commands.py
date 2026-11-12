@@ -139,6 +139,19 @@ def main():
     check("fx: outline-install does not become the effect type",
           not os.path.exists(cfg) or json.load(open(cfg)).get("type") != "outline-install")
 
+    # ── режим чтения: строка-действие и настройки во вкладке «Шейдер» ──
+    renv = dict(env)
+    renv.pop("XDG_STATE_HOME", None)   # состояние — только из песочницы
+    _, out = run(renv, "list", "shaders")
+    rows = [ln.split("\t") for ln in out.splitlines()]
+    values = [r[1] for r in rows if len(r) > 1]
+    check("reading: action row after toggle/next", values[:3] == ["toggle", "next", "reading"])
+    check("reading: settings listed after the shaders",
+          "tweak:readingPage" in values and values.index("tweak:readingPage") > values.index("reading", 3))
+    run(renv, "tweak", "readingBrightness", "+")
+    rcfg = os.path.join(home, ".config/omarchy/customizer/reading-mode.json")
+    check("reading: tweak writes reading-mode.json", json.load(open(rcfg)).get("readingBrightness") == 45)
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 

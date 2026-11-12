@@ -976,8 +976,14 @@ def apply(category, value):
         else:
             recolor_files([value])
     elif category == "shaders":
-        args = [] if value == "toggle" else ["next"] if value == "next" else ["on", value]
-        out = sh([str(state.TOGGLE), *args], quiet=False)[1]
+        if value.startswith("tweak:"):
+            tweak_pick(value)
+            tweak_ops.reading_after()
+        elif value == "reading":
+            out = sh([str(state.READING)], quiet=False)[1]
+        elif not value.startswith("section:"):
+            args = [] if value == "toggle" else ["next"] if value == "next" else ["on", value]
+            out = sh([str(state.TOGGLE), *args], quiet=False)[1]
     elif category == "opacity":
         out = sh([str(state.OPACITY), "set", value], quiet=False)[1]
     elif category == "blur":

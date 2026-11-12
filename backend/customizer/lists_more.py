@@ -358,13 +358,16 @@ def blur():
 def shaders():
     cur = state.current_shader()
     out = [f"{t('⏻ Toggle shader (now: %s)', cur)}\ttoggle\t\t0", f"{t('⏭ Next shader')}\tnext\t\t0"]
+    on = (state.STATE_HYPR / "reading-mode").is_file()
+    out.append(f"{t('📖 Reading mode (now: %s)', t('on') if on else t('off'))}\treading\t\t0\t"
+               + t("The screen as a printed page: ink on paper, flat windows, no animations. Super+Alt+R. Settings are below the shader list."))
     for f in fsutil.run([str(state.TOGGLE), "list"]).split("\n"):
         if not f:
             continue
         n = os.path.basename(f)
         n = n[:-5] if n.endswith(".frag") else n
         out.append(f"{n}\t{n}\t{f}\t{_cur(n == cur)}")
-    return out
+    return out + tweaks.prefixed(tweaks.list_tweaks("READING_TWEAKS"))
 
 
 # ── Бар ──

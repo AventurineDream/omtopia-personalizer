@@ -12,21 +12,31 @@ layout(binding = 1) uniform sampler2D tex;
 #define v_texcoord qt_TexCoord0
 
 // Reading: the screen as a printed page — monochrome ink on warm paper (scripts/reading-mode.sh).
-// Brightness goes through a soft S-curve (text gets darker, page whiter), the result is mapped
-// between INK and PAPER, then paper grain, a light 4×4 ordered dither (kills banding on the
-// paper tone) and a faint vignette are added. Everything is locked to the pixel grid and there
-// is no `time` uniform: the cheapest damage tracking works and an idle page costs nothing.
+// Brightness goes through an e-ink response curve (gamma + S-curve + a small mid-tone lift), the
+// result is mapped between INK and PAPER, then paper texture is laid only where the page is bright:
+// multi-scale grain, directional fibres, a 4×4 ordered dither and a slight warm colour drift. A faint
+// vignette darkens the edges like a sheet. Everything is locked to the pixel grid and there is no
+// `time` uniform: the cheapest damage tracking works and an idle page costs nothing.
+//
+// INVERT = 1 reads a dark theme as a page (light background ↔ dark text), so reading mode does not
+// need a slow theme switch; photos then look like negatives. reading-mode.sh writes a copy with the
+// chosen INVERT / TEXTURE to ~/.local/state/hypr/reading-page.frag — keep both lines exactly as is.
 
 
-const vec3  INK      = vec3(0.11, 0.105, 0.12);
-const vec3  PAPER    = vec3(0.945, 0.925, 0.87);
-const float CONTRAST = 1.35;   // S-curve strength around the mid tone
-const float LIFT     = 0.04;   // lifts dark UI a little so it doesn't turn into ink blobs
-const float GRAIN    = 0.030;
-const float BLOTCH   = 0.020;
-const float DITHER   = 1.0 / 255.0;
-const float VIGNETTE = 0.10;
+const float INVERT  = 0.0;
+const float TEXTURE = 1.0;
 
+const vec3  INK      = vec3(0.10, 0.10, 0.12);
+const vec3  PAPER    = vec3(0.94, 0.92, 0.86);
+const float GAMMA    = 1.2;    // e-ink: ink clumps, mid tones go a bit darker
+const float MIDBOOST = 0.08;   // ...and the mid tones get a small lift back so UI greys stay apart
+const float GRAIN    = 0.035;
+const float FIBRE    = 0.025;
+const float DITHER   = 0.025;
+const float WARMTH   = 0.02;
+const float VIGNETTE = 0.12;
+
+// Dave Hoskins' hash12 — sin-free, stable on every GPU.
 float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
@@ -44,9 +54,8 @@ float valueNoise(vec2 p) {
 // 4×4 Bayer matrix, 0..15 → -0.5..0.5
 float bayer4(vec2 p) {
     ivec2 q = ivec2(mod(p, 4.0));
-    int i = q.x + q.y * 4;
     int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-    return float(m[i]) / 16.0 - 0.5;
+    return float(m[q.x + q.y * 4]) / 16.0 - 0.5;
 }
 
 void main() {
@@ -54,19 +63,25 @@ void main() {
     vec2 px = floor(gl_FragCoord.xy);
 
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    l = LIFT + (1.0 - LIFT) * l;
-    // Symmetric S-curve: pow on both halves around 0.5.
-    float s = l < 0.5 ? 0.5 * pow(2.0 * l, CONTRAST) : 1.0 - 0.5 * pow(2.0 - 2.0 * l, CONTRAST);
+    l = mix(l, 1.0 - l, INVERT);
+    l = pow(l, GAMMA);
+    l = smoothstep(0.06, 0.94, l);
+    l += MIDBOOST * smoothstep(0.3, 0.5, l) * (1.0 - smoothstep(0.5, 0.7, l));
 
-    vec3 rgb = mix(INK, PAPER, s);
-
-    float grain = hash12(px) - 0.5;
-    float blotch = valueNoise(px / 180.0) + 0.5 * valueNoise(px / 60.0) - 0.75;
-    rgb *= 1.0 + s * (GRAIN * grain + BLOTCH * blotch);
-    rgb += DITHER * bayer4(px);
+    // Texture lives on the paper, not on the ink: text edges stay clean.
+    float paper = smoothstep(0.5, 0.95, l) * TEXTURE;
+    float grain = valueNoise(px / 3.0) * 0.5 + hash12(px) * 0.5 - 0.5;
+    // Fibres: noise stretched along one direction, so the sheet has a "grain direction".
+    float fibre = valueNoise(vec2(px.x * 0.35 + px.y * 0.15, px.y * 0.05 - px.x * 0.02)) - 0.5;
+    l += paper * (GRAIN * grain + FIBRE * fibre + DITHER * bayer4(px));
 
     vec2 d = v_texcoord - 0.5;
-    rgb *= 1.0 - VIGNETTE * smoothstep(0.25, 0.75, dot(d, d) * 2.0);
+    l *= 1.0 - VIGNETTE * smoothstep(0.25, 0.75, dot(d, d) * 2.0);
+    l = clamp(l, 0.0, 1.0);
 
-    fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
+    // Slightly uneven warmth of the sheet, ~25 px blotches.
+    float w = (valueNoise(px / 25.0) - 0.5) * WARMTH * TEXTURE;
+    vec3 sheet = PAPER + vec3(w, 0.5 * w, -0.2 * w);
+
+    fragColor = vec4(mix(INK, sheet, l), 1.0);
 }

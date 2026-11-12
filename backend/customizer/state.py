@@ -34,6 +34,8 @@ ANIM_ACTIVE = paths.STATE / "animations.lua"
 OPACITY = paths.PLUGIN / "scripts/opacity.sh"
 BLUR = paths.PLUGIN / "scripts/blur.sh"
 TOGGLE = paths.PLUGIN / "scripts/crt-toggle.sh"
+READING = paths.PLUGIN / "scripts/reading-mode.sh"
+STATE_HYPR = paths.STATE.parent / "hypr"   # crt-toggle.sh / reading-mode.sh держат состояние там
 
 _memo = {}
 

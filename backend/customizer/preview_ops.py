@@ -265,6 +265,8 @@ def restore():
     if lua:
         sh(["hyprctl", "eval", lua])
     out.append(sh([str(state.TOGGLE), "restore"], quiet=False)[1])
+    if (state.STATE_HYPR / "reading-mode").is_file():
+        sh([str(state.READING), "look"])   # режим чтения — поверх всего восстановленного
     sh(["hyprctl", "eval", 'hl.layer_rule({ match = { namespace = "omarchy-customizer" }, blur = true, ignore_alpha = 0.6 })'])
     import time
     os.makedirs(RUN, exist_ok=True)

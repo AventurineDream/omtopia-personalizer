@@ -2836,7 +2836,8 @@ Item {
                   anchors.margins: Style.space(10)
                   visible: root.category.key === "shaders" && root.selectedRow !== null
                   t: root
-                  shader: !visible ? "" : /^(toggle|next)$/.test(root.selectedRow.value) ? String(root.status.shader || "") : String(root.selectedRow.value)
+                  shader: !visible ? "" : /^(toggle|next)$/.test(root.selectedRow.value) ? String(root.status.shader || "")
+                    : /^(reading$|tweak:reading|section:Reading)/.test(root.selectedRow.value) ? "reading" : String(root.selectedRow.value)
                   wallpaper: visible ? root.wallpaperUrl : ""
                   screenWidth: panel.screen ? panel.screen.width : 1440
                   screenHeight: panel.screen ? panel.screen.height : 900

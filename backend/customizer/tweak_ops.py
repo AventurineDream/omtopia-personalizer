@@ -181,6 +181,13 @@ def window_after():
     preview_ops.restore()
 
 
+def reading_after():
+    """После шага по ключам reading*: если режим чтения включён — перепечь шейдер и перезагрузить Hyprland."""
+    from . import state
+    if (state.STATE_HYPR / "reading-mode").is_file():
+        _quiet([str(state.READING), "restore"])
+
+
 # ── Виджеты бара и профиль шрифтов ──
 
 def _layout():
@@ -471,4 +478,6 @@ def run(args):
         return int(e.code or 0), "", ""   # как exit в bash: хвост для окон не выполняется
     if key.startswith("window"):
         window_after()
+    elif key.startswith("reading"):
+        reading_after()
     return code, "", err

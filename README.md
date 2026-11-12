@@ -146,14 +146,21 @@ o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamr
 
 ## Reading mode
 
-`scripts/reading-mode.sh` (toggle / on / off / status) turns the desktop into a printed page for long reading:
-the `reading` screen shader (monochrome ink on warm paper, paper grain, 4×4 ordered dither, faint vignette; static,
-cheapest damage tracking), flat windows (no gaps, 1 px border, square corners, no blur / shadow) and no animations.
-Optionally it sets the screen brightness and an Omarchy theme for the time of reading and puts them back afterwards.
-Turning it off just reloads Hyprland: `hypr/customizer.lua` re-applies your style, the Windows tab and screen shader,
-and keeps the page while the state file exists, so a config reload doesn't end reading. Settings —
-`~/.config/omarchy/customizer/reading-mode.json`: `shader` (any shader name, `""` = none), `flat`, `animations`,
-`brightness` (1–100, `0` = don't touch), `theme` (`""` = keep). Inspired by the reading mode of
+`scripts/reading-mode.sh` (Super+Alt+R; toggle / on / off / status) turns the desktop into a printed page for
+long reading: the `reading` screen shader (an e-ink response curve, monochrome ink on warm paper; grain, directional
+fibres and a 4×4 ordered dither only on the paper, so text edges stay clean; faint vignette; static — cheapest damage
+tracking), flat windows (no gaps, black 1 px border, square corners, no blur / shadow / dimming), no animations and
+40% screen brightness. A dark theme does not need a slow theme switch: in `auto` the shader inverts brightness when the
+theme is dark, so the page is light anyway (photos then look like negatives — set a light **theme while reading**
+and `paper` if that matters). Turning it off just reloads Hyprland: `hypr/customizer.lua` re-applies your style,
+the Windows tab and screen shader, and only brightness and theme are put back by the script. A config reload during
+reading keeps the page (the reading block in `hypr/customizer.lua`, and the Customizer's restore after
+`configreloaded` ends with `reading-mode.sh look`).
+
+Settings — **Windows → Shader**, under the shader list (`~/.config/omarchy/customizer/reading-mode.json`):
+dark theme as a page (`auto` / `paper` / `invert`), page shader (`reading`, `paper`, `film`, `gameboy`, `none`),
+paper texture strength, brightness (`0` — don't touch), theme while reading, flat windows, keep animations. A change
+made while reading applies at once. Inspired by the reading mode of
 [surface-dots](https://github.com/snes19xx/surface-dots); the code is our own.
 
 New screen shaders: `reading`, `film` (black-and-white film: filmic curve, frozen silver grain, vignette) and
