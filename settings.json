@@ -680,6 +680,27 @@
           "label": "Deck: dashboard slides up from the bottom edge on hover (as in glyph-rice)"
         },
         {
+          "key": "deckLayout",
+          "type": "enum",
+          "values": ["panel", "compact", "full"],
+          "label": "Deck: layout — panel (as in glyph-rice) · compact strip · full screen"
+        },
+        {
+          "key": "deckTrigger",
+          "type": "enum",
+          "values": ["dwell", "bump"],
+          "label": "Deck: open — dwell (rest at the edge) · bump (touch the edge, back off a little, hit it again)"
+        },
+        {
+          "key": "deckDim",
+          "type": "num",
+          "min": 0,
+          "max": 0.95,
+          "step": 0.05,
+          "default": 0.8,
+          "label": "Deck (full): background dim"
+        },
+        {
           "key": "deckSections",
           "type": "text",
           "label": "Deck: sections in order — clock weather perf net media"

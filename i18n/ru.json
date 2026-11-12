@@ -761,5 +761,8 @@
   "Deck: sections in order — clock weather perf net media": "Deck: секции по порядку — clock weather perf net media",
   "Deck: card — flat as in glyph-rice · in the style material": "Deck: карточка — плоская как в glyph-rice · в материале стиля",
   "Deck: size": "Deck: размер",
-  "Deck: hover delay at the edge, ms": "Deck: задержка у края, мс"
+  "Deck: hover delay at the edge, ms": "Deck: задержка у края, мс",
+  "Deck: layout — panel (as in glyph-rice) · compact strip · full screen": "Deck: раскладка — panel (как в glyph-rice) · compact (полоска) · full (весь экран)",
+  "Deck: open — dwell (rest at the edge) · bump (touch the edge, back off a little, hit it again)": "Deck: открытие — dwell (задержаться у края) · bump (толчок: коснуться края, чуть отвести, снова в край)",
+  "Deck (full): background dim": "Deck (full): затемнение фона"
 }
