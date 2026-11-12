@@ -604,6 +604,56 @@
           "label": "Home screen on an empty workspace: clock, greeting, 3×3 tiles"
         },
         {
+          "key": "homeLayout",
+          "type": "enum",
+          "values": ["glyph", "classic", "minimal"],
+          "label": "Home: layout — glyph (as in glyph-rice) · classic (tiles in the centre) · minimal"
+        },
+        {
+          "key": "homeScale",
+          "type": "num",
+          "min": 0.5,
+          "max": 1.6,
+          "step": 0.05,
+          "default": 1,
+          "label": "Home: size"
+        },
+        {
+          "key": "homeWidgets",
+          "type": "text",
+          "label": "Home (glyph): tiles in order — weather calendar cpu ram battery temp disk cava (1 cell), player network (2), system (3)"
+        },
+        {
+          "key": "homeCards",
+          "type": "enum",
+          "values": ["glyph", "style"],
+          "label": "Home (glyph): cards — flat as in glyph-rice · in the style material"
+        },
+        {
+          "key": "homeGreeting",
+          "type": "bool",
+          "default": true,
+          "label": "Home: greeting"
+        },
+        {
+          "key": "homeDate",
+          "type": "bool",
+          "default": true,
+          "label": "Home: date"
+        },
+        {
+          "key": "homeMeta",
+          "type": "bool",
+          "default": true,
+          "label": "Home (glyph): weather, battery and network line"
+        },
+        {
+          "key": "homeBlink",
+          "type": "bool",
+          "default": false,
+          "label": "Home: blinking clock colon"
+        },
+        {
           "key": "homeName",
           "type": "text",
           "label": "Home: name in the greeting (empty — $USER)"

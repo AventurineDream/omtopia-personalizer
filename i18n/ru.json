@@ -747,5 +747,13 @@
   "Home screen on an empty workspace: clock, greeting, 3×3 tiles": "Домашний экран на пустом столе: часы, приветствие, плитки 3×3",
   "Home: name in the greeting (empty — $USER)": "Дом: имя в приветствии (пусто — $USER)",
   "Home: dot grid in the background": "Дом: точечная сетка на фоне",
-  "Home: hide anchored widgets while it is shown": "Дом: прятать виджеты на якорях, пока он виден"
+  "Home: hide anchored widgets while it is shown": "Дом: прятать виджеты на якорях, пока он виден",
+  "Home: layout — glyph (as in glyph-rice) · classic (tiles in the centre) · minimal": "Дом: раскладка — glyph (как в glyph-rice) · classic (плитки по центру) · minimal",
+  "Home: size": "Дом: размер",
+  "Home (glyph): tiles in order — weather calendar cpu ram battery temp disk cava (1 cell), player network (2), system (3)": "Дом (glyph): плитки по порядку — weather calendar cpu ram battery temp disk cava (1 клетка), player network (2), system (3)",
+  "Home (glyph): cards — flat as in glyph-rice · in the style material": "Дом (glyph): карточки — плоские как в glyph-rice · в материале стиля",
+  "Home: greeting": "Дом: приветствие",
+  "Home: date": "Дом: дата",
+  "Home (glyph): weather, battery and network line": "Дом (glyph): строка погоды, батареи и сети",
+  "Home: blinking clock colon": "Дом: мигающее двоеточие часов"
 }
