@@ -211,7 +211,7 @@ for name, st in styles.items():
 if bad:
     sys.exit(1)
 # Тема стиля (переключатель styleTheme): пара тёмная / светлая.
-THEMES = {"dotmatrix": ("nothing-steel", "nothing-ashlight"), "glyph": ("nothing-glyph", "nothing-ashlight"), "flat": ("matte-black", "white"),
+THEMES = {"dotmatrix": ("nothing-steel", "nothing-ashlight"), "glyph": ("nothing-glyph-dark", "nothing-glyph-light"), "flat": ("matte-black", "white"),
           "glass": ("catppuccin", "catppuccin-latte"), "liquid": ("catppuccin", "catppuccin-latte"), "fluent": ("tokyo-night", "rose-pine"),
           "paper": ("kanagawa", "kanagawa-lotus"), "neumorph": ("nord", "bliss"),
           "brutal": ("gruvbox-material", "flexoki-light"), "retro": ("ibm", "bliss"), "neon": ("cyber-aura", "")}

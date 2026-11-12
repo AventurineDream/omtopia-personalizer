@@ -106,7 +106,7 @@
   "barSkin": "glyph-pill",
   "barLayout": "glyph-left",
   "theme": {
-    "dark": "nothing-glyph",
-    "light": "nothing-ashlight"
+    "dark": "nothing-glyph-dark",
+    "light": "nothing-glyph-light"
   }
 }
