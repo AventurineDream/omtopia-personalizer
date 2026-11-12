@@ -144,6 +144,12 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
 
+## Док
+
+**Бар → Док** — док Omarchy (`omarchy.dock`): вкл / выкл, край (снизу / сверху / слева / справа), автоскрытие,
+закреплённые приложения (＋ закрепить из списка, ⏎ — открепить). Под капотом `omarchy dock …`; модуль бара Taskbar
+показывает те же закреплённые приложения на пустом столе.
+
 ## Живые обои (owe)
 
 Видео и GIF-обои играет движок Omarchy [owe](https://github.com/omacom/owe). **Рабочий стол → Wallpaper FX → Живые обои**

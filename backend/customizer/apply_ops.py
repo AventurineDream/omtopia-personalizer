@@ -112,6 +112,10 @@ def shell_apply_layout(layout):
     shell = dict(shell)
     bar = {k: v for k, v in shell["bar"].items() if not NOTE_RE.match(k)}
     bar.update({k: v for k, v in layout.items() if not NOTE_RE.match(k)})
+    # Якорь центра — свойство раскладки: у новой его нет — старый не оставлять (иначе centerBegin / centerEnd
+    # молча перестают рисоваться, а виджеты в них пропадают с бара).
+    if "centerAnchor" not in layout:
+        bar.pop("centerAnchor", None)
     shell["bar"] = bar
     for cid in shell.get("cloneSourceRestores") or []:
         plugins = shell.get("plugins") or []
@@ -820,6 +824,30 @@ def tweak_pick(value):
     tweak_ops.tweak(value.split(":", 1)[1] if value.startswith("tweak:") else value, "pick")
 
 
+def dock_apply(value):
+    """Вкладка «Док»: omarchy dock … и вкл / выкл плагина omarchy.dock."""
+    if value == "toggle":
+        on = lists_more.dock_enabled()
+        sh(["omarchy", "plugin", "disable" if on else "enable", "omarchy.dock"])
+        notify("-t", "2000", "Dock", t("Dock off") if on else t("Dock on"))
+    elif value.startswith("pos:"):
+        sh(["omarchy", "dock", "position", value[4:]])
+    elif value == "autohide":
+        sh(["omarchy", "dock", "autohide", "toggle"])
+    elif value.startswith("unpin:"):
+        sh(["omarchy", "dock", "unpin", value[6:]])
+    elif value == "pin-pick":
+        names = lists_more._desktop_names()
+        rows = []
+        for pid, name in sorted(names.items(), key=lambda kv: kv[1].lower()):
+            rows += [name, pid]
+        pick = _zenity(["--list", f"--title={t('Pin an app')}", "--width=560", "--height=640",
+                        f"--column={t('App')}", "--column=id", "--print-column=2", *rows])
+        if pick:
+            sh(["omarchy", "dock", "pin", pick.strip().split("|")[0]])
+    return ""
+
+
 def apply(category, value):
     out = ""
     if category == "presets":
@@ -990,6 +1018,8 @@ def apply(category, value):
             recolor_files(_pick_images(t("Image(s) to recolor")))
         else:
             recolor_files([value])
+    elif category == "dock":
+        out = dock_apply(value)
     elif category == "shaders":
         if value.startswith("tweak:"):
             tweak_pick(value)

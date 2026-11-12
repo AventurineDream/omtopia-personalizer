@@ -107,7 +107,7 @@ LISTS.update({
     "presets": _m.presets, "styles": _m.styles, "windows": _m.windows, "sounds": _m.sounds, "fonts": _m.fonts,
     "dotify": _m.dotify, "walls": _m.walls, "themes": _m.themes, "anims": _m.anims, "opacity": _m.opacity,
     "blur": _m.blur, "shaders": _m.shaders, "bar-layouts": _m.bar_layouts, "bar-skins": _m.bar_skins,
-    "bar-widgets": _m.bar_widgets, "lock": _m.lock, "launcher": _m.launcher, "theme-switcher": _m.theme_switcher,
+    "bar-widgets": _m.bar_widgets, "dock": _m.dock, "lock": _m.lock, "launcher": _m.launcher, "theme-switcher": _m.theme_switcher,
 })
 
 

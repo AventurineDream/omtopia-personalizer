@@ -496,9 +496,14 @@ def bar_widgets():
     bar = shell.get("bar") if isinstance(shell.get("bar"), dict) else {}
     layout = bar.get("layout") if isinstance(bar.get("layout"), dict) else {}
     out, seen = [], set()
-    for sec, title in (("left", "Left / top"), ("center", "Center"), ("right", "Right / bottom")):
+    # centerBegin / centerEnd бар рисует только при якоре центра — без него их записи считаются «не на баре».
+    anchored = bool(bar.get("centerAnchor")) and bar.get("centerAnchor") in [_entry_id(e) for e in (layout.get("center") or [])]
+    groups = (("left", "Left / top", ["left"]),
+              ("center", "Center", ["centerBegin", "center", "centerEnd"] if anchored else ["center"]),
+              ("right", "Right / bottom", ["right"]))
+    for sec, title, secs in groups:
         out.append(f"{t(title)}\tsection:{sec}\t\t0\t\theader")
-        for e in layout.get(sec) or []:
+        for e in [x for s_ in secs for x in (layout.get(s_) or [])]:
             wid = jsonio.tostring(_entry_id(e)) if _entry_id(e) is not None else "null"
             if not wid:
                 continue
@@ -539,6 +544,70 @@ def bar_widgets():
                 break
         out.append(f"{t(lab)}:  {v}\ttweak:wset:{tid}:{key}\t\t0\t{t('Now: %s', v)}{NL}{t('Default: %s', default)}{NL}{NL}"
                    f"{t('h/l or ⏎ — on/off')}\t{t('default: %s', default)}\tbool\t{default}\t{v}\t{t(lab)}")
+    return out
+
+
+# ── Док Omarchy (omarchy.dock: shell.json → dock; omarchy dock …) ──
+
+def dock():
+    shell = jsonio.read_object(paths.SHELL_JSON)
+    cfg = shell.get("dock") if isinstance(shell.get("dock"), dict) else {}
+    pos = str(cfg.get("position") or "bottom")
+    auto = cfg.get("autohide") is True
+    pinned = cfg.get("pinned") if isinstance(cfg.get("pinned"), list) else []
+    on = dock_enabled()
+    hdr = lambda title, sid: f"{t(title)}\tsection:{sid}\t\t0\t\theader"  # noqa: E731
+    out = [f"{t('Dock: on') if on else t('Dock: off')}\ttoggle\t\t{1 if on else 0}\t"
+           + t("The Omarchy dock (plugin omarchy.dock). ⏎ — turn it on / off. The Taskbar bar module uses the same pinned apps."),
+           hdr("Edge", "edge")]
+    for p, icon in (("bottom", "󰁅"), ("top", "󰁝"), ("left", "󰁍"), ("right", "󰁔")):
+        out.append(f"{icon}  {t(p)}\tpos:{p}\t\t{1 if p == pos else 0}\t{t('Dock at the %s edge (omarchy dock position %s)', t(p), p)}")
+    out.append(hdr("Behaviour", "behaviour"))
+    out.append(f"{t('Auto-hide: %s', t('on') if auto else t('off'))}\tautohide\t\t{1 if auto else 0}\t"
+               + t("Hide the dock until the pointer reaches its edge (omarchy dock autohide). ⏎ — toggle."))
+    out.append(hdr("Pinned apps", "pinned"))
+    out.append(f"{t('＋ Pin an app…')}\tpin-pick\t\t0\t" + t("Pick an installed app from the list (zenity) and keep it in the dock."))
+    names = _desktop_names()
+    for i, pid in enumerate(pinned):
+        out.append(f"★ {names.get(pid, pid)}\tunpin:{pid}\t\t0\t{t('Pinned · %s', pid)}{NL}{NL}"
+                   + t("⏎ — unpin") + f"\t{pid}")
+    return out
+
+
+def dock_enabled():
+    """omarchy.dock — стоковый, включён по умолчанию и в shell.json не перечислен: спрашиваем omarchy plugin list."""
+    try:
+        cat = json.loads(fsutil.run(["omarchy", "plugin", "list", "--json"]) or "[]")
+    except ValueError:
+        return False
+    return any(isinstance(p, dict) and p.get("id") == "omarchy.dock" and p.get("enabled") is True for p in cat)
+
+
+def _desktop_names():
+    """id .desktop → Name, из стандартных каталогов приложений."""
+    out = {}
+    dirs = [paths.HOME / ".local/share/applications", "/usr/share/applications", "/var/lib/flatpak/exports/share/applications"]
+    for d in dirs:
+        try:
+            names = os.listdir(d)
+        except OSError:
+            continue
+        for n in names:
+            if not n.endswith(".desktop"):
+                continue
+            pid = n[:-8]
+            if pid in out:
+                continue
+            try:
+                with open(os.path.join(d, n), encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        if line.startswith("Name="):
+                            out[pid] = line[5:].strip()
+                            break
+                        if line.startswith("[") and line.strip() != "[Desktop Entry]":
+                            break
+            except OSError:
+                pass
     return out
 
 
@@ -770,6 +839,8 @@ def available():
     if (state.BAR_DIR / "manifest.json").is_file():
         out += ["bar-skins", "bar-layouts", "bar-tweaks"]
     out.append("bar-widgets")
+    if fsutil.which("omarchy-dock"):
+        out.append("dock")
     if (state.LOCK_PLUGIN / "manifest.json").is_file():
         out += ["lock", "lock-tweaks"]
     for plugin, cats in (("background", ["wallpaper-fx"]), ("widgets", ["widgets", "dashboard"]), ("osd", ["osd"]),

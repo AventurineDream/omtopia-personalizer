@@ -48,6 +48,7 @@ Item {
     { group: "bar",  key: "bar-widgets",  icon: "󰕰", title: "Bar Widgets",  hint: "h l move · ⏎ on / off · shell.json",    image: false, live: false, tweak: true },
     { group: "bar",  key: "bar-layouts",  icon: "󰕮", title: "Bar Layout",   hint: "Sections & edge · shell.json",         image: false, live: false, bar: true },
     { group: "bar",  key: "bar-tweaks",   icon: "󰒓", title: "Bar Tweaks",   hint: "h l / − + change · ⏎ custom color",    image: false, live: false, bar: true, tweak: true },
+    { group: "bar",  key: "dock",         icon: "󰞍", title: "Dock",         hint: "Omarchy dock: on / off, edge, auto-hide, pinned apps", image: false, live: false },
     { group: "win",  key: "windows",      icon: "󰖲", title: "Windows",      hint: "Gaps, borders, rounding, shadow, dim · h l change", image: false, live: false },
     { group: "win",  key: "anims",        icon: "󰔡", title: "Animations",   hint: "Live preview while you browse",       image: false, live: true },
     { group: "win",  key: "opacity",      icon: "󰂵", title: "Transparency", hint: "Live preview while you browse",        image: false, live: true },

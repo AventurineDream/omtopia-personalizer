@@ -238,13 +238,36 @@ def _layout():
     return shell, bar.get("layout") if isinstance(bar.get("layout"), dict) else {}
 
 
+def _visible_sections():
+    """Секции, которые бар рисует: centerBegin / centerEnd — только при якоре центра (centerAnchor)."""
+    shell, lay = _layout()
+    bar = shell.get("bar") if isinstance(shell.get("bar"), dict) else {}
+    anchor = bar.get("centerAnchor")
+    center_ids = [e.get("id") if isinstance(e, dict) else e for e in (lay.get("center") or [])]
+    return ("left", "center", "right") + (("centerBegin", "centerEnd") if anchor and anchor in center_ids else ())
+
+
 def _loc(wid):
     _, lay = _layout()
-    for s in ("left", "center", "right"):
+    for s in _visible_sections():
         ids = [e.get("id") if isinstance(e, dict) else e for e in (lay.get(s) or [])]
         if wid in ids:
             return s, ids.index(wid)
     return None
+
+
+def _append_right(entry, drop_from=()):
+    """Добавить запись в конец правой секции (и убрать её из невидимых centerBegin / centerEnd)."""
+    shell, lay = _layout()
+    wid = entry.get("id")
+    shell = dict(shell)
+    shell["bar"] = dict(shell.get("bar") or {})
+    lay = dict(lay)
+    for sec in drop_from:
+        lay[sec] = [e for e in (lay.get(sec) or []) if (e.get("id") if isinstance(e, dict) else e) != wid]
+    lay["right"] = list(lay.get("right") or []) + [entry]
+    shell["bar"]["layout"] = lay
+    write_inplace(paths.SHELL_JSON, shell)
 
 
 def widget_step(wid, how):
@@ -312,6 +335,18 @@ def _widget_show(wid):
         write_inplace(BAR_HIDDEN, {k: v for k, v in hidden.items() if k != wid})
     else:
         from .lists_more import BAR_MODULES
+        # Застрял в centerBegin / centerEnd без якоря центра (бар их не рисует) — перенести направо.
+        _, lay = _layout()
+        hidden_secs = [sec for sec in ("centerBegin", "centerEnd") if sec not in _visible_sections()]
+        for sec in hidden_secs:
+            for e in lay.get(sec) or []:
+                if (e.get("id") if isinstance(e, dict) else e) == wid:
+                    _append_right(e if isinstance(e, dict) else {"id": e}, hidden_secs)
+                    return
+        if wid not in BAR_MODULES:
+            # Плагин-виджет: сами в правую секцию — putBarWidget кладёт новые в centerEnd, а без якоря её не видно.
+            _append_right({"id": wid})
+            return
         if wid in BAR_MODULES:
             # Новый QML-модуль бара: в конец правой секции записью {id, type: qml, source}.
             shell, lay = _layout()

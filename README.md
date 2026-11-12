@@ -144,6 +144,12 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
 
+## Dock
+
+**Bar → Dock** — the Omarchy dock (`omarchy.dock`): on / off, the edge (bottom / top / left / right), auto-hide, pinned
+apps (＋ pin an app from a list, ⏎ — unpin). It runs `omarchy dock …`; the bar's Taskbar module shows the same pinned
+apps on an empty workspace.
+
 ## Live wallpapers (owe)
 
 Video and GIF wallpapers are played by Omarchy's [owe](https://github.com/omacom/owe). **Desktop → Wallpaper FX → Live
