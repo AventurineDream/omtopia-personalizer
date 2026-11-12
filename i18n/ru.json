@@ -775,5 +775,10 @@
   "Live wallpaper on battery: play · pause on the current frame · still poster": "Живые обои на батарее: играть · пауза на кадре · постер",
   "Live wallpaper: programs that pause it while running (comma separated, e.g. obs, steam)": "Живые обои: программы, при которых пауза (через запятую, например obs, steam)",
   "Live wallpaper: GIF frame rate after transcoding": "Живые обои: частота кадров GIF после перекодирования",
-  "Live wallpaper: fade of stills (battery poster), ms": "Живые обои: проявление постера, мс"
+  "Live wallpaper: fade of stills (battery poster), ms": "Живые обои: проявление постера, мс",
+  "Static wallpapers": "Статичные обои",
+  "Live wallpapers": "Живые обои",
+  "Live wallpaper (owe) · live": "Живые обои (owe) · live",
+  "Recolored frame by frame with ffmpeg (slow); a video becomes mp4.": "Перекрашивается покадрово через ffmpeg (медленно); видео станет mp4.",
+  "GIF / video is recolored frame by frame (ffmpeg) — this takes a while": "GIF / видео перекрашивается покадрово (ffmpeg) — это займёт время"
 }

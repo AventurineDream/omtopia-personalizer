@@ -79,17 +79,42 @@ echo "Palette: ${#LUTGEN_COLORS[@]} unique colors"
 TMP_OUT=$(mktemp -d /tmp/lutgen-out-XXXXXX)
 trap 'rm -rf "$TMP_OUT"' EXIT
 
-# Find all valid image files
+# Find all valid image files; GIF and video go through ffmpeg (lutgen apply only takes stills).
 echo "Finding images in $SRC_DIR..."
-mapfile -t FILES < <(find "$SRC_DIR" -maxdepth 1 -type f \( -iname \*.jpg -o -iname \*.jpeg -o -iname \*.png -o -iname \*.gif -o -iname \*.webp \))
+mapfile -t FILES < <(find "$SRC_DIR" -maxdepth 1 -type f \( -iname \*.jpg -o -iname \*.jpeg -o -iname \*.png -o -iname \*.webp \))
+mapfile -t MEDIA < <(find "$SRC_DIR" -maxdepth 1 -type f \( -iname \*.gif -o -iname \*.mp4 -o -iname \*.webm -o -iname \*.mkv -o -iname \*.mov -o -iname \*.m4v \))
 
-if [ ${#FILES[@]} -eq 0 ]; then
+if [ ${#FILES[@]} -eq 0 ] && [ ${#MEDIA[@]} -eq 0 ]; then
   echo "No images found in $SRC_DIR"
   exit 0
 fi
 
-echo "Processing ${#FILES[@]} images with lutgen (this might take a moment)..."
-lutgen apply -o "$TMP_OUT" "${FILES[@]}" -- "${LUTGEN_COLORS[@]}"
+if [ ${#FILES[@]} -gt 0 ]; then
+  echo "Processing ${#FILES[@]} images with lutgen (this might take a moment)..."
+  lutgen apply -o "$TMP_OUT" "${FILES[@]}" -- "${LUTGEN_COLORS[@]}"
+fi
+
+# Live wallpapers: one Hald CLUT from the same palette (lutgen generate), applied to every frame with
+# ffmpeg's haldclut. GIF stays GIF (own palette per file), video becomes H.264 mp4 (owe plays it).
+if [ ${#MEDIA[@]} -gt 0 ]; then
+  command -v ffmpeg >/dev/null 2>&1 || { echo "Error: ffmpeg is needed to recolor GIF / video"; exit 1; }
+  LUT="$TMP_OUT/.hald.png"
+  lutgen generate -o "$LUT" -- "${LUTGEN_COLORS[@]}"
+  for m in "${MEDIA[@]}"; do
+    base=$(basename "$m"); stem=${base%.*}
+    echo "Recoloring $base (ffmpeg haldclut)..."
+    case "${base,,}" in
+    *.gif)
+      ffmpeg -nostdin -loglevel error -y -i "$m" -i "$LUT" -filter_complex \
+        "[0:v][1:v]haldclut,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a" \
+        -loop 0 "$TMP_OUT/$stem.gif" ;;
+    *)
+      ffmpeg -nostdin -loglevel error -y -i "$m" -i "$LUT" -filter_complex "[0:v][1:v]haldclut,format=yuv420p" \
+        -c:v libx264 -crf 20 -preset medium -movflags +faststart -an "$TMP_OUT/$stem.mp4" ;;
+    esac
+  done
+  rm -f "$LUT"
+fi
 
 echo "Copying processed wallpapers to $BG_DIR..."
 # Move processed files to background dir and cleanup old files with same basename

@@ -2,10 +2,12 @@
 
 Строки — байт в байт как у bash (проверяет tests/compare_readonly.py). Заметки пишутся с
 литеральными \\n (два символа): overlay сам превращает их в переводы строк."""
+import hashlib
 import json
 import os
 import re
 import shutil
+import subprocess
 
 from . import fsutil, jsonio, paths, state, tweaks
 from .i18n import t
@@ -159,6 +161,35 @@ def dotify():
     return out
 
 
+LIVE_THUMBS = paths.HOME / ".cache/omarchy-customizer/live-thumbs"
+
+
+def live_thumb(f):
+    """Превью живых обоев: у видео — кадр на 1-й секунде (ffmpeg, кэш по пути и mtime), GIF Qt покажет сам."""
+    if not fsutil.is_live(f) or f.lower().endswith(".gif"):
+        return f
+    try:
+        key = hashlib.md5(f"{f}\t{os.path.getmtime(f)}".encode()).hexdigest()
+    except OSError:
+        return ""
+    dst = LIVE_THUMBS / f"{key}.jpg"
+    if not dst.is_file() and shutil.which("ffmpeg"):
+        os.makedirs(LIVE_THUMBS, exist_ok=True)
+        for seek in (["-ss", "1"], []):
+            subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", *seek, "-i", f, "-frames:v", "1",
+                            "-vf", "scale=640:-2", str(dst)], capture_output=True)
+            if dst.is_file():
+                break
+    return str(dst) if dst.is_file() else ""
+
+
+def _wall_row(f, cur_bg, star=""):
+    """Строка обоев: живые — со ▶, превью-кадром и словом live в заметке (его находит поиск /)."""
+    live = fsutil.is_live(f)
+    note = f"{t('Live wallpaper (owe) · live')}" if live else ""
+    return f"{star}{'▶ ' if live else ''}{os.path.basename(f)}\t{f}\t{live_thumb(f)}\t{_cur(os.path.realpath(f) == cur_bg)}\t{note}"
+
+
 def walls():
     d = walls_dir()
     out = [
@@ -166,8 +197,10 @@ def walls():
         + t("Pick a folder; every image directly in it is recolored into the theme's backgrounds."),
         f"{t('🖼 Recolor image(s) from anywhere…  (o)')}\tpick-files\t\t0\t" + t("Pick one or more images (Ctrl/Shift-click) from any folder."),
     ]
-    for f in fsutil.images_in(d, 10):
-        out.append(f"{f[len(d) + 1:] if f.startswith(d + '/') else f}\t{f}\t{f}\t0")
+    for f in fsutil.images_in(d, 10, fsutil.MEDIA_EXT):
+        live = fsutil.is_live(f)
+        out.append(f"{'▶ ' if live else ''}{f[len(d) + 1:] if f.startswith(d + '/') else f}\t{f}\t{live_thumb(f)}\t0"
+                   + (f"\t{t('Live wallpaper (owe) · live')}{NL}{NL}{t('Recolored frame by frame with ffmpeg (slow); a video becomes mp4.')}" if live else ""))
     return out
 
 
@@ -278,17 +311,34 @@ def theme_walls(rel: str):
     if rel:
         parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
         out.append(f"󰁝  ..\tdir:{parent}\t\t0\t{t('Back: %s', parent or t('all categories'))}\t{rel}")
-    exts = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp")
+    exts = fsutil.MEDIA_EXT
     # Избранные (f): в корне — разделом наверху, из любых папок; в списках файлов — со ★.
     favs = jsonio.read(FAV_WALLS)
     favs = [f for f in favs if isinstance(f, str) and os.path.isfile(f)] if isinstance(favs, list) else []
     favset = set(favs)
     star = lambda f: "★ " if f in favset else ""  # noqa: E731
+    hdr = lambda title: f"{t(title)}\tsection:{title}\t\t0\t\theader"  # noqa: E731
     if not rel and favs:
-        out.append(f"{t('Favorites')}\tsection:Favorites\t\t0\t\theader")
+        out.append(hdr("Favorites"))
         for f in favs:
-            out.append(f"★ {os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
-        out.append(f"{t('All wallpapers')}\tsection:All wallpapers\t\t0\t\theader")
+            out.append(_wall_row(f, cur_bg, "★ "))
+    # Файлы этого уровня: обои папки + (в корне) обои самой темы.
+    files = []
+    if os.path.isdir(d):
+        files += fsutil.images_in(d, 1, exts)
+    if not rel:
+        bg = paths.CONFIG / "themes" / state.theme_name() / "backgrounds"
+        if not bg.is_dir():
+            bg = paths.HOME / ".local/state/omarchy/current/theme/backgrounds"
+        files += fsutil.images_in(bg, 1, exts)
+    static = [f for f in files if not fsutil.is_live(f)]
+    # Живые — в корне отдельным разделом, со всех подпапок (их обычно мало); в подпапке — среди своих.
+    live = [f for f in files if fsutil.is_live(f)]
+    if not rel and os.path.isdir(d):
+        live += [p for p in fsutil.walk_files(d, 10) if fsutil.is_live(p) and os.path.dirname(p) != d
+                 and not os.path.basename(p).startswith(".")]
+    if not rel:
+        out.append(hdr("Static wallpapers"))
     if os.path.isdir(d):
         subs = fsutil.lsort([os.path.join(d, n) for n in os.listdir(d)
                              if not n.startswith(".") and os.path.isdir(os.path.join(d, n))])
@@ -299,18 +349,19 @@ def theme_walls(rel: str):
                 continue
             name = os.path.basename(sub)
             imgs = fsutil.images_in(sub, 10)
-            first = imgs[0] if imgs else ""
+            first = imgs[0] if imgs else live_thumb(next((p for p in fsutil.images_in(sub, 10, exts)), ""))
             cur = cur_bg.startswith(os.path.realpath(sub) + "/")
             out.append(f"󰉋  {name}\tdir:{rel + '/' if rel else ''}{name}\t{first}\t{_cur(cur)}\t"
                        f"{t('Category — wallpapers: %s', n)}{NL}{NL}{t('⏎ — open · h — back')}\t{t('wallpapers: %s', n)}")
-        for f in fsutil.images_in(d, 1):
-            out.append(f"{star(f)}{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
-    if not rel:
-        bg = paths.CONFIG / "themes" / state.theme_name() / "backgrounds"
-        if not bg.is_dir():
-            bg = paths.HOME / ".local/state/omarchy/current/theme/backgrounds"
-        for f in fsutil.images_in(bg, 1):
-            out.append(f"{star(f)}{os.path.basename(f)}\t{f}\t{f}\t{_cur(os.path.realpath(f) == cur_bg)}")
+    for f in static:
+        out.append(_wall_row(f, cur_bg, star(f)))
+    if rel:
+        for f in live:
+            out.append(_wall_row(f, cur_bg, star(f)))
+    elif live:
+        out.append(hdr("Live wallpapers"))
+        for f in fsutil.lsort(live):
+            out.append(_wall_row(f, cur_bg, star(f)))
     return out
 
 

@@ -566,10 +566,12 @@ def recolor(src):
     if not theme_dir.is_dir():
         notify("Wallpaper", t("Cannot recolor a stock Omarchy theme. Use a custom theme."))
         raise Exit(1)
-    files = fsutil.images_in(src, 1)
+    files = fsutil.images_in(src, 1, fsutil.MEDIA_EXT)
     if not files:
         notify("Wallpaper", t("No images in %s", src))
         raise Exit(1)
+    if any(fsutil.is_live(f) for f in files):
+        notify("-t", "4000", "Wallpaper", t("GIF / video is recolored frame by frame (ffmpeg) — this takes a while"))
     if len(files) == 1:
         notify("-t", "3000", "Wallpaper", t("Recoloring %s with lutgen…", os.path.basename(files[0])))
     else:
@@ -578,8 +580,12 @@ def recolor(src):
         notify("-u", "critical", "Wallpaper", t("lutgen failed"))
         raise Exit(1)
     if len(files) == 1:
-        sh(["omarchy", "theme", "bg", "set", f"{theme_dir}/backgrounds/{os.path.basename(files[0])}"], quiet=False)
-        notify("-t", "3000", "Wallpaper", t("Applied %s", os.path.basename(files[0])))
+        # Видео (кроме GIF) скрипт пишет в mp4 — имя результата может отличаться расширением.
+        name = os.path.basename(files[0])
+        if fsutil.is_live(name) and not name.lower().endswith(".gif"):
+            name = os.path.splitext(name)[0] + ".mp4"
+        sh(["omarchy", "theme", "bg", "set", f"{theme_dir}/backgrounds/{name}"], quiet=False)
+        notify("-t", "3000", "Wallpaper", t("Applied %s", name))
     else:
         notify("-t", "5000", "Wallpaper", t("Added %s recolored wallpapers to %s. Pick one in Wallpaper.", len(files), state.theme_name()))
 
@@ -686,7 +692,8 @@ def dotify_glyph(glyph="󰣇", slug="arch"):
 def _pick_images(title):
     picked = _zenity(["--file-selection", "--multiple", "--separator=\n", f"--title={title}",
                       f"--filename={lists_more.walls_dir()}/",
-                      "--file-filter=Images | *.jpg *.jpeg *.png *.webp *.JPG *.JPEG *.PNG *.WEBP"])
+                      "--file-filter=Images | *.jpg *.jpeg *.png *.webp *.JPG *.JPEG *.PNG *.WEBP",
+                      "--file-filter=Live (GIF / video) | *.gif *.mp4 *.webm *.mkv *.mov *.m4v *.GIF *.MP4 *.WEBM *.MKV *.MOV"])
     if picked is None:
         raise Exit(0)
     return picked.split("\n")

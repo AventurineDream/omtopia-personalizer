@@ -150,7 +150,10 @@ Video and GIF wallpapers are played by Omarchy's [owe](https://github.com/omacom
 wallpapers** (shown when `owe` is installed): pause / resume now, pause under a fullscreen window, pause when any window is
 open, on battery — play / pause on a frame / still poster, programs that pause it (`obs, steam`), GIF frame rate, poster
 fade. The Customizer keeps them in `~/.config/omarchy/customizer/owe.json`, writes `~/.config/owe/config.toml` from it and
-runs `owe reload-config`. Pick a video in the wallpaper picker — type `live` to see only live ones.
+runs `owe reload-config`. Pick a video in the wallpaper picker — type `live` to see only live ones. **Desktop → Wallpaper** splits the list into
+Favourites, Static and Live (▶, a frame as the preview, `live` finds them in `/` search), and **Recolor** takes GIF and
+video too: one Hald CLUT from the theme palette (`lutgen generate`) is applied to every frame with ffmpeg `haldclut` —
+GIF stays GIF, video becomes mp4.
 
 ## Reading mode
 

@@ -11,6 +11,14 @@ except locale.Error:
     pass
 
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp")
+# Живые обои (видео / GIF — играет owe): в обоях и Recolor вместе с картинками.
+LIVE_EXT = (".gif", ".mp4", ".webm", ".mkv", ".mov", ".m4v")
+MEDIA_EXT = IMAGE_EXT + LIVE_EXT
+
+
+def is_live(path):
+    return str(path).lower().endswith(LIVE_EXT)
+
 
 
 def lsort(items, key=None):
