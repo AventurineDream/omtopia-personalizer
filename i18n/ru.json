@@ -824,5 +824,7 @@
   "qylock theme": "Тема qylock",
   "Downloading %s…": "Скачиваю %s…",
   "Downloaded: %s — pick it in the list": "Скачано: %s — выбери в списке",
-  "Download failed: %s": "Не скачалось: %s"
+  "Download failed: %s": "Не скачалось: %s",
+  "🖥 Same theme on the login screen (SDDM, sudo)": "🖥 Та же тема на экране входа (SDDM, sudo)",
+  "Copies the original files of %s to /usr/share/sddm/themes and makes it the SDDM theme (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.": "Копирует оригинальные файлы %s в /usr/share/sddm/themes и делает её темой SDDM (пароль sudo спросит терминал). Вернуть вход Omarchy: omarchy-lock-themes sddm reset."
 }

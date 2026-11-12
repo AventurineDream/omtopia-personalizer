@@ -649,6 +649,9 @@ def lock():
                    + t("Pick one of ~40 SDDM themes (NieR, Genshin, pixel art, Windows 7…) — it is downloaded to ~/.local/share/omarchy-lock-themes, not into dotfiles. The password still goes through the stock PAM; Ctrl+Alt+Enter on the lock screen falls back to the stock field."))
         out.append(f"{t('⬇ Download all qylock themes (~520 MB)')}\tsddm-fetch-all\t\t0\t"
                    + t("Every theme with its video backgrounds, in a terminal."))
+        if cur.startswith("sddm:"):
+            out.append(f"{t('🖥 Same theme on the login screen (SDDM, sudo)')}\tsddm-login\t\t0\t"
+                       + t("Copies the original files of %s to /usr/share/sddm/themes and makes it the SDDM theme (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.", cur[5:]))
         for did in sddm_lock_ids():
             out.append(f"{did[5:]}\t{did}\t{CACHE_LOCK}/{state.lock_thumb_name(did)}.jpg\t{_cur(did == cur)}\t"
                        f"{t('SDDM theme from qylock (GPL-3.0, downloaded): %s', did[5:])}{NL}{NL}{t('p — show it live · ⏎ — select')}\tsddm")
