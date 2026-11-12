@@ -741,5 +741,11 @@
   "Screen brightness while reading, % (0 — don't touch)": "Яркость экрана при чтении, % (0 — не трогать)",
   "Theme while reading (empty — keep the current one)": "Тема на время чтения (пусто — оставить текущую)",
   "Flat windows: no gaps, black 1 px border, square corners": "Плоские окна: без отступов, чёрная рамка 1 px, прямые углы",
-  "Keep animations": "Оставить анимации"
+  "Keep animations": "Оставить анимации",
+  "Home screen": "Домашний экран",
+  "Desktop widgets: on / off (off — anchored ones are not drawn; free and floating stay)": "Виджеты рабочего стола: вкл / выкл (выкл — виджеты на якорях не рисуются; свободные и плавающие остаются)",
+  "Home screen on an empty workspace: clock, greeting, 3×3 tiles": "Домашний экран на пустом столе: часы, приветствие, плитки 3×3",
+  "Home: name in the greeting (empty — $USER)": "Дом: имя в приветствии (пусто — $USER)",
+  "Home: dot grid in the background": "Дом: точечная сетка на фоне",
+  "Home: hide anchored widgets while it is shown": "Дом: прятать виджеты на якорях, пока он виден"
 }

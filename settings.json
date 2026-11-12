@@ -592,7 +592,36 @@
           "key": "desktopWidgets",
           "type": "bool",
           "default": true,
-          "label": "Desktop widgets: on / off (off — none of them is drawn)"
+          "label": "Desktop widgets: on / off (off — anchored ones are not drawn; free and floating stay)"
+        },
+        {
+          "section": "Home screen"
+        },
+        {
+          "key": "home",
+          "type": "bool",
+          "default": false,
+          "label": "Home screen on an empty workspace: clock, greeting, 3×3 tiles"
+        },
+        {
+          "key": "homeName",
+          "type": "text",
+          "label": "Home: name in the greeting (empty — $USER)"
+        },
+        {
+          "key": "homeDots",
+          "type": "bool",
+          "default": true,
+          "label": "Home: dot grid in the background"
+        },
+        {
+          "key": "homeHideWidgets",
+          "type": "bool",
+          "default": true,
+          "label": "Home: hide anchored widgets while it is shown"
+        },
+        {
+          "section": "Style"
         },
         {
           "key": "widgetStyle",
