@@ -728,5 +728,8 @@
   "⚡ Install the cut-out model": "⚡ Установить модель вырезки",
   "To find characters, outline-cut needs BiRefNet (onnxruntime) in its own venv: ~/.local/share/wallpaper-fx/venv. Until then it draws the picture own lines.": "Чтобы находить персонажей, outline-cut нужен BiRefNet (onnxruntime) в отдельном venv: ~/.local/share/wallpaper-fx/venv. Пока его нет, рисуются линии самой картинки.",
   "⏎ — install in a terminal, then prepare the theme wallpapers": "⏎ — установить в терминале, затем подготовить обои темы",
-  "⏎ — run": "⏎ — запустить"
+  "⏎ — run": "⏎ — запустить",
+  "Reading mode on": "Режим чтения включён",
+  "Press again to return to the desktop": "Нажми ещё раз, чтобы вернуться к рабочему столу",
+  "Reading mode off": "Режим чтения выключен"
 }

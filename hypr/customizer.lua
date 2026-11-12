@@ -164,3 +164,33 @@ end
 
 -- Blur behind the Customizer overlay itself.
 hl.layer_rule({ match = { namespace = "omarchy-customizer" }, blur = true, ignore_alpha = 0.6 })
+
+-- Reading mode (scripts/reading-mode.sh): while ~/.local/state/hypr/reading-mode exists, keep the flat
+-- "printed page" look and its shader over everything above, so a config reload doesn't end it.
+-- Same values as apply_look in the script.
+if exists(state .. "/hypr/reading-mode") then
+	local f = io.open(home .. "/.config/omarchy/customizer/reading-mode.json", "r")
+	local json = f and f:read("*a") or ""
+	if f then
+		f:close()
+	end
+	if json:match('"flat"%s*:%s*false') == nil then
+		hl.config({
+			general = { gaps_in = 0, gaps_out = 0, border_size = 1 },
+			decoration = { rounding = 0, blur = { enabled = false }, shadow = { enabled = false } },
+		})
+		hl.window_rule({ match = { class = ".*" }, rounding = 0 })
+	end
+	if json:match('"animations"%s*:%s*true') == nil then
+		hl.config({ animations = { enabled = false } })
+	end
+	local name = json:match('"shader"%s*:%s*"([^"]*)"') or "reading"
+	if name ~= "" then
+		for _, dir in ipairs({ home .. "/.config/omarchy/customizer/shaders", plugin .. "/shaders" }) do
+			if exists(dir .. "/" .. name .. ".frag") then
+				hl.config({ decoration = { screen_shader = dir .. "/" .. name .. ".frag" }, debug = { damage_tracking = 2 } })
+				break
+			end
+		end
+	end
+end

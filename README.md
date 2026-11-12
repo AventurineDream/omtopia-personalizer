@@ -20,7 +20,7 @@ use right now and quick actions. It follows the theme, the glass / solid materia
 | **Presets** | Global desktop snapshots (bundled **DOT-MATRIX** preset + your own presets in `~/.config/omarchy/customizer/presets/*.json` with ★, `D` to delete, and automatic rollback to the previous setup) and **Style** — the form of the desktop on any theme: Flat, Glass, Fluent, DOT-MATRIX or your own (window geometry, bar, lock, launcher, widgets, OSD, notifications, animations, opacity, blur, sounds, Glyph, fonts; you choose which parts a style applies) |
 | **Desktop** | Theme (palette + preview), Wallpaper (categories as in the background switcher), Recolor (any image into the current theme with lutgen), Dotify (LED dot-matrix wallpapers & Arch glyph generator), Wallpaper FX*, Widgets*, Dashboard* |
 | **Bar*** | Bar Skin (plus “💾 Save the current skin” into `~/.config/omarchy/bar-skins/`, listed with ★; `D` deletes one after a confirmation), Bar Layout (own layouts the same way, in `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 settings, each with its default and a live preview |
-| **Windows** | Animations (18 presets), Transparency, Blur, OSD*, Notifications* (with tactile sound packs & Hyprland window/workspace sounds), Glyph (Nothing-inspired perimeter edge lighting & charger beams), Shader (CRT / TFT) |
+| **Windows** | Animations (18 presets), Transparency, Blur, OSD*, Notifications* (with tactile sound packs & Hyprland window/workspace sounds), Glyph (Nothing-inspired perimeter edge lighting & charger beams), Shader (CRT / TFT / reading / film / Game Boy) |
 | **Lock*** | Lock design with previews in the current theme, Lock Tweaks |
 | **Pickers*** | Theme / wallpaper picker style, thumbnail cache, Launcher* skins (live preview of the real skin in the card) |
 
@@ -141,7 +141,23 @@ The scripts work on their own too — bind them if you like:
 o.bind("SUPER + ALT + O", "Next transparency preset", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/opacity.sh next")
 o.bind("SUPER + ALT + U", "Next blur preset", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/blur.sh next")
 o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/crt-toggle.sh")
+o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
+
+## Reading mode
+
+`scripts/reading-mode.sh` (toggle / on / off / status) turns the desktop into a printed page for long reading:
+the `reading` screen shader (monochrome ink on warm paper, paper grain, 4×4 ordered dither, faint vignette; static,
+cheapest damage tracking), flat windows (no gaps, 1 px border, square corners, no blur / shadow) and no animations.
+Optionally it sets the screen brightness and an Omarchy theme for the time of reading and puts them back afterwards.
+Turning it off just reloads Hyprland: `hypr/customizer.lua` re-applies your style, the Windows tab and screen shader,
+and keeps the page while the state file exists, so a config reload doesn't end reading. Settings —
+`~/.config/omarchy/customizer/reading-mode.json`: `shader` (any shader name, `""` = none), `flat`, `animations`,
+`brightness` (1–100, `0` = don't touch), `theme` (`""` = keep). Inspired by the reading mode of
+[surface-dots](https://github.com/snes19xx/surface-dots); the code is our own.
+
+New screen shaders: `reading`, `film` (black-and-white film: filmic curve, frozen silver grain, vignette) and
+`gameboy` (four greens, ordered dither, LCD grid).
 
 ## Your own presets
 

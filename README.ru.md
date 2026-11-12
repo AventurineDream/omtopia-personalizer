@@ -20,7 +20,7 @@
 | **Пресеты** | Полные снимки окружения (встроенный пресет **DOT-MATRIX** + свои пресеты в `~/.config/omarchy/customizer/presets/*.json` со ★, удаление по `D` и автоматический откат к предыдущим настройкам) и **Стиль** — форма окружения на любой теме: Flat, Стекло, Fluent, DOT-MATRIX или свой (геометрия окон, бар, локскрин, лаунчер, виджеты, OSD, уведомления, анимации, прозрачность, блюр, звуки, Glyph, шрифты; какие разделы применять — выбирается) |
 | **Рабочий стол** | Тема (палитра + превью), Обои (категории как в переключателе обоев), Recolor (перекраска любой картинки в цвета темы через lutgen), Dotify (генератор матричных LED-обоев и логотипа Arch), Wallpaper FX*, Виджеты*, Дашборд* |
 | **Бар*** | Bar Skin (и «💾 Сохранить текущий скин» в `~/.config/omarchy/bar-skins/`, со ★ в списке; `D` удаляет после подтверждения), Bar Layout (свои раскладки так же — в `~/.config/omarchy/bar-layouts/`), Bar Tweaks — 41 параметр, у каждого виден дефолт и живой предпросмотр |
-| **Окна** | Анимации (18 пресетов), Прозрачность, Блюр, OSD*, Уведомления* (со звуковыми пакетами и озвучкой событий окон/воркспейсов Hyprland), Glyph (контурная подсветка экрана и лучи зарядки в духе Nothing), Шейдер (CRT / TFT) |
+| **Окна** | Анимации (18 пресетов), Прозрачность, Блюр, OSD*, Уведомления* (со звуковыми пакетами и озвучкой событий окон/воркспейсов Hyprland), Glyph (контурная подсветка экрана и лучи зарядки в духе Nothing), Шейдер (CRT / TFT / чтение / плёнка / Game Boy) |
 | **Блокировка*** | Дизайн экрана блокировки с превью в цветах темы, Lock Tweaks |
 | **Пикеры*** | Стиль пикера тем / обоев, кэш миниатюр, скины Лаунчера* (в карточке — живое превью настоящего скина) |
 
@@ -141,7 +141,23 @@ dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/kamradsmeshnyavy.customize
 o.bind("SUPER + ALT + O", "Next transparency preset", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/opacity.sh next")
 o.bind("SUPER + ALT + U", "Next blur preset", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/blur.sh next")
 o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/crt-toggle.sh")
+o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
+
+## Режим чтения
+
+`scripts/reading-mode.sh` (toggle / on / off / status) превращает рабочий стол в печатную страницу для долгого чтения:
+экранный шейдер `reading` (монохромные чернила на тёплой бумаге, зерно, упорядоченный дизеринг 4×4, лёгкая виньетка;
+статичный, самый дешёвый damage tracking), плоские окна (без отступов, рамка 1 px, прямые углы, без блюра и тени)
+и без анимаций. По желанию ставит на время чтения яркость экрана и тему Omarchy и потом возвращает их. Выключение —
+просто перезагрузка Hyprland: `hypr/customizer.lua` заново применяет стиль, вкладку «Окна» и шейдер экрана, а пока
+есть файл состояния — держит страницу, так что перезагрузка конфига чтение не прерывает. Настройки —
+`~/.config/omarchy/customizer/reading-mode.json`: `shader` (имя любого шейдера, `""` — без него), `flat`,
+`animations`, `brightness` (1–100, `0` — не трогать), `theme` (`""` — не менять). Идея — режим чтения из
+[surface-dots](https://github.com/snes19xx/surface-dots), код свой.
+
+Новые шейдеры экрана: `reading`, `film` (чёрно-белая плёнка: плёночная кривая, застывшее зерно, виньетка) и
+`gameboy` (четыре зелёных, упорядоченный дизеринг, сетка LCD).
 
 ## Свои пресеты
 
