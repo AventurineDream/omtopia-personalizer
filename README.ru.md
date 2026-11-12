@@ -144,6 +144,14 @@ o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kam
 o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
 
+## Живые обои (owe)
+
+Видео и GIF-обои играет движок Omarchy [owe](https://github.com/omacom/owe). **Рабочий стол → Wallpaper FX → Живые обои**
+(есть, если установлен `owe`): пауза / продолжить сейчас, пауза под полноэкранным окном, пауза при любом открытом окне, на
+батарее — играть / пауза на кадре / постер, программы, при которых пауза (`obs, steam`), частота кадров GIF, проявление
+постера. Customizer хранит их в `~/.config/omarchy/customizer/owe.json`, собирает из него `~/.config/owe/config.toml` и
+зовёт `owe reload-config`. Видео выбирается в переключателе обоев — набери `live`, останутся только живые.
+
 ## Режим чтения
 
 `scripts/reading-mode.sh` (Super+Alt+R; toggle / on / off / status) превращает рабочий стол в печатную страницу для

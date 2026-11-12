@@ -913,6 +913,14 @@ def apply(category, value):
     elif category == "wallpaper-fx":
         if value.startswith("tweak:"):
             tweak_pick(value)
+            if value.startswith("tweak:owe"):
+                tweak_ops.owe_after()
+            raise Exit(0)
+        if value == "owe-toggle":
+            st = sh(["owe", "status"], quiet=False)[1]
+            paused = '"manual_pause":true' in st.replace(" ", "")
+            sh(["owe", "resume" if paused else "pause"])
+            notify("-t", "2000", "Wallpaper", t("Live wallpaper resumed") if paused else t("Live wallpaper paused"))
             raise Exit(0)
         if value == "enable-plugin":
             code = sh(["omarchy", "plugin", "enable", "kamradsmeshnyavy.background"])[0]

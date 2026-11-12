@@ -152,6 +152,19 @@ def main():
     rcfg = os.path.join(home, ".config/omarchy/customizer/reading-mode.json")
     check("reading: tweak writes reading-mode.json", json.load(open(rcfg)).get("readingBrightness") == 45)
 
+    # ── живые обои (owe): шаг настройки собирает ~/.config/owe/config.toml ──
+    oenv = dict(renv, PATH=os.path.join(base, "stubs") + ":" + os.environ["PATH"])
+    with open(os.path.join(base, "stubs", "owe"), "w") as f:
+        f.write(f'#!/bin/sh\nprintf "%s\\n" "owe $*" >> "{log}"\n[ "$1" = status ] && echo \'{{"manual_pause":false}}\'\n')
+    os.chmod(os.path.join(base, "stubs", "owe"), 0o755)
+    run(oenv, "tweak", "oweBattery", "+")
+    toml = open(os.path.join(home, ".config/owe/config.toml")).read()
+    check("owe: tweak writes config.toml", 'battery_mode = "pause"' in toml and "fullscreen = true" in toml)
+    check("owe: reload-config called", any(c == "owe reload-config" for c in calls(log)))
+    _, out = run(oenv, "list", "wallpaper-fx")
+    vals = [ln.split("\t")[1] for ln in out.splitlines() if "\t" in ln]
+    check("owe: section listed before transitions", "owe-toggle" in vals and vals.index("owe-toggle") < vals.index("section:transitions"))
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 

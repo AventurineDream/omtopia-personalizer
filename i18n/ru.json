@@ -764,5 +764,16 @@
   "Deck: hover delay at the edge, ms": "Deck: задержка у края, мс",
   "Deck: layout — panel (as in glyph-rice) · compact strip · full screen": "Deck: раскладка — panel (как в glyph-rice) · compact (полоска) · full (весь экран)",
   "Deck: open — dwell (rest at the edge) · bump (touch the edge, back off a little, hit it again)": "Deck: открытие — dwell (задержаться у края) · bump (толчок: коснуться края, чуть отвести, снова в край)",
-  "Deck (full): background dim": "Deck (full): затемнение фона"
+  "Deck (full): background dim": "Deck (full): затемнение фона",
+  "Live wallpapers (owe)": "Живые обои (owe)",
+  "⏯ Pause / resume the live wallpaper now": "⏯ Пауза / продолжить живые обои",
+  "Manual pause of the video wallpaper until you resume it (owe pause / owe resume). Pick videos in the wallpaper picker: type live to show only video and GIF wallpapers.": "Ручная пауза видео-обоев, пока не продолжишь (owe pause / owe resume). Видео выбираются в переключателе обоев: набери live — останутся только видео и GIF.",
+  "Live wallpaper resumed": "Живые обои продолжены",
+  "Live wallpaper paused": "Живые обои на паузе",
+  "Live wallpaper: pause under a fullscreen window": "Живые обои: пауза под полноэкранным окном",
+  "Live wallpaper: pause when any window is open (saves power)": "Живые обои: пауза, когда открыто любое окно (экономит энергию)",
+  "Live wallpaper on battery: play · pause on the current frame · still poster": "Живые обои на батарее: играть · пауза на кадре · постер",
+  "Live wallpaper: programs that pause it while running (comma separated, e.g. obs, steam)": "Живые обои: программы, при которых пауза (через запятую, например obs, steam)",
+  "Live wallpaper: GIF frame rate after transcoding": "Живые обои: частота кадров GIF после перекодирования",
+  "Live wallpaper: fade of stills (battery poster), ms": "Живые обои: проявление постера, мс"
 }

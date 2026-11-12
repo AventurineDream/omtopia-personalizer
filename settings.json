@@ -477,6 +477,56 @@
       ]
     },
     {
+      "id": "OWE_TWEAKS",
+      "category": "wallpaper-fx",
+      "valuePrefix": "tweak:",
+      "file": "~/.config/omarchy/customizer/owe.json",
+      "comment": "Живые обои — owe (движок обоев Omarchy, видео / GIF). Customizer пишет owe.json, tweak_ops.owe_after\nсобирает из него ~/.config/owe/config.toml и зовёт owe reload-config.",
+      "items": [
+        {
+          "key": "owePauseFullscreen",
+          "type": "bool",
+          "default": true,
+          "label": "Live wallpaper: pause under a fullscreen window"
+        },
+        {
+          "key": "owePauseWindows",
+          "type": "bool",
+          "default": false,
+          "label": "Live wallpaper: pause when any window is open (saves power)"
+        },
+        {
+          "key": "oweBattery",
+          "type": "enum",
+          "values": ["play", "pause", "poster"],
+          "label": "Live wallpaper on battery: play · pause on the current frame · still poster"
+        },
+        {
+          "key": "oweBlocklist",
+          "type": "text",
+          "label": "Live wallpaper: programs that pause it while running (comma separated, e.g. obs, steam)"
+        },
+        {
+          "key": "oweGifFps",
+          "type": "num",
+          "min": 5,
+          "max": 60,
+          "step": 5,
+          "default": 20,
+          "label": "Live wallpaper: GIF frame rate after transcoding"
+        },
+        {
+          "key": "oweFade",
+          "type": "num",
+          "min": 0,
+          "max": 1000,
+          "step": 50,
+          "default": 250,
+          "label": "Live wallpaper: fade of stills (battery poster), ms"
+        }
+      ]
+    },
+    {
       "id": "PICKER_TWEAKS",
       "category": "theme-switcher",
       "valuePrefix": "tweak:",

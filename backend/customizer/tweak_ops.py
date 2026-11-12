@@ -181,6 +181,48 @@ def window_after():
     preview_ops.restore()
 
 
+OWE_CFG = paths.CONFIG / "customizer/owe.json"
+OWE_TOML = paths.HOME / ".config/owe/config.toml"
+
+
+def owe_after():
+    """После шага по ключам owe*: собрать ~/.config/owe/config.toml из owe.json и перечитать его в owe."""
+    d = jsonio.read(OWE_CFG)
+    d = d if isinstance(d, dict) else {}
+
+    def b(key, default):
+        v = d.get(key, default)
+        return "true" if v is True or v == "true" else "false"
+
+    def n(key, default):
+        try:
+            return int(float(d.get(key, default)))
+        except (TypeError, ValueError):
+            return default
+
+    mode = d.get("oweBattery") if d.get("oweBattery") in ("play", "pause", "poster") else "play"
+    block = [x.strip() for x in str(d.get("oweBlocklist") or "").split(",") if x.strip()]
+    toml = "\n".join([
+        "# Собрано Customizer из ~/.config/omarchy/customizer/owe.json — правьте там (Wallpaper FX → Live wallpapers).",
+        "[pause]",
+        f"fullscreen = {b('owePauseFullscreen', True)}",
+        f"occupied_workspace = {b('owePauseWindows', False)}",
+        f"battery_poster = {'true' if mode == 'poster' else 'false'}",
+        f'battery_mode = "{mode}"',
+        "blocklist = [" + ", ".join(json.dumps(x) for x in block) + "]",
+        "",
+        "[transcode]",
+        f"gif_fps = {n('oweGifFps', 20)}",
+        "",
+        "[render]",
+        f"fade_ms = {n('oweFade', 250)}",
+        "",
+    ])
+    os.makedirs(OWE_TOML.parent, exist_ok=True)
+    OWE_TOML.write_text(toml)
+    _quiet(["owe", "reload-config"])
+
+
 def reading_after():
     """После шага по ключам reading*: если режим чтения включён — перепечь шейдер и перезагрузить Hyprland."""
     from . import state
@@ -480,4 +522,6 @@ def run(args):
         window_after()
     elif key.startswith("reading"):
         reading_after()
+    elif key.startswith("owe"):
+        owe_after()
     return code, "", err

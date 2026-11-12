@@ -1,5 +1,7 @@
 """`list <категория>` — строки для overlay (категории настроек и простые списки; остальное —
 lists_more.py)."""
+import shutil
+
 from . import jsonio, paths, state, tweaks
 from .i18n import t
 
@@ -54,6 +56,12 @@ def _wallpaper_fx():
     hdr = lambda title, sid: f"{t(title)}\tsection:{sid}\t\t0\t\theader"
     out.append(hdr("Settings", "settings"))
     out += tweaks.prefixed(tweaks.list_tweaks("FX_TWEAKS"))
+    # Живые обои (видео / GIF) играет owe — его настройки здесь же, если он установлен.
+    if shutil.which("owe"):
+        out.append(hdr("Live wallpapers (owe)", "owe"))
+        out.append(f"{t('⏯ Pause / resume the live wallpaper now')}\towe-toggle\t\t0\t"
+                   + t("Manual pause of the video wallpaper until you resume it (owe pause / owe resume). Pick videos in the wallpaper picker: type live to show only video and GIF wallpapers."))
+        out += tweaks.prefixed(tweaks.list_tweaks("OWE_TWEAKS"))
     out.append(hdr("Transitions", "transitions"))
     cur = jsonio.read_object(FX_CFG).get("type") or "slant"
     for e, desc in _FX_EFFECTS:

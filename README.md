@@ -85,7 +85,7 @@ Each is a separate plugin; the Customizer finds them on its own.
 - `zenity` — dialogs for colours, text and files in the tweaks
 - `kamradsmeshnyavy.widgets` plugin — **Widgets** category in Desktop (clock, now playing, cava visualizer, system rings)
 - `lutgen` — Recolor (shown only when both lutgen and zenity are there)
-- `omarchy-wallpaper-theme` on `PATH` + `matugen` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
+- `omarchy-wallpaper-theme` on `PATH` + `matugen` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper (a video / GIF wallpaper gives its colours through a representative frame and stays live) ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
 
 ## Requirements
 
@@ -143,6 +143,14 @@ o.bind("SUPER + ALT + U", "Next blur preset", "~/.config/omarchy/plugins/kamrads
 o.bind("SUPER + ALT + C", "Toggle screen shader", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/crt-toggle.sh")
 o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/scripts/reading-mode.sh")
 ```
+
+## Live wallpapers (owe)
+
+Video and GIF wallpapers are played by Omarchy's [owe](https://github.com/omacom/owe). **Desktop → Wallpaper FX → Live
+wallpapers** (shown when `owe` is installed): pause / resume now, pause under a fullscreen window, pause when any window is
+open, on battery — play / pause on a frame / still poster, programs that pause it (`obs, steam`), GIF frame rate, poster
+fade. The Customizer keeps them in `~/.config/omarchy/customizer/owe.json`, writes `~/.config/owe/config.toml` from it and
+runs `owe reload-config`. Pick a video in the wallpaper picker — type `live` to see only live ones.
 
 ## Reading mode
 
