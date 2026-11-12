@@ -19,6 +19,7 @@ _FX_EFFECTS = [
     ("zoom", "The old one flies forward, the new one fades in"), ("glitch", "Torn stripes and channel split"),
     ("burn", "Burns through in spots with a glowing edge"), ("waterdrop", "A drop: waves from a point, fading out"),
     ("hexagon", "Honeycomb opening from the centre"),
+    ("hexreveal", "Honeycomb cells each opening from their own middle in a wave, with a lit rim (after Vitreus)"),
     ("contagion", "Pixel colonies eat through the old wallpaper, the front flashes in the new theme's brightest colour"),
     ("outline", "Draws the picture's own lines, then the world grows out of them. Light: no model, no background work"),
     ("outline-cut", "Outline with cut-out: draws the character's outline, fills it in, then the world grows out of it. The character is found by BiRefNet in the background (NPU / GPU); until a wallpaper is cut out, its own lines are drawn"),
