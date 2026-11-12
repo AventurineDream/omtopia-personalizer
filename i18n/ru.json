@@ -826,5 +826,7 @@
   "Downloaded: %s — pick it in the list": "Скачано: %s — выбери в списке",
   "Download failed: %s": "Не скачалось: %s",
   "🖥 Same theme on the login screen (SDDM, sudo)": "🖥 Та же тема на экране входа (SDDM, sudo)",
-  "Copies the original files of %s to /usr/share/sddm/themes and makes it the SDDM theme (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.": "Копирует оригинальные файлы %s в /usr/share/sddm/themes и делает её темой SDDM (пароль sudo спросит терминал). Вернуть вход Omarchy: omarchy-lock-themes sddm reset."
+  "Copies the original files of %s to /usr/share/sddm/themes and makes it the SDDM theme (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.": "Копирует оригинальные файлы %s в /usr/share/sddm/themes и делает её темой SDDM (пароль sudo спросит терминал). Вернуть вход Omarchy: omarchy-lock-themes sddm reset.",
+  "🖥 Glyph login screen (SDDM, sudo)": "🖥 Экран входа Glyph (SDDM, sudo)",
+  "The login screen of glyph-rice: a camera-dial session wheel, a tachometer that fills as you type, a staged power-on. Installed to /usr/share/sddm/themes/glyph (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.": "Экран входа glyph-rice: выбор сеанса «диском камеры», тахометр, заполняющийся при вводе пароля, поэтапное включение. Ставится в /usr/share/sddm/themes/glyph (пароль sudo спросит терминал). Вернуть вход Omarchy: omarchy-lock-themes sddm reset."
 }

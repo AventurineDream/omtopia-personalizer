@@ -995,6 +995,9 @@ def apply(category, value):
         if value == "missing-thumbs":
             lock_thumbs(True)
             raise Exit(0)
+        if value == "sddm-login-glyph":
+            spawn(["omarchy-launch-floating-terminal-with-presentation", "omarchy-lock-themes sddm glyph"])
+            raise Exit(0)
         if value == "sddm-login":
             cur = state.lock_current()
             if cur.startswith("sddm:"):

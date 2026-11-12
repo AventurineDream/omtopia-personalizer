@@ -649,6 +649,8 @@ def lock():
                    + t("Pick one of ~40 SDDM themes (NieR, Genshin, pixel art, Windows 7…) — it is downloaded to ~/.local/share/omarchy-lock-themes, not into dotfiles. The password still goes through the stock PAM; Ctrl+Alt+Enter on the lock screen falls back to the stock field."))
         out.append(f"{t('⬇ Download all qylock themes (~520 MB)')}\tsddm-fetch-all\t\t0\t"
                    + t("Every theme with its video backgrounds, in a terminal."))
+        out.append(f"{t('🖥 Glyph login screen (SDDM, sudo)')}\tsddm-login-glyph\t\t0\t"
+                   + t("The login screen of glyph-rice: a camera-dial session wheel, a tachometer that fills as you type, a staged power-on. Installed to /usr/share/sddm/themes/glyph (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset."))
         if cur.startswith("sddm:"):
             out.append(f"{t('🖥 Same theme on the login screen (SDDM, sudo)')}\tsddm-login\t\t0\t"
                        + t("Copies the original files of %s to /usr/share/sddm/themes and makes it the SDDM theme (a terminal asks for the sudo password). Back to the Omarchy login: omarchy-lock-themes sddm reset.", cur[5:]))
