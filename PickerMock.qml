@@ -17,7 +17,9 @@ Item {
     "coverflow": { expandedWidth: 640,  expandedHeight: 420, sliceWidth: 300, sliceHeight: 380, spacing: -210, skew: 0,  radius: 12, tilt: 55 },
     "strip":     { expandedWidth: 460,  expandedHeight: 290, sliceWidth: 300, sliceHeight: 190, spacing: 16,   skew: 0,  radius: 12, tilt: 0 },
     "wide":      { expandedWidth: 1040, expandedHeight: 585, sliceWidth: 64,  sliceHeight: 520, spacing: -18,  skew: 34, radius: 0,  tilt: 0 },
-    "polaroid":  { expandedWidth: 600,  expandedHeight: 470, sliceWidth: 220, sliceHeight: 300, spacing: 18,   skew: 0,  radius: 4,  tilt: 0 }
+    "polaroid":  { expandedWidth: 600,  expandedHeight: 470, sliceWidth: 220, sliceHeight: 300, spacing: 18,   skew: 0,  radius: 4,  tilt: 0 },
+    "honeycomb": { expandedWidth: 286,  expandedHeight: 330, sliceWidth: 130, sliceHeight: 150, spacing: 10,   skew: 0,  radius: 0,  tilt: 0 },
+    "dots":      { expandedWidth: 720,  expandedHeight: 450, sliceWidth: 120, sliceHeight: 120, spacing: 18,   skew: 0,  radius: 60, tilt: 0 }
   })
   readonly property var preset: presets[style] || presets.slices
   function num(key, fallback) {

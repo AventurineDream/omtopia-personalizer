@@ -741,7 +741,9 @@ def theme_switcher():
     for st, desc in (("slices", "Slanted slices — stock Omarchy"), ("cards", "Even rounded cards"),
                      ("coverflow", "Neighbours turned in 3D, like iTunes"),
                      ("strip", "A strip of equal cards, the selected one bigger"),
-                     ("wide", "A huge preview and thin slices"), ("polaroid", "Cards in a white frame with a caption")):
+                     ("wide", "A huge preview and thin slices"), ("polaroid", "Cards in a white frame with a caption"),
+                     ("honeycomb", "Honeycomb: a big hexagon in the middle, neighbours in rings of hexagons around it (after Vitreus)"),
+                     ("dots", "Round thumbnails; the preview assembles from dots in a wave (after glyph-rice)")):
         out.append(f"{st}\tstyle:{st}\t\t{_cur(st == cur)}\t{t(desc)}{NL}{NL}{t('⏎ — select · p — open the theme switcher')}")
     return out
 

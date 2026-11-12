@@ -811,5 +811,7 @@
   "Pinned · %s": "Закреплено · %s",
   "Pin an app": "Закрепить приложение",
   "App": "Приложение",
-  "⏎ — unpin": "⏎ — открепить"
+  "⏎ — unpin": "⏎ — открепить",
+  "Honeycomb: a big hexagon in the middle, neighbours in rings of hexagons around it (after Vitreus)": "Соты: крупный шестиугольник в центре, соседи — кольцами шестиугольников вокруг (по мотивам Vitreus)",
+  "Round thumbnails; the preview assembles from dots in a wave (after glyph-rice)": "Круглые миниатюры; превью собирается из точек волной (по мотивам glyph-rice)"
 }
