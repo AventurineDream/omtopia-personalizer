@@ -440,7 +440,7 @@ Item {
   // material: auto/glass — стекло, остальное — сплошная панель; cornerScale — скругления;
   // motion — множитель длительностей (0 — без анимаций); id dotmatrix — палитра и формы DOT-MATRIX.
   property var look: ({})
-  readonly property bool dot: String(look.id || "") === "dotmatrix"
+  readonly property bool dot: ["dotmatrix", "glyph"].indexOf(String(look.id || "")) !== -1
   readonly property string material: String(look.material || "auto")
   readonly property bool glass: material === "auto" || material === "glass"
   readonly property real cornerScale: look.cornerScale !== undefined && isFinite(Number(look.cornerScale)) ? Math.max(0, Number(look.cornerScale)) : 1

@@ -29,7 +29,9 @@ dotmatrix["hyprGeometry"]["noGaps"] = True
 dotmatrix["notifications"].setdefault("notifyAttach", "auto")
 dotmatrix["fonts"] = "pixel"
 # Как рабочий стол NIHIL: часы, сеть и плеер одной колонкой карточек в левом верхнем углу.
-dotmatrix["widgets"].update(network=True, networkAnchor="top-left", media=True, mediaAnchor="top-left")
+dotmatrix["widgets"].update(network=True, networkAnchor="top-left", media=True, mediaAnchor="top-left", home=False, deck=False,
+                           homeLayout="glyph", homeCards="glyph", homeHideWidgets=True, deckLayout="panel", deckCards="glyph",
+                           deckTrigger="dwell")
 # Nothing: плоское «железо» — без теней, сплошные поверхности, шрифт профиля.
 dotmatrix["look"] = {"elevation": 0, "motion": 1, "material": "solid", "cornerScale": 1, "typeface": "profile", "texture": ""}
 dotmatrix = {
@@ -38,6 +40,29 @@ dotmatrix = {
     "note_ru": "Аппаратная оболочка в духе Nothing на любой теме: рамка-бортик с окнами вплотную, вертикальный LED-бар, матричная типографика, сигнальный цвет строго для тревог, контурная подсветка Glyph, LED-дашборд/OSD/лаунчер/локскрин и тактильный звуковой пакет.",
     **dotmatrix,
 }
+
+
+# Glyph (по мотивам glyph-rice): та же «аппаратная» основа, что у DOT-MATRIX, но без рамки-бортика — узкая
+# плавающая пилюля слева (RunCat, таймер фокуса), домашний экран glyph и Deck снизу, OSD подсветкой по краю,
+# пикер обоев «точки», шрифты nothing (точки только в часах и цифрах), красный строго для тревог.
+import copy
+glyph = copy.deepcopy(dotmatrix)
+glyph.update({
+    "name": "Glyph", "name_ru": "Glyph",
+    "note": "After glyph-rice: Nothing OS on a floating left pill — dot-matrix clocks and numbers, a home screen with a bento of round and square tiles on an empty workspace, a deck from the bottom edge, edge-light OSD and perimeter Glyph lighting, signal red only for alerts.",
+    "note_ru": "По мотивам glyph-rice: Nothing OS на плавающей пилюле слева — точечные часы и цифры, домашний экран с бенто из круглых и квадратных плиток на пустом столе, Deck из-под нижнего края, OSD подсветкой по краю и контурная подсветка Glyph, красный только для тревог.",
+    "fonts": "nothing",
+})
+glyph.pop("barSkinData", None)
+glyph.pop("barLayoutData", None)
+glyph.update({"barSkin": "glyph-pill", "barLayout": "glyph-left"})
+glyph["hyprGeometry"] = {"gapsIn": 6, "gapsOut": 12, "borderSize": 1, "rounding": 18, "shadow": False, "noGaps": False}
+glyph["imagePicker"] = dict(glyph["imagePicker"], style="dots", cardRadius=24)
+glyph["widgets"].update(home=True, homeLayout="glyph", homeCards="glyph", homeHideWidgets=True,
+                        deck=True, deckLayout="panel", deckCards="glyph", deckTrigger="dwell",
+                        dashAttach="floating", dashAnimation="grow")
+glyph["osd"].update(osdStyle="edge", osdAttach="floating")
+glyph["look"] = dict(glyph["look"], cornerScale=1.4)
 
 
 def plain(name, name_ru, note, note_ru, *, geom, bar, opacity, blur, anims, lock, launcher, radius, alpha,
@@ -57,6 +82,9 @@ def plain(name, name_ru, note, note_ru, *, geom, bar, opacity, blur, anims, lock
             "dashStyle": "default", "dashFollowBar": True, "dashAttach": attach, "dashBackground": "background",
             "dashAlpha": alpha, "dashRadius": radius, "dashBorder": cards != "flat",
             "dashAnimation": dash_anim, "dashDuration": fx["duration"] // 2 + 100,
+            # Домашний экран и Deck — свои у стиля Glyph; остальные их выключают, чтобы не оставались после него.
+            "home": False, "deck": False, "homeLayout": "glyph", "homeCards": "style", "homeHideWidgets": True,
+            "deckLayout": "panel", "deckCards": "style", "deckTrigger": "dwell",
         },
         "osd": {
             "osdStyle": "edge", "osdFollowBar": True, "osdAttach": attach, "osdBackground": "background",
@@ -76,6 +104,7 @@ def plain(name, name_ru, note, note_ru, *, geom, bar, opacity, blur, anims, lock
 
 styles = {
     "dotmatrix": dotmatrix,
+    "glyph": glyph,
     "flat": plain(
         "Flat", "Плоский",
         "Flat / Metro: square corners, solid surfaces, no shadows or blur, quick motion, quiet. Typography and colour do all the work.",
@@ -182,7 +211,7 @@ for name, st in styles.items():
 if bad:
     sys.exit(1)
 # Тема стиля (переключатель styleTheme): пара тёмная / светлая.
-THEMES = {"dotmatrix": ("nothing-steel", "nothing-ashlight"), "flat": ("matte-black", "white"),
+THEMES = {"dotmatrix": ("nothing-steel", "nothing-ashlight"), "glyph": ("nothing-glyph", "nothing-ashlight"), "flat": ("matte-black", "white"),
           "glass": ("catppuccin", "catppuccin-latte"), "liquid": ("catppuccin", "catppuccin-latte"), "fluent": ("tokyo-night", "rose-pine"),
           "paper": ("kanagawa", "kanagawa-lotus"), "neumorph": ("nord", "bliss"),
           "brutal": ("gruvbox-material", "flexoki-light"), "retro": ("ibm", "bliss"), "neon": ("cyber-aura", "")}

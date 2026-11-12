@@ -1,0 +1,112 @@
+{
+  "name": "Glyph",
+  "name_ru": "Glyph",
+  "note": "After glyph-rice: Nothing OS on a floating left pill — dot-matrix clocks and numbers, a home screen with a bento of round and square tiles on an empty workspace, a deck from the bottom edge, edge-light OSD and perimeter Glyph lighting, signal red only for alerts.",
+  "note_ru": "По мотивам glyph-rice: Nothing OS на плавающей пилюле слева — точечные часы и цифры, домашний экран с бенто из круглых и квадратных плиток на пустом столе, Deck из-под нижнего края, OSD подсветкой по краю и контурная подсветка Glyph, красный только для тревог.",
+  "anims": "DOT-MATRIX",
+  "opacity": "dotmatrix",
+  "blur": "dotmatrix",
+  "shader": "off",
+  "hyprGeometry": {
+    "gapsIn": 6,
+    "gapsOut": 12,
+    "borderSize": 1,
+    "rounding": 18,
+    "shadow": false,
+    "noGaps": false
+  },
+  "barTransparent": false,
+  "lock": {
+    "design": "dotmatrix",
+    "wallpaperBlur": 0,
+    "wallpaperDim": 0.45
+  },
+  "launcher": {
+    "skin": "dotmatrix",
+    "backdrop": 0.82
+  },
+  "wallpaperFx": {
+    "type": "fade",
+    "duration": 500,
+    "easing": "OutCubic"
+  },
+  "imagePicker": {
+    "style": "dots",
+    "cardRadius": 24,
+    "selectedBorder": 1,
+    "dim": 0.55
+  },
+  "widgets": {
+    "widgetStyle": "dotmatrix",
+    "clockStyle": "big",
+    "media": true,
+    "dashStyle": "dotmatrix",
+    "dashFollowBar": true,
+    "dashAttach": "floating",
+    "dashBackground": "dotmatrix.bg",
+    "dashAlpha": 1,
+    "dashRadius": 14,
+    "dashBorder": true,
+    "dashAnimation": "grow",
+    "dashDuration": 240,
+    "network": true,
+    "networkAnchor": "top-left",
+    "mediaAnchor": "top-left",
+    "home": true,
+    "deck": true,
+    "homeLayout": "glyph",
+    "homeCards": "glyph",
+    "homeHideWidgets": true,
+    "deckLayout": "panel",
+    "deckCards": "glyph",
+    "deckTrigger": "dwell"
+  },
+  "osd": {
+    "osdStyle": "edge",
+    "osdFollowBar": true,
+    "osdAttach": "floating",
+    "osdBackground": "dotmatrix.bg",
+    "osdAlpha": 1,
+    "osdRadius": 14,
+    "osdSide": "right",
+    "osdAlign": "center"
+  },
+  "notifications": {
+    "notifyStyle": "stock",
+    "notifyFollowBar": true,
+    "notifyBackground": "dotmatrix.bg",
+    "notifyAlpha": 1,
+    "notifyRadius": 14,
+    "notifyCards": "dotmatrix",
+    "notifyCorner": "top-right",
+    "notifyWidth": 360,
+    "notifyAttach": "auto"
+  },
+  "sounds": {
+    "soundPack": "dotmatrix",
+    "windowSounds": true
+  },
+  "glyph": {
+    "glyphEnabled": true,
+    "glyphColor": "dotmatrix.fg",
+    "glyphCriticalColor": "dotmatrix.danger",
+    "glyphDuration": 1100,
+    "glyphThickness": 2.5,
+    "glyphInsetMode": "auto"
+  },
+  "fonts": "nothing",
+  "look": {
+    "elevation": 0,
+    "motion": 1,
+    "material": "solid",
+    "cornerScale": 1.4,
+    "typeface": "profile",
+    "texture": ""
+  },
+  "barSkin": "glyph-pill",
+  "barLayout": "glyph-left",
+  "theme": {
+    "dark": "nothing-glyph",
+    "light": "nothing-ashlight"
+  }
+}

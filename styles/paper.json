@@ -53,7 +53,15 @@
     "dashRadius": 8,
     "dashBorder": true,
     "dashAnimation": "fade",
-    "dashDuration": 400
+    "dashDuration": 400,
+    "home": false,
+    "deck": false,
+    "homeLayout": "glyph",
+    "homeCards": "style",
+    "homeHideWidgets": true,
+    "deckLayout": "panel",
+    "deckCards": "style",
+    "deckTrigger": "dwell"
   },
   "osd": {
     "osdStyle": "edge",

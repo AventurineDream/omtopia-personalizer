@@ -135,7 +135,15 @@
     "dashDuration": 240,
     "network": true,
     "networkAnchor": "top-left",
-    "mediaAnchor": "top-left"
+    "mediaAnchor": "top-left",
+    "home": false,
+    "deck": false,
+    "homeLayout": "glyph",
+    "homeCards": "glyph",
+    "homeHideWidgets": true,
+    "deckLayout": "panel",
+    "deckCards": "glyph",
+    "deckTrigger": "dwell"
   },
   "osd": {
     "osdStyle": "dotmatrix",

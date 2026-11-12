@@ -1,0 +1,9 @@
+{
+  "name": "Glyph",
+  "name_ru": "Glyph",
+  "note": "After glyph-rice: the Glyph style on the nothing-glyph theme with a dot-matrix night wallpaper — left pill bar, home screen bento, deck from the bottom edge, edge-light OSD.",
+  "note_ru": "По мотивам glyph-rice: стиль Glyph на теме nothing-glyph с точечными ночными обоями — пилюля слева, бенто домашнего экрана, Deck снизу, OSD подсветкой по краю.",
+  "style": "glyph",
+  "theme": "nothing-glyph",
+  "wallpaper": "~/.config/omarchy/themes/nothing-glyph/backgrounds/1-01-night.png"
+}
