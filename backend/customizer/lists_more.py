@@ -461,11 +461,11 @@ def bar_skins():
 
 _WIDGET_LABEL = {"dotmatrix-mark": "DOT-MATRIX logo", "active-app": "Active app", "battery-gauge": "Battery (LED)",
                  "dot-clock": "Clock (Doto)", "privacy-led": "Microphone LED", "runcat": "RunCat (runs faster with CPU load)",
-                 "cpu-ram": "CPU / RAM rings", "cava-dots": "Cava dots (while music plays)", "focus-timer": "Focus timer (pomodoro)"}
+                 "cpu-ram": "CPU / RAM rings", "cava-dots": "Cava dots (while music plays)", "focus-timer": "Focus timer (pomodoro)", "taskbar": "Taskbar / dock (windows; pinned apps on an empty workspace)"}
 # QML-модули бара (kamradsmeshnyavy.bar/modules): ставятся в «Не на баре» даже если их никогда не было на баре.
 BAR_MODULES = {"dotmatrix-mark": "DotMatrixMark.qml", "active-app": "ActiveAppIcon.qml", "battery-gauge": "BatteryGauge.qml",
                "dot-clock": "DotClock.qml", "privacy-led": "PrivacyLed.qml", "runcat": "RunCat.qml",
-               "cpu-ram": "CpuRamRings.qml", "cava-dots": "CavaDots.qml", "focus-timer": "FocusTimer.qml"}
+               "cpu-ram": "CpuRamRings.qml", "cava-dots": "CavaDots.qml", "focus-timer": "FocusTimer.qml", "taskbar": "Taskbar.qml"}
 WIDGET_SETTINGS = [
     ("kamradsmeshnyavy.tray", "collapse", "false", "Tray: collapse into a drawer (opens on hover)"),
     ("kamradsmeshnyavy.tray", "monochrome", "true", "Tray: monochrome icons (colour on hover)"),

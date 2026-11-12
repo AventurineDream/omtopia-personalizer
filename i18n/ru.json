@@ -788,5 +788,6 @@
   "GitHub: contribution graph (needs a GitHub user)": "GitHub: график вкладов (нужно имя пользователя)",
   "GitHub: user name (the public contributions API gets only this name)": "GitHub: имя пользователя (публичный API вкладов получает только его)",
   "GitHub: position": "GitHub: положение",
-  "GitHub: weeks shown": "GitHub: сколько недель показывать"
+  "GitHub: weeks shown": "GitHub: сколько недель показывать",
+  "Taskbar / dock (windows; pinned apps on an empty workspace)": "Таскбар / док (окна; на пустом столе — закреплённые приложения)"
 }

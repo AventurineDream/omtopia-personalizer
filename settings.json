@@ -15,7 +15,7 @@
         {
           "key": "shape",
           "type": "enum",
-          "values": ["full", "floating", "pill", "islands", "notch", "underline", "hug", "frame"],
+          "values": ["full", "floating", "pill", "islands", "notches", "notch", "underline", "hug", "frame"],
           "label": "Shape"
         },
         {
@@ -284,7 +284,7 @@
         {
           "key": "compact",
           "type": "enum",
-          "values": ["off", "single", "fullscreen", "always"],
+          "values": ["off", "single", "fullscreen", "always", "empty"],
           "label": "Compact: when to shrink"
         },
         {
@@ -299,7 +299,7 @@
         {
           "key": "compactModules",
           "type": "enum",
-          "values": ["essentials", "all", "center", "minimal"],
+          "values": ["essentials", "all", "center", "minimal", "taskbar"],
           "label": "Compact: visible modules"
         },
         {
