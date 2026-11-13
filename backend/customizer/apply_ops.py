@@ -241,14 +241,17 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
         write(target, deep_merge(read_or_empty(target), d[key]) if mode == "merge" else d[key])
 
     if on("Bar"):
+        skin_applied = False
         if isinstance(d.get("barSkinData"), dict):
             write(paths.BAR_SKIN, d["barSkinData"])
+            skin_applied = True
         else:
             bs = jq_str(alt(d.get("barSkin"), ""))
             if bs:
                 for f in (state.USER_SKINS / f"{bs}.json", state.BAR_DIR / f"skins/{bs}.json"):
                     if f.is_file():
                         shutil.copyfile(f, paths.BAR_SKIN)
+                        skin_applied = True
                         break
         if isinstance(d.get("barLayoutData"), dict):
             shell_apply_layout(d["barLayoutData"])
@@ -261,6 +264,13 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
                         break
         if "barTransparent" in d:
             tweak_ops.set_transparent(jq_str(alt(d.get("barTransparent"), False)))
+            skin_applied = True
+        if skin_applied:
+            # Скин (или прозрачность) задан пресетом/стилем — живой файл новый,
+            # а backup превью устарел: удалить, чтобы следующий restore не
+            # вернул старый скин вместо текущего.
+            fsutil.unlink(SKIN_BACKUP)
+            fsutil.unlink(preview_ops.TRANSPARENT_BACKUP)
 
     os.makedirs(HYPR_STATE, exist_ok=True)
     if on("Geometry"):
@@ -307,11 +317,10 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
             for f in (ANIM_USER_DIR / f"{anim}.lua", ANIM_DIR / f"{anim}.lua"):
                 if f.is_file():
                     shutil.copyfile(f, state.ANIM_ACTIVE)
-                    try:
-                        shutil.copyfile(f, ANIM_BACKUP)
-                    except OSError:
-                        pass
                     break
+        # Анимация задана пресетом/стилем — живой файл новый, а backup превью
+        # устарел: удалить, чтобы следующий restore не вернул старую анимацию.
+        fsutil.unlink(ANIM_BACKUP)
     if on("Opacity"):
         op = jq_str(alt(d.get("opacity"), ""))
         if op:
@@ -563,7 +572,7 @@ def save_user_skin():
         return
     note = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Description (optional):')}"]) or ""
     os.makedirs(state.USER_SKINS, exist_ok=True)
-    src = jsonio.read(SKIN_BACKUP) if fsutil.nonempty(SKIN_BACKUP) else {}
+    src = jsonio.read(SKIN_BACKUP) if fsutil.nonempty(SKIN_BACKUP) else jsonio.read(paths.BAR_SKIN)
     src = {k: v for k, v in (src or {}).items() if not NOTE_RE.match(k)}
     write(path, ({"note": note} if note else {}) | src)
     if SKIN_BACKUP.is_file():
@@ -952,7 +961,9 @@ def apply(category, value):
             notify("-t", "2000", "Launcher", t("Skin: %s", value[5:]))
     elif category == "anims":
         shutil.copyfile(value, state.ANIM_ACTIVE)
-        shutil.copyfile(value, ANIM_BACKUP)
+        # Выбор — это commit, а не превью: backup удалён, чтобы следующий
+        # снимок взял актуальную анимацию, а restore не вернулся к старой.
+        fsutil.unlink(ANIM_BACKUP)
         sh(["hyprctl", "reload"])
         base = os.path.basename(value)
         notify("-t", "2000", "Animations", t("Loaded: %s", base[:-4] if base.endswith(".lua") else base))
@@ -968,7 +979,10 @@ def apply(category, value):
             save_user_skin()
             raise Exit(0)
         preview_ops.bar_skin_preview(value)
-        shutil.copyfile(paths.BAR_SKIN, SKIN_BACKUP)
+        # Выбор — это commit, а не превью: backup удалён, чтобы следующий
+        # снимок взял актуальный скин, а restore не вернулся к старому.
+        fsutil.unlink(SKIN_BACKUP)
+        fsutil.unlink(preview_ops.TRANSPARENT_BACKUP)
         base = os.path.basename(value)
         notify("-t", "2000", "Bar Skin", t("Applied %s", base[:-5] if base.endswith(".json") else base))
     elif category in ("bar-tweaks", "lock-tweaks", "widgets", "dashboard", "osd", "notifications"):
