@@ -26,12 +26,16 @@ const candidates = loadJs('ui/RandomCandidates.js');
 const flow = loadJs('ui/RandomPickFlow.js');
 
 // Fresh HOME with the Wallpaper FX plugin enabled; every XDG path stays inside it.
+// Language is pinned to English both ways (customizer.json "lang" wins over locale,
+// LC_ALL backs it up) because the filter fixture matches English row labels.
 function sandbox(fxType) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-flow-'));
   const cfg = path.join(home, '.config', 'omarchy');
   fs.mkdirSync(cfg, { recursive: true });
+  fs.mkdirSync(path.join(home, 'run'), { recursive: true });
   fs.writeFileSync(path.join(cfg, 'shell.json'),
     JSON.stringify({ plugins: [{ id: 'kamradsmeshnyavy.background' }] }));
+  fs.writeFileSync(path.join(cfg, 'customizer.json'), JSON.stringify({ lang: 'en' }));
   if (fxType) {
     fs.writeFileSync(path.join(cfg, 'wallpaper-transition.json'), JSON.stringify({ type: fxType }));
   }
@@ -45,9 +49,11 @@ function listWallpaperFx(home) {
     env: {
       ...process.env,
       HOME: home,
+      LC_ALL: 'C',
       XDG_CONFIG_HOME: path.join(home, '.config'),
       XDG_CACHE_HOME: path.join(home, '.cache'),
       XDG_STATE_HOME: path.join(home, '.local', 'state'),
+      XDG_RUNTIME_DIR: path.join(home, 'run'),
     },
     encoding: 'utf8',
   });
@@ -107,4 +113,18 @@ test('filter helpers keep section headers above visible rows only', () => {
     const at = indexOfValue(rows, value);
     assert.ok(at >= 0 && rows[at + 1] && !flow.isHeader(rows[at + 1]), value);
   }
+});
+
+test('Customizer.qml wires the production pick and dispatch through the shared flow', () => {
+  const qml = fs.readFileSync(path.join(PLUGIN, 'Customizer.qml'), 'utf8');
+  assert.ok(qml.includes('RandomPickFlow.decideRandomPick('), 'randomPick uses decideRandomPick');
+  assert.ok(qml.includes('Quickshell.execDetached(RandomPickFlow.applyCommand('),
+    'apply dispatch builds the tested command');
+});
+
+test('the backend writes its runtime directory inside the sandbox', () => {
+  const home = sandbox('slant');
+  filteredFxRows(home);
+  assert.ok(fs.existsSync(path.join(home, 'run', 'omarchy-customizer')),
+    'XDG_RUNTIME_DIR override keeps paths.RUN in the fixture HOME');
 });
