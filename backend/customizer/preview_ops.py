@@ -63,6 +63,12 @@ def bar_skin_restore():
         _copy(SKIN_BACKUP, paths.BAR_SKIN)
     if TRANSPARENT_BACKUP.is_file():
         tweak_ops.set_transparent(fsutil.read_text(TRANSPARENT_BACKUP) or "")
+    # Backup удалён: после restore живой скин уже тот, что был до превью.
+    # Если оставить backup, следующий снимок сочтёт его актуальным, а внешняя
+    # смена скина (пресет, тема) сделает его устаревшим — и restore вернул бы
+    # старый скин вместо текущего.
+    fsutil.unlink(SKIN_BACKUP)
+    fsutil.unlink(TRANSPARENT_BACKUP)
     return 0, ""
 
 
@@ -85,7 +91,9 @@ def anim_restore():
         same = state.ANIM_ACTIVE.is_file() and ANIM_BACKUP.read_bytes() == state.ANIM_ACTIVE.read_bytes()
         if not same:
             _copy(ANIM_BACKUP, state.ANIM_ACTIVE)
+            fsutil.unlink(ANIM_BACKUP)
             return sh(["hyprctl", "reload"])[0], ""
+        fsutil.unlink(ANIM_BACKUP)
     return 0, ""
 
 
