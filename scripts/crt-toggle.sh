@@ -83,7 +83,9 @@ apply() { # $1 = shader path or "" for off
     fi
 }
 
-current="$(hyprctl getoption decoration:screen_shader -j | jq -r .str)"
+# Без композитора (hyprctl недоступен) стартовый запрос не должен ронять даже
+# read-only-путь list: fallback — «шейдер выключен», как при [[EMPTY]].
+current="$(hyprctl getoption decoration:screen_shader -j 2>/dev/null | jq -r '.str // "[[EMPTY]]"' 2>/dev/null || echo "[[EMPTY]]")"
 current="${current/#\~/$HOME}"
 [[ "$current" == "[[EMPTY]]" ]] && current=""
 
