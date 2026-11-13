@@ -1,6 +1,8 @@
-# Omarchy Customizer
+# Omtopia Personalizer
 
 [🇬🇧 English](README.md)
+
+Форк [Omarchy Customizer](https://github.com/KamradSmeshnyavy/omarchy-customizer), который развивается здесь под именем Omtopia Personalizer. Исходный ID плагина сохранён для совместимости с настройками и привязками Omarchy.
 
 Один оверлей для всего оформления [Omarchy](https://omarchy.org): темы, обои, анимации Hyprland,
 прозрачность, блюр и шейдеры экрана — с живым предпросмотром при листании. Если стоят плагины-компаньоны,
@@ -45,7 +47,7 @@
 ## Установка
 
 ```sh
-omarchy plugin add https://github.com/KamradSmeshnyavy/omarchy-customizer --enable
+omarchy plugin add https://github.com/AventurineDream/omtopia-personalizer --enable
 omarchy restart shell
 ```
 
@@ -242,6 +244,7 @@ o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamr
   песочнице HOME с заглушками `hyprctl`/`omarchy-shell`/`zenity`: списки, команды, каждый шаг настройки и каждый
   `apply` должны совпасть байт в байт. Команды, которых у bash не было (`wall-delete`, `launcher-open` со скином и
   возвратом), проверяет `tests/test_new_commands.py`.
+  Допуск строк для случайного выбора проверяет `node --test tests/test_random_candidates.cjs`.
 - **Превью шейдеров экрана** — `scripts/build-preview-shaders.py` переводит `shaders/*.frag` в Qt-варианты в
   `previews/shaders/screen/` (запускать после правки шейдера).
 
