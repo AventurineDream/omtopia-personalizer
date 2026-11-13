@@ -44,6 +44,13 @@ def bar_skin_preview(arg):
     src = SKIN_BACKUP if arg == "save" else arg
     if not os.path.isfile(src):
         return 0, ""
+    # Снимок текущего скина — до перезаписи, и только если превью ещё не идёт
+    # (snapshot_once: backup, отличный от текущего, — это состояние до превью).
+    fsutil.snapshot_once(SKIN_BACKUP, paths.BAR_SKIN.read_bytes() if fsutil.nonempty(paths.BAR_SKIN) else b"{}\n")
+    bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
+    tr = bar.get("transparent") if isinstance(bar, dict) else None
+    fsutil.snapshot_once(TRANSPARENT_BACKUP,
+                         ((jsonio.tostring(tr) if tr not in (None, False) else "false") + "\n").encode())
     _copy(src, paths.BAR_SKIN)
     d = jsonio.read(src)
     v = d.get("transparent") if isinstance(d, dict) else None
@@ -62,6 +69,10 @@ def bar_skin_restore():
 # ── Анимации ──
 
 def anim_preview(path):
+    # Снимок текущих анимаций — до перезаписи, и только если превью ещё не идёт
+    # (snapshot_once: backup, отличный от текущего файла, — это состояние до превью).
+    fsutil.snapshot_once(ANIM_BACKUP,
+                         state.ANIM_ACTIVE.read_bytes() if state.ANIM_ACTIVE.is_file() else b"")
     try:
         _copy(path, state.ANIM_ACTIVE)
     except OSError:
