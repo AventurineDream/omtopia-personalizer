@@ -8,6 +8,7 @@ import qs.Commons
 Flickable {
   id: home
   property var t
+  property string language: "en"
   property var cards: []      // [{ key, icon, title, value, category }]
   property var actions: []    // [{ id, icon, title, hint }]
   property string wallpaper: ""
@@ -74,7 +75,7 @@ Flickable {
           font.bold: true
         }
         Text {
-          text: Qt.formatDate(new Date(), "dddd, d MMMM")
+          text: Qt.locale(home.language === "ru" ? "ru_RU" : "en_US").toString(new Date(), "dddd, d MMMM")
           color: home.t.muted
           font.family: home.t.fontFamily
           font.pixelSize: Style.font.body

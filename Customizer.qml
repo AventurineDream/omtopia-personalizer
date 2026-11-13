@@ -107,6 +107,7 @@ Item {
   // Строки в коде — английские; i18n/<lang>.json переводит их (язык — `customizer.sh lang`:
   // "lang" в ~/.config/omarchy/customizer.json или $LANG). Категории, которым нужен
   // плагин-компаньон или программа (`customizer.sh available`), без них скрыты.
+  property string uiLanguage: "en"
   property var i18n: ({})
   property var available: null       // null — ещё не знаем: показываем всё
   function tr(s) { return root.i18n[s] !== undefined ? root.i18n[s] : s }
@@ -1659,6 +1660,7 @@ Item {
     stdout: StdioCollector {
       onStreamFinished: {
         var lang = text.trim()
+        root.uiLanguage = lang === "ru" ? "ru" : "en"
         if (lang && lang !== "en") i18nFile.path = root.pluginDir + "/i18n/" + lang + ".json"
         else root.i18n = ({})
       }
@@ -2408,6 +2410,7 @@ Item {
               anchors.fill: parent
               visible: root.homeOpen
               t: root
+              language: root.uiLanguage
               cards: root.homeCards
               actions: root.homeActions
               wallpaper: root.homeOpen && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
