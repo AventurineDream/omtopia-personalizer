@@ -11,6 +11,7 @@ import "dotmatrix" as DotMatrix
 import "ui"
 import "previews" as Previews
 import "ui/RandomCandidates.js" as RandomCandidates
+import "ui/RandomPickFlow.js" as RandomPickFlow
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -606,16 +607,7 @@ Item {
   }
 
   function loadRows(key, raw) {
-    var rows = []
-    var lines = String(raw || "").split("\n")
-    for (var i = 0; i < lines.length; i++) {
-      if (!lines[i]) continue
-      var f = lines[i].split("\t")
-      // 7–10: тип настройки, его аргументы, сырое значение, имя без значения (list_tweaks).
-      rows.push({ label: f[0] || "", value: f[1] || "", preview: f[2] || "", current: f[3] === "1",
-        note: (f[4] || "").replace(/\\n/g, "\n"), sub: f[5] || "",
-        kind: f[6] || "", args: f[7] || "", raw: f[8] || "", name: f[9] || "" })
-    }
+    var rows = RandomPickFlow.parseRows(raw)
     var next = ({})
     for (var k in root.cache) next[k] = root.cache[k]
     next[key] = rows
@@ -673,27 +665,11 @@ Item {
   }
 
   // Заголовок раздела в списке настроек: value "section:<имя>" (строки "#Раздел" в *_TWEAKS).
-  function isHeader(row) { return row !== null && row !== undefined && /^section:/.test(String(row.value || "")) }
+  function isHeader(row) { return RandomPickFlow.isHeader(row) }
 
-  // Строки под фильтром. Совпало имя раздела — раздел виден целиком; заголовок остаётся,
-  // если под ним есть хоть одна строка.
+  // Строки под фильтром — общая реализация с tests/test_random_pick_flow.cjs.
   function filteredRows(rows) {
-    var needle = root.filterText.toLowerCase()
-    if (!needle) return rows
-    var out = [], header = null, headerHit = false, headerShown = false
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i]
-      if (root.isHeader(row)) {
-        header = row
-        headerHit = row.label.toLowerCase().indexOf(needle) !== -1
-        headerShown = false
-        continue
-      }
-      if (!headerHit && row.label.toLowerCase().indexOf(needle) === -1) continue
-      if (header && !headerShown) { out.push(header); headerShown = true }
-      out.push(row)
-    }
-    return out
+    return RandomPickFlow.filterRows(rows, root.filterText.toLowerCase())
   }
 
   // Ближайшая выделяемая строка от index в сторону dir (заголовки пропускаются).
@@ -1323,14 +1299,11 @@ Item {
   }
 
   // Random choices exclude row actions; Wallpaper FX allows only actual transition values.
+  // The decision itself lives in RandomPickFlow so the headless test drives the same code.
   function randomCandidates() {
-    var out = []
-    for (var i = 0; i < displayModel.count; i++) {
-      var r = displayModel.get(i)
-      if (!RandomCandidates.isCandidate(root.category.key, r.value, r.current, i === root.selectedIndex)) continue
-      out.push(i)
-    }
-    return out
+    var rows = []
+    for (var i = 0; i < displayModel.count; i++) rows.push(displayModel.get(i))
+    return RandomPickFlow.candidateIndexes(RandomCandidates.isCandidate, root.category.key, rows, root.selectedIndex)
   }
 
   function randomPick() {
