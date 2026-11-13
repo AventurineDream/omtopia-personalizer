@@ -10,6 +10,7 @@ import qs.Ui
 import "dotmatrix" as DotMatrix
 import "ui"
 import "previews" as Previews
+import "ui/RandomCandidates.js" as RandomCandidates
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -1320,12 +1321,12 @@ Item {
     return preset
   }
 
-  // Rows "r" may land on: no picker / toggle actions, and not the one in use.
+  // Random choices exclude row actions; Wallpaper FX allows only actual transition values.
   function randomCandidates() {
     var out = []
     for (var i = 0; i < displayModel.count; i++) {
       var r = displayModel.get(i)
-      if (/^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/.test(r.value) || r.current || i === root.selectedIndex) continue
+      if (!RandomCandidates.isCandidate(root.category.key, r.value, r.current, i === root.selectedIndex)) continue
       out.push(i)
     }
     return out

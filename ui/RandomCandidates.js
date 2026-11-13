@@ -1,0 +1,50 @@
+/** @file Keeps keyboard random-pick eligibility separate from row rendering. */
+.pragma library
+
+// Wallpaper FX shares one list between transitions and operations; fail closed to transitions.
+var WALLPAPER_FX_TRANSITIONS = {
+  slant: true,
+  fade: true,
+  wipe: true,
+  wave: true,
+  grow: true,
+  outer: true,
+  diamond: true,
+  clock: true,
+  blinds: true,
+  doors: true,
+  mosaic: true,
+  dissolve: true,
+  pixelize: true,
+  ripple: true,
+  swirl: true,
+  crosszoom: true,
+  slide: true,
+  zoom: true,
+  glitch: true,
+  burn: true,
+  waterdrop: true,
+  hexagon: true,
+  hexreveal: true,
+  contagion: true,
+  outline: true,
+  "outline-cut": true,
+  random: true,
+};
+
+var ACTION_VALUE = /^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/;
+
+/**
+ * Report whether a row can be selected by the keyboard random action.
+ *
+ * @param {string} categoryKey - Current category identifier.
+ * @param {string} value - Backend row value, not its translated label.
+ * @param {boolean} current - Whether this row is already the active choice.
+ * @param {boolean} selected - Whether this row is highlighted in the list.
+ * @returns {boolean} True only for an eligible non-current, non-action row.
+ */
+function isCandidate(categoryKey, value, current, selected) {
+  if (current || selected || ACTION_VALUE.test(value)) return false;
+  if (categoryKey === "wallpaper-fx" && WALLPAPER_FX_TRANSITIONS[value] !== true) return false;
+  return true;
+}
