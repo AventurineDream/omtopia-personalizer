@@ -245,6 +245,42 @@ def main():
     check("rollback: windows.json geometry restored verbatim",
           json.load(open(win_cfg)).get("windowGapsIn") == 6)
 
+    # ── регрессия (Iolite, PR #11): restore после внешней смены скина/анимации
+    # не должен возвращать устаревший backup ──
+    # Скин: A → превью B → restore (A) → внешняя смена на C → превью D → restore (C, не A).
+    open(bar_skin, "w").write('{"skin": "A"}\n')
+    b_skin = os.path.join(base, "b-skin.json")
+    d_skin = os.path.join(base, "d-skin.json")
+    open(b_skin, "w").write('{"skin": "B"}\n')
+    open(d_skin, "w").write('{"skin": "D"}\n')
+    run(penv, "list", "bar-skins")
+    run(penv, "bar-skins-preview", b_skin)
+    run(penv, "bar-skins-restore")
+    check("regression: skin restore after first preview returns A",
+          json.load(open(bar_skin)).get("skin") == "A")
+    open(bar_skin, "w").write('{"skin": "C"}\n')   # внешняя смена (пресет/тема)
+    run(penv, "list", "bar-skins")
+    run(penv, "bar-skins-preview", d_skin)
+    run(penv, "bar-skins-restore")
+    check("regression: skin restore after outside change returns C, not the stale A",
+          json.load(open(bar_skin)).get("skin") == "C")
+    # Анимации: то же.
+    open(anim_active, "wb").write(default_lua)   # A
+    b_lua = os.path.join(PLUGIN, "animations/01-default - v2.lua")
+    d_lua = os.path.join(base, "d.lua")
+    open(d_lua, "wb").write(b"-- d preview\n")
+    run(penv, "list", "anims")
+    run(penv, "anim-preview", b_lua)
+    run(penv, "anim-restore")
+    check("regression: anim restore after first preview returns A",
+          open(anim_active, "rb").read() == default_lua)
+    open(anim_active, "wb").write(b"-- C applied outside\n")   # внешняя смена
+    run(penv, "list", "anims")
+    run(penv, "anim-preview", d_lua)
+    run(penv, "anim-restore")
+    check("regression: anim restore after outside change returns C, not the stale A",
+          open(anim_active, "rb").read() == b"-- C applied outside\n")
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 
