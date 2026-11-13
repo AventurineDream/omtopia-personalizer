@@ -86,6 +86,20 @@ def nonempty(path) -> bool:
         return False
 
 
+def snapshot_once(backup, data: bytes) -> None:
+    """Записать data в backup, если там ещё нет другого значения. Другое значение
+    означает, что превью уже идёт, а в backup — состояние до него: перезапись
+    сломала бы restore (он вернул бы превью вместо оригинала). Повторный вызов
+    с тем же data — no-op."""
+    try:
+        if backup.is_file() and backup.read_bytes() != data:
+            return
+        os.makedirs(os.path.dirname(str(backup)), exist_ok=True)
+        backup.write_bytes(data)
+    except OSError:
+        pass
+
+
 def run(args, stdin=None) -> str:
     """$(команда): stdout без хвостовых \\n; ошибка запуска — пусто."""
     try:

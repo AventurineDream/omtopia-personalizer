@@ -190,7 +190,37 @@ def main():
           bool(tn) and tn[0][2] == os.path.join(sys_themes, "tokyo-night/preview.png"))
     check("themes: user palette wins when present", bool(tn) and tn[0][4] == "#000000")
 
-    # ── rollback: snapshot preserves windows.json geometry (Finding #4) ──
+        # ── превью: повторный list во время превью не должен затирать backup (Finding #7) ──
+    # RUN по умолчанию — живой каталог машины: песочница, иначе тест перезапишет
+    # настоящие backup анимаций и скина бара.
+    penv = dict(renv, XDG_RUNTIME_DIR=base)
+    anim_active = os.path.join(home, ".local/state/omarchy-customizer/animations.lua")
+    os.makedirs(os.path.dirname(anim_active), exist_ok=True)
+    default_lua = open(os.path.join(PLUGIN, "animations/00-default.lua"), "rb").read()
+    open(anim_active, "wb").write(default_lua)
+    run(penv, "list", "anims")
+    run(penv, "anim-preview", os.path.join(PLUGIN, "animations/01-default - v2.lua"))
+    check("preview: anim preview changes the active file",
+          open(anim_active, "rb").read() != default_lua)
+    run(penv, "list", "anims")   # повторный list во время превью
+    run(penv, "anim-restore")
+    check("preview: anim restore returns the pre-preview file after a re-list",
+          open(anim_active, "rb").read() == default_lua)
+    # то же для скина бара
+    bar_skin = os.path.join(home, ".config/omarchy/bar-skin.json")
+    os.makedirs(os.path.dirname(bar_skin), exist_ok=True)
+    open(bar_skin, "w").write('{"skin": "original"}\n')
+    other_skin = os.path.join(base, "other-skin.json")
+    open(other_skin, "w").write('{"skin": "previewed"}\n')
+    run(penv, "list", "bar-skins")
+    run(penv, "bar-skins-preview", other_skin)
+    check("preview: bar-skin preview changes the active skin",
+          json.load(open(bar_skin)).get("skin") == "previewed")
+    run(penv, "list", "bar-skins")   # повторный list во время превью
+    run(penv, "bar-skins-restore")
+    check("preview: bar-skin restore returns the pre-preview skin after a re-list",
+          json.load(open(bar_skin)).get("skin") == "original")
+# ── rollback: snapshot preserves windows.json geometry (Finding #4) ──
     # Direct import: snapshot() reads paths from os.environ at import time,
     # so this goes last, after the subprocess-based sections.
     win_cfg = os.path.join(home, ".config/omarchy/customizer/windows.json")
