@@ -265,19 +265,25 @@ def themes():
                 pal[d] = p
 
     def row(slug, star):
-        d = f"{user_root}/{slug}"
-        if not os.path.isdir(d):
-            d = f"{sys_root}/{slug}"
-        if not os.path.isdir(d):
+        udir = f"{user_root}/{slug}"
+        sdir = f"{sys_root}/{slug}"
+        dirs = [d for d in (udir, sdir) if os.path.isdir(d)]
+        if not dirs:
             return
+        # A partial user copy (colors.toml only) must not shadow the system
+        # preview/backgrounds: search preview.* in both dirs first, then
+        # backgrounds/* in both dirs, user dir first within each kind.
         prev = ""
-        cands = [f"{d}/preview.{e}" for e in ("png", "jpg", "jpeg", "webp")]
-        cands += [p for e in ("jpg", "jpeg", "png", "webp") for p in _glob_ci(f"{d}/backgrounds", e)]
-        for p in cands:
-            if os.path.isfile(p):
-                prev = p
+        for cands in ([f"{d}/preview.{e}" for d in dirs for e in ("png", "jpg", "jpeg", "webp")],
+                      [p for d in dirs for e in ("jpg", "jpeg", "png", "webp") for p in _glob_ci(f"{d}/backgrounds", e)]):
+            for p in cands:
+                if os.path.isfile(p):
+                    prev = p
+                    break
+            if prev:
                 break
-        out.append(f"{star}{_theme_label(slug)}\t{slug}\t{prev}\t{_cur(slug == current)}\t{pal.get(d, '')}")
+        palette = next((pal[d] for d in dirs if pal.get(d)), "")
+        out.append(f"{star}{_theme_label(slug)}\t{slug}\t{prev}\t{_cur(slug == current)}\t{palette}")
 
     if favs:
         out.append(f"{t('Favorites')}\tsection:Favorites\t\t0\t\theader")
