@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "kamradsmeshnyavy.customizer",
-  "name": "Customizer",
+  "name": "Omtopia Personalizer",
   "version": "1.0.0",
   "author": "KamradSmeshnyavy",
   "license": "GPL-3.0",
-  "description": "Look & feel overlay for Omarchy: themes, wallpapers, recolor, animations, transparency, blur, screen shaders — plus bar, lock, wallpaper-transition and picker settings when those plugins are installed",
+  "description": "Omtopia Personalizer: look & feel overlay for Omarchy with live preview",
   "kinds": [
     "overlay"
   ],
@@ -13,5 +13,5 @@
   "entryPoints": {
     "overlay": "Customizer.qml"
   },
-  "homepage": "https://github.com/KamradSmeshnyavy/omarchy-customizer"
+  "homepage": "https://github.com/AventurineDream/omtopia-personalizer"
 }

@@ -10,6 +10,7 @@ import qs.Ui
 import "dotmatrix" as DotMatrix
 import "ui"
 import "previews" as Previews
+import "ui/RandomCandidates.js" as RandomCandidates
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -107,6 +108,8 @@ Item {
   // Строки в коде — английские; i18n/<lang>.json переводит их (язык — `customizer.sh lang`:
   // "lang" в ~/.config/omarchy/customizer.json или $LANG). Категории, которым нужен
   // плагин-компаньон или программа (`customizer.sh available`), без них скрыты.
+  // uiLanguage follows that selection so dates do not silently use a different host locale.
+  property string uiLanguage: "en"
   property var i18n: ({})
   property var available: null       // null — ещё не знаем: показываем всё
   function tr(s) { return root.i18n[s] !== undefined ? root.i18n[s] : s }
@@ -1319,12 +1322,12 @@ Item {
     return preset
   }
 
-  // Rows "r" may land on: no picker / toggle actions, and not the one in use.
+  // Random choices exclude row actions; Wallpaper FX allows only actual transition values.
   function randomCandidates() {
     var out = []
     for (var i = 0; i < displayModel.count; i++) {
       var r = displayModel.get(i)
-      if (/^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/.test(r.value) || r.current || i === root.selectedIndex) continue
+      if (!RandomCandidates.isCandidate(root.category.key, r.value, r.current, i === root.selectedIndex)) continue
       out.push(i)
     }
     return out
@@ -1659,6 +1662,7 @@ Item {
     stdout: StdioCollector {
       onStreamFinished: {
         var lang = text.trim()
+        root.uiLanguage = lang === "ru" ? "ru" : "en"
         if (lang && lang !== "en") i18nFile.path = root.pluginDir + "/i18n/" + lang + ".json"
         else root.i18n = ({})
       }
@@ -2115,7 +2119,7 @@ Item {
               spacing: Style.space(4)
               Text {
                 width: parent.width
-                text: (root.homeOpen ? "Customizer  ·  " + root.tr("Look & feel")
+                text: (root.homeOpen ? "Omtopia Personalizer  ·  " + root.tr("Look & feel")
                   : root.group.title + "  ·  " + root.category.hint
                     + (root.category.key === "theme-walls" && root.wallPath ? "  ·  󰉋 " + root.wallPath : "")).toUpperCase()
                 elide: Text.ElideRight
@@ -2408,6 +2412,7 @@ Item {
               anchors.fill: parent
               visible: root.homeOpen
               t: root
+              language: root.uiLanguage
               cards: root.homeCards
               actions: root.homeActions
               wallpaper: root.homeOpen && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
