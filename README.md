@@ -248,6 +248,7 @@ turns it off and the borders come back.
   (`tests/legacy/customizer.sh`) in a throw-away sandbox HOME with stubbed `hyprctl`/`omarchy-shell`/`zenity`:
   lists, commands, every setting step and every `apply` must match byte for byte. Commands the bash version never had
   (`wall-delete`, `launcher-open` with skin and return) are covered by `tests/test_new_commands.py`.
+  QML random-pick eligibility is covered by `node --test tests/test_random_candidates.cjs`.
 - **Screen shader previews** — `scripts/build-preview-shaders.py` turns `shaders/*.frag` into Qt versions in
   `previews/shaders/screen/` (run it after editing a shader).
 

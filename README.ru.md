@@ -244,6 +244,7 @@ o.bind("SUPER + ALT + R", "Toggle reading mode", "~/.config/omarchy/plugins/kamr
   песочнице HOME с заглушками `hyprctl`/`omarchy-shell`/`zenity`: списки, команды, каждый шаг настройки и каждый
   `apply` должны совпасть байт в байт. Команды, которых у bash не было (`wall-delete`, `launcher-open` со скином и
   возвратом), проверяет `tests/test_new_commands.py`.
+  Допуск строк для случайного выбора проверяет `node --test tests/test_random_candidates.cjs`.
 - **Превью шейдеров экрана** — `scripts/build-preview-shaders.py` переводит `shaders/*.frag` в Qt-варианты в
   `previews/shaders/screen/` (запускать после правки шейдера).
 

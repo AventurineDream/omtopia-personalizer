@@ -20,7 +20,7 @@ Keep randomized choices confined to actual Wallpaper FX transitions, preserve th
 
 ## Verification gates
 
-- Run the QML regression test for eligible transitions, current/selected rows, and one-off actions.
+- Run the Node regression test for eligible transitions, current/selected rows, and one-off actions: `node --test tests/test_random_candidates.cjs`.
 - Run the repository's existing focused backend command tests that cover action dispatch.
 - Visually exercise the fork's Home page and Wallpaper FX filtered list with computer use. For the `r` action, use only the safe test environment; do not invoke `outline-install` on the host.
 - Run QML lint on touched QML/JavaScript and the repo's relevant Python tests once after the change set is complete.
