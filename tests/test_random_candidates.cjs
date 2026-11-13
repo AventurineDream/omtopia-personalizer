@@ -28,3 +28,16 @@ test('current, selected and generic action rows stay excluded', () => {
   assert.equal(qmlLibrary.isCandidate('themes', 'toggle', false, false), false);
   assert.equal(qmlLibrary.isCandidate('themes', 'catppuccin', false, false), true);
 });
+
+test('every mapped Wallpaper FX transition is eligible for random picks', () => {
+  for (const key of Object.keys(qmlLibrary.WALLPAPER_FX_TRANSITIONS)) {
+    assert.equal(qmlLibrary.isCandidate('wallpaper-fx', key, false, false), true, key);
+  }
+});
+
+test('none and unknown values stay out of Wallpaper FX random picks', () => {
+  assert.equal(qmlLibrary.WALLPAPER_FX_TRANSITIONS.none, undefined);
+  assert.equal(qmlLibrary.isCandidate('wallpaper-fx', 'none', false, false), false);
+  assert.equal(qmlLibrary.isCandidate('wallpaper-fx', 'supernova', false, false), false);
+  assert.equal(qmlLibrary.isCandidate('wallpaper-fx', 'random', false, false), true);
+});
