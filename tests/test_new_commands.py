@@ -3,8 +3,9 @@
 
   /usr/bin/python3 -I tests/test_new_commands.py
 
-Песочница: свой HOME в свежем каталоге под $XDG_RUNTIME_DIR, gio / omarchy-* / setsid — заглушки,
-пишущие вызовы в лог (gio trash переносит файл в *.trashed). Живой стол не трогается."""
+Песочница: свой HOME в свежем каталоге под $XDG_RUNTIME_DIR, gio / omarchy-* / setsid / hyprctl — заглушки,
+пишущие вызовы в лог (gio trash переносит файл в *.trashed; hyprctl отвечает на запрос текущего шейдера,
+как при выключенном шейдере). Живой стол не трогается."""
 import json
 import os
 import subprocess
@@ -25,6 +26,12 @@ def sandbox():
         with open(os.path.join(stubs, name), "w") as f:
             f.write(f'#!/bin/sh\nprintf "%s\\n" "{name} $*" >> "{log}"\n{extra}')
         os.chmod(os.path.join(stubs, name), 0o755)
+    # hyprctl: без композитора crt-toggle.sh падает на стартовом запросе текущего шейдера —
+    # заглушка отвечает, как при выключенном шейдере, а остальные вызовы (reload, eval) — no-op.
+    with open(os.path.join(stubs, "hyprctl"), "w") as f:
+        f.write(f'#!/bin/sh\nprintf "%s\\n" "hyprctl $*" >> "{log}"\n'
+                'case "$*" in *"getoption decoration:screen_shader"*) printf \'{"str": "[[EMPTY]]"}\\n\';; esac\n')
+    os.chmod(os.path.join(stubs, "hyprctl"), 0o755)
     env = dict(os.environ, HOME=home, PATH=stubs + ":" + os.environ["PATH"])
     env.pop("XDG_CONFIG_HOME", None)
     return base, home, log, env
@@ -147,7 +154,8 @@ def main():
     values = [r[1] for r in rows if len(r) > 1]
     check("reading: action row after toggle/next", values[:3] == ["toggle", "next", "reading"])
     check("reading: settings listed after the shaders",
-          "tweak:readingPage" in values and values.index("tweak:readingPage") > values.index("reading", 3))
+          "tweak:readingPage" in values and "reading" in values[3:]
+          and values.index("tweak:readingPage") > values.index("reading", 3))
     run(renv, "tweak", "readingBrightness", "+")
     rcfg = os.path.join(home, ".config/omarchy/customizer/reading-mode.json")
     check("reading: tweak writes reading-mode.json", json.load(open(rcfg)).get("readingBrightness") == 45)
