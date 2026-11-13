@@ -108,6 +108,7 @@ Item {
   // Строки в коде — английские; i18n/<lang>.json переводит их (язык — `customizer.sh lang`:
   // "lang" в ~/.config/omarchy/customizer.json или $LANG). Категории, которым нужен
   // плагин-компаньон или программа (`customizer.sh available`), без них скрыты.
+  // uiLanguage follows that selection so dates do not silently use a different host locale.
   property string uiLanguage: "en"
   property var i18n: ({})
   property var available: null       // null — ещё не знаем: показываем всё
