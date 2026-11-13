@@ -2119,7 +2119,7 @@ Item {
               spacing: Style.space(4)
               Text {
                 width: parent.width
-                text: (root.homeOpen ? "Customizer  ·  " + root.tr("Look & feel")
+                text: (root.homeOpen ? "Omtopia Personalizer  ·  " + root.tr("Look & feel")
                   : root.group.title + "  ·  " + root.category.hint
                     + (root.category.key === "theme-walls" && root.wallPath ? "  ·  󰉋 " + root.wallPath : "")).toUpperCase()
                 elide: Text.ElideRight

@@ -1,6 +1,8 @@
-# Omarchy Customizer
+# Omtopia Personalizer
 
 [🇷🇺 Русский](README.ru.md)
+
+Fork of [Omarchy Customizer](https://github.com/KamradSmeshnyavy/omarchy-customizer), maintained here as Omtopia Personalizer. The upstream plugin ID is retained for compatibility with existing Omarchy bindings and settings.
 
 One overlay for the whole look & feel of [Omarchy](https://omarchy.org): themes, wallpapers, Hyprland
 animations, transparency, blur and screen shaders — with live preview while you browse. With the companion
@@ -45,7 +47,7 @@ The window follows the style: Glass, Paper and DOT-MATRIX —
 ## Install
 
 ```sh
-omarchy plugin add https://github.com/KamradSmeshnyavy/omarchy-customizer --enable
+omarchy plugin add https://github.com/AventurineDream/omtopia-personalizer --enable
 omarchy restart shell
 ```
 

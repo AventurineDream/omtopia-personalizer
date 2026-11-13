@@ -1,6 +1,8 @@
-# Omarchy Customizer
+# Omtopia Personalizer
 
 [🇬🇧 English](README.md)
+
+Форк [Omarchy Customizer](https://github.com/KamradSmeshnyavy/omarchy-customizer), который развивается здесь под именем Omtopia Personalizer. Исходный ID плагина сохранён для совместимости с настройками и привязками Omarchy.
 
 Один оверлей для всего оформления [Omarchy](https://omarchy.org): темы, обои, анимации Hyprland,
 прозрачность, блюр и шейдеры экрана — с живым предпросмотром при листании. Если стоят плагины-компаньоны,
@@ -45,7 +47,7 @@
 ## Установка
 
 ```sh
-omarchy plugin add https://github.com/KamradSmeshnyavy/omarchy-customizer --enable
+omarchy plugin add https://github.com/AventurineDream/omtopia-personalizer --enable
 omarchy restart shell
 ```
 
