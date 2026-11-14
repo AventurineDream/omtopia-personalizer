@@ -281,6 +281,41 @@ def main():
     check("regression: anim restore after outside change returns C, not the stale A",
           open(anim_active, "rb").read() == b"-- C applied outside\n")
 
+    # ── issue #15: restore() применяет геометрию windows.json без windowLayout ──
+    # Песочница с отдельным XDG_STATE_HOME (state-файл геометрии — там же).
+    wenv = dict(env, XDG_STATE_HOME=os.path.join(base, "state"))
+    wincfg = os.path.join(home, ".config/omarchy/customizer/windows.json")
+    os.makedirs(os.path.dirname(wincfg), exist_ok=True)
+    geofile = os.path.join(base, "state/hypr/geometry")
+    os.makedirs(os.path.dirname(geofile), exist_ok=True)
+
+    def win_evals():
+        return [c for c in calls(log) if c.startswith("hyprctl eval hl.config({ general")]
+
+    # 1) Только gaps, без layout (живой случай Aven: {"windowGapsIn": 6}).
+    json.dump({"windowGapsIn": 6}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    ev = win_evals()[len(win_evals()) - 1] if win_evals() else ""
+    check("issue #15: restore applies windows.json gaps without a layout",
+          any("gaps_in = 6" in c for c in calls(log)[n:]))
+    # 2) Layout dwindle + геометрия — layout по-прежнему в eval.
+    json.dump({"windowGapsIn": 6, "windowLayout": "dwindle", "windowDecoRounding": 12}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    check("issue #15: restore with layout still emits layout + gaps",
+          any('gaps_in = 6' in c and 'layout = "dwindle"' in c for c in calls(log)[n:]))
+    # 3) State-файл геометрии + windows.json: state-файл — база (первым),
+    # windows.json — поверх (вторым). Оба применяются.
+    open(geofile, "w").write("preset 4 8 1 12 0\n")
+    json.dump({"windowGapsIn": 6}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if "gaps_in = " in c and c.startswith("hyprctl eval")]
+    check("issue #15: state-file geometry applied first, windows.json on top",
+          len(evs) >= 2 and "gaps_in = 4" in evs[0] and "gaps_in = 6" in evs[-1])
+    os.unlink(geofile)
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 

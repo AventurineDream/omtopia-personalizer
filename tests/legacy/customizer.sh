@@ -1278,13 +1278,14 @@ window_overrides_eval() {
   [[ -s $WINDOW_CFG ]] || return 0
   local lua no_gaps=false
   [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && no_gaps=true
+  # issue #15: `empty` в $g/$l убивал весь general без windowLayout — null фильтруется select'ом.
   lua=$(jq -r --argjson ng "$no_gaps" '
     def n(k): if (.[k] | type) == "number" then (.[k] | tostring) else null end;
     def b(k): if (.[k] | type) == "boolean" then (.[k] | tostring) else null end;
-    [ (if $ng then empty else
+    [ (if $ng then null else
         ([ (n("windowGapsIn") | values | "gaps_in = " + .), (n("windowGapsOut") | values | "gaps_out = " + .),
            (n("windowBorder") | values | "border_size = " + .) ] | join(", ")) end) as $g
-      | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else empty end) as $l
+      | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else null end) as $l
       | "general = { " + ([$g, $l] | map(select(. != null and . != "")) | join(", ")) + " }",
       "decoration = { " + ([ (if $ng then null else (n("windowDecoRounding") | values | "rounding = " + .) end),
          (b("windowDim") | values | "dim_inactive = " + .), (n("windowDimStrength") | values | "dim_strength = " + .),
