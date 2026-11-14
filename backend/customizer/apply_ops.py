@@ -172,6 +172,16 @@ def snapshot(out, title="", note=""):
                     "shadow": int(shd) > 0}
             if NO_GAPS_FLAG.is_file():
                 geom["noGaps"] = True
+    # windows.json may hold geometry the state file never recorded (the Windows
+    # tab tweaks write it directly): snapshot those keys verbatim, so a
+    # rollback restores them instead of stripping them (see apply_form_sections).
+    win_geom = {}
+    if geom is None:
+        win = read_or_empty(WINDOW_CFG)
+        if isinstance(win, dict):
+            for k in WINDOW_GEOM_KEYS:
+                if k in win:
+                    win_geom[k] = win[k]
     skin_name = state.current_skin()
     skin_data = None
     if skin_name in ("custom", "stock"):
@@ -197,6 +207,8 @@ def snapshot(out, title="", note=""):
     if style_id:
         doc["style"] = style_id
     doc.update({"wallpaper": wp, "anims": anim, "opacity": op, "blur": bl, "shader": shader, "hyprGeometry": geom})
+    if win_geom:
+        doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})
     doc.update({"barLayout": layout_name} if layout_name else {"barLayoutData": layout_data})
     doc.update({
@@ -266,11 +278,26 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
             set_no_gaps(jq_str(alt(g.get("noGaps"), False)))
         elif mode == "replace" and "hyprGeometry" in d:
             (HYPR_STATE / "geometry").write_text("")
-            if fsutil.nonempty(WINDOW_CFG):
-                win = jsonio.read(WINDOW_CFG)
-                if isinstance(win, dict):
-                    write(WINDOW_CFG, {k: v for k, v in win.items() if k not in WINDOW_GEOM_KEYS})
-            set_no_gaps("false")
+            raw = d.get("windowsGeometry")
+            if isinstance(raw, dict) and raw:
+                # The snapshot recorded the live windows.json geometry (the state
+                # file was empty when it was taken): restore it verbatim — do
+                # not fill defaults, they differ from the tweak defaults.
+                win = read_or_empty(WINDOW_CFG)
+                win = dict(win) if isinstance(win, dict) else {}
+                for k in WINDOW_GEOM_KEYS:
+                    win.pop(k, None)
+                for k, v in raw.items():
+                    if k in WINDOW_GEOM_KEYS:
+                        win[k] = v
+                write(WINDOW_CFG, win)
+                set_no_gaps(jq_str(alt(raw.get("windowNoGaps"), False)))
+            else:
+                if fsutil.nonempty(WINDOW_CFG):
+                    win = jsonio.read(WINDOW_CFG)
+                    if isinstance(win, dict):
+                        write(WINDOW_CFG, {k: v for k, v in win.items() if k not in WINDOW_GEOM_KEYS})
+                set_no_gaps("false")
 
     if on("Anims") and "anims" in d:
         anim = jq_str(alt(d.get("anims"), ""))
