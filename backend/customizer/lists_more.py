@@ -375,13 +375,14 @@ def theme_walls(rel: str):
 
 def anims():
     # Снимок того, что стоит сейчас (пустой — ничего не выбрано), — его вернёт anim-restore.
+    # Не перезаписывать, если превью уже идёт (backup отличается от текущего файла).
     backup = paths.RUN / "active_animations.lua"
     os.makedirs(paths.RUN, exist_ok=True)
     active = state.ANIM_ACTIVE
     data = b""
     if active.is_file():
         data = active.read_bytes()
-    backup.write_bytes(data)
+    fsutil.snapshot_once(backup, data)
     out = []
     for f in state.anim_files():
         cur = active.is_file() and open(f, "rb").read() == data
@@ -444,15 +445,17 @@ def bar_layouts():
 
 def bar_skins():
     # Снимок того, что на баре сейчас: превью перезаписывают его до bar-skins-restore.
+    # Не перезаписывать, если превью уже идёт (backup отличается от текущего скина).
     os.makedirs(paths.RUN, exist_ok=True)
     backup = paths.RUN / "bar-skin.json"
     if fsutil.nonempty(paths.BAR_SKIN):
-        shutil.copyfile(paths.BAR_SKIN, backup)
+        fsutil.snapshot_once(backup, paths.BAR_SKIN.read_bytes())
     else:
-        backup.write_text("{}\n")
+        fsutil.snapshot_once(backup, b"{}\n")
     bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
     tr = bar.get("transparent") if isinstance(bar, dict) else None
-    (paths.RUN / "bar-transparent").write_text((jsonio.tostring(tr) if tr not in (None, False) else "false") + "\n")
+    fsutil.snapshot_once(paths.RUN / "bar-transparent",
+                         ((jsonio.tostring(tr) if tr not in (None, False) else "false") + "\n").encode())
     cur = state.current_skin()
     out = [f"{t('💾 Save the current skin…')}\tsave\t{backup}\t0\t"
            + t("Save what is on the bar now as your own skin in %s — it shows up here with a ★.", paths.tilde(state.USER_SKINS))]
