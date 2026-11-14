@@ -219,8 +219,11 @@ def style_delete(path):
 # ── restore: вернуть сохранённое после `hyprctl reload` ──
 
 def window_overrides_lua():
-    """Lua для hyprctl eval из windows.json — как jq-программа window_overrides_eval (байт в байт,
-    включая её особенность: без windowLayout dwindle/master результат пустой)."""
+    """Lua для hyprctl eval из windows.json — как jq-программа window_overrides_eval (байт в байт):
+    геометрия (gaps/border/rounding/dim/shadow) — когда есть в windows.json, без привязки к layout;
+    layout — только для dwindle/master. Раньше вся геометрия была заперта за windowLayout, и без
+    него restore() ничего не применял (issue #15: windows.json {"windowGapsIn": 6} — живые gaps
+    оставались 5 даже после reload + restore)."""
     if not fsutil.nonempty(WINDOW_CFG):
         return None
     d = jsonio.read(WINDOW_CFG)
@@ -236,30 +239,30 @@ def window_overrides_lua():
         v = d.get(k)
         return jsonio.tostring(v) if isinstance(v, bool) else None
 
-    items = []
-    if not ng and d.get("windowLayout") in ("dwindle", "master"):
-        g = ", ".join(x for x in (
-            "gaps_in = " + n("windowGapsIn") if n("windowGapsIn") is not None else None,
-            "gaps_out = " + n("windowGapsOut") if n("windowGapsOut") is not None else None,
-            "border_size = " + n("windowBorder") if n("windowBorder") is not None else None) if x is not None)
-        lay = 'layout = "' + d["windowLayout"] + '"'
-        items.append("general = { " + ", ".join(x for x in (g, lay) if x) + " }")
-        deco = []
-        if n("windowDecoRounding") is not None:
-            deco.append("rounding = " + n("windowDecoRounding"))
-        if b("windowDim") is not None:
-            deco.append("dim_inactive = " + b("windowDim"))
-        if n("windowDimStrength") is not None:
-            deco.append("dim_strength = " + n("windowDimStrength"))
-        if b("windowShadow") is not None or n("windowShadowRange") is not None:
-            sh_parts = []
-            if b("windowShadow") is not None:
-                sh_parts.append("enabled = " + b("windowShadow"))
-            if n("windowShadowRange") is not None:
-                sh_parts.append("range = " + n("windowShadowRange"))
-            deco.append("shadow = { " + ", ".join(sh_parts) + " }")
-        items.append("decoration = { " + ", ".join(deco) + " }")
-    return "hl.config({ " + ", ".join(items) + " })"
+    g_parts = []
+    if not ng:
+        for key, name in (("windowGapsIn", "gaps_in"), ("windowGapsOut", "gaps_out"),
+                          ("windowBorder", "border_size")):
+            if n(key) is not None:
+                g_parts.append(name + " = " + n(key))
+    if d.get("windowLayout") in ("dwindle", "master"):
+        g_parts.append('layout = "' + d["windowLayout"] + '"')
+    deco = []
+    if not ng and n("windowDecoRounding") is not None:
+        deco.append("rounding = " + n("windowDecoRounding"))
+    if b("windowDim") is not None:
+        deco.append("dim_inactive = " + b("windowDim"))
+    if n("windowDimStrength") is not None:
+        deco.append("dim_strength = " + n("windowDimStrength"))
+    if b("windowShadow") is not None or n("windowShadowRange") is not None:
+        sh_parts = []
+        if b("windowShadow") is not None:
+            sh_parts.append("enabled = " + b("windowShadow"))
+        if n("windowShadowRange") is not None:
+            sh_parts.append("range = " + n("windowShadowRange"))
+        deco.append("shadow = { " + ", ".join(sh_parts) + " }")
+    return ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
+            "decoration = { " + ", ".join(deco) + " } })")
 
 
 def restore():
@@ -280,6 +283,9 @@ def restore():
                 on = False
             sh(["hyprctl", "eval", f"hl.config({{ general = {{ gaps_in = {gi}, gaps_out = {go}, border_size = {bs} }}, "
                                    f"decoration = {{ rounding = {r}, shadow = {{ enabled = {'true' if on else 'false'} }} }} }})"])
+    # Вкладка «Окна» (windows.json) — поверх геометрии пресета/стиля из
+    # state-файла (см. settings.json): при применении пресета оба файла
+    # держат одну геометрию, а правка вкладки после пресета ложится сверху.
     lua = window_overrides_lua()
     if lua:
         sh(["hyprctl", "eval", lua])
