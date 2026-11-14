@@ -315,6 +315,13 @@ def main():
     check("issue #15: state-file geometry applied first, windows.json on top",
           len(evs) >= 2 and "gaps_in = 4" in evs[0] and "gaps_in = 6" in evs[-1])
     os.unlink(geofile)
+    # 4) windows.json без ключей геометрии — пустой eval не вызывается
+    # (Iolite nit, PR #16: window_overrides_lua() → None, jq → пусто).
+    json.dump({}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    check("issue #15: restore with no geometry keys emits no hl.config eval",
+          not any(c.startswith("hyprctl eval hl.config") for c in calls(log)[n:]))
 
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0

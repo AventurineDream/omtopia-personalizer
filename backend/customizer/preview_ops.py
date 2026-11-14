@@ -261,6 +261,10 @@ def window_overrides_lua():
         if n("windowShadowRange") is not None:
             sh_parts.append("range = " + n("windowShadowRange"))
         deco.append("shadow = { " + ", ".join(sh_parts) + " }")
+    # Iolite nit (PR #16): windows.json без ключей геометрии — пустой eval
+    # не нужен; restore() уже пропускает None (см. `if lua:`).
+    if not g_parts and not deco:
+        return None
     return ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
             "decoration = { " + ", ".join(deco) + " } })")
 

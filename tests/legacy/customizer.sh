@@ -1279,21 +1279,24 @@ window_overrides_eval() {
   local lua no_gaps=false
   [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && no_gaps=true
   # issue #15: `empty` в $g/$l убивал весь general без windowLayout — null фильтруется select'ом.
+  # Iolite nit (PR #16): windows.json без ключей геометрии — jq даёт пусто,
+  # и eval не вызывается (зеркало Python: window_overrides_lua() → None).
   lua=$(jq -r --argjson ng "$no_gaps" '
     def n(k): if (.[k] | type) == "number" then (.[k] | tostring) else null end;
     def b(k): if (.[k] | type) == "boolean" then (.[k] | tostring) else null end;
-    [ (if $ng then null else
+    (if $ng then "" else
         ([ (n("windowGapsIn") | values | "gaps_in = " + .), (n("windowGapsOut") | values | "gaps_out = " + .),
            (n("windowBorder") | values | "border_size = " + .) ] | join(", ")) end) as $g
-      | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else null end) as $l
-      | "general = { " + ([$g, $l] | map(select(. != null and . != "")) | join(", ")) + " }",
-      "decoration = { " + ([ (if $ng then null else (n("windowDecoRounding") | values | "rounding = " + .) end),
+      | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else "" end) as $l
+      | ([$g, $l] | map(select(. != "")) | join(", ")) as $general
+      | ([ (if $ng then null else (n("windowDecoRounding") | values | "rounding = " + .) end),
          (b("windowDim") | values | "dim_inactive = " + .), (n("windowDimStrength") | values | "dim_strength = " + .),
          ((if b("windowShadow") != null or n("windowShadowRange") != null then
             "shadow = { " + ([ (b("windowShadow") | values | "enabled = " + .), (n("windowShadowRange") | values | "range = " + .) ] | join(", ")) + " }"
            else null end) | values)
-       ] | map(select(. != null)) | join(", ")) + " }" ]
-    | "hl.config({ " + join(", ") + " })"' "$WINDOW_CFG" 2>/dev/null) || return 0
+       ] | map(select(. != null)) | join(", ")) as $deco
+      | if $general == "" and $deco == "" then empty
+        else "hl.config({ general = { " + $general + " }, decoration = { " + $deco + " } })" end' "$WINDOW_CFG" 2>/dev/null) || return 0
   [[ -n $lua ]] && hyprctl eval "$lua" >/dev/null 2>&1
   return 0
 }
