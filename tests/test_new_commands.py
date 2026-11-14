@@ -296,7 +296,6 @@ def main():
     json.dump({"windowGapsIn": 6}, open(wincfg, "w"))
     n = len(calls(log))
     run(wenv, "restore")
-    ev = win_evals()[len(win_evals()) - 1] if win_evals() else ""
     check("issue #15: restore applies windows.json gaps without a layout",
           any("gaps_in = 6" in c for c in calls(log)[n:]))
     # 2) Layout dwindle + геометрия — layout по-прежнему в eval.
