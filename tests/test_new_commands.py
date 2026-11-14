@@ -173,6 +173,23 @@ def main():
     vals = [ln.split("\t")[1] for ln in out.splitlines() if "\t" in ln]
     check("owe: section listed before transitions", "owe-toggle" in vals and vals.index("owe-toggle") < vals.index("section:transitions"))
 
+    # ── themes: частичная копия темы у пользователя не должна прятать системный превью ──
+    sys_themes = os.path.join(base, "omarchy/themes")
+    user_themes = os.path.join(home, ".config/omarchy/themes")
+    os.makedirs(os.path.join(sys_themes, "tokyo-night"))
+    os.makedirs(os.path.join(user_themes, "tokyo-night"))
+    open(os.path.join(sys_themes, "tokyo-night/preview.png"), "w").write("PNG")
+    open(os.path.join(sys_themes, "tokyo-night/colors.toml"), "w").write(
+        'background = "#1a1b26"\nforeground = "#c0caf5"\n')
+    open(os.path.join(user_themes, "tokyo-night/colors.toml"), "w").write('background = "#000000"\n')
+    tenv = dict(env, OMARCHY_PATH=os.path.join(base, "omarchy"))
+    _, out = run(tenv, "list", "themes")
+    rows = [ln.split("\t") for ln in out.splitlines()]
+    tn = [r for r in rows if len(r) > 1 and r[1] == "tokyo-night"]
+    check("themes: system preview survives a partial user copy",
+          bool(tn) and tn[0][2] == os.path.join(sys_themes, "tokyo-night/preview.png"))
+    check("themes: user palette wins when present", bool(tn) and tn[0][4] == "#000000")
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 
