@@ -7,11 +7,26 @@
   "license": "GPL-3.0",
   "description": "Omtopia Personalizer: look & feel overlay for Omarchy with live preview",
   "kinds": [
-    "overlay"
+    "overlay",
+    "bar-widget"
   ],
   "keepLoaded": true,
   "entryPoints": {
-    "overlay": "Customizer.qml"
+    "overlay": "Customizer.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omtopia Personalizer",
+    "description": "Open the Omtopia Personalizer overlay to change themes, bar, windows and more.",
+    "category": "Tools",
+    "aliases": [
+      "customizer",
+      "omtopia",
+      "personalizer",
+      "theme"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right"
   },
   "homepage": "https://github.com/AventurineDream/omtopia-personalizer"
 }

@@ -296,7 +296,6 @@ def main():
     json.dump({"windowGapsIn": 6}, open(wincfg, "w"))
     n = len(calls(log))
     run(wenv, "restore")
-    ev = win_evals()[len(win_evals()) - 1] if win_evals() else ""
     check("issue #15: restore applies windows.json gaps without a layout",
           any("gaps_in = 6" in c for c in calls(log)[n:]))
     # 2) Layout dwindle + геометрия — layout по-прежнему в eval.
@@ -315,6 +314,13 @@ def main():
     check("issue #15: state-file geometry applied first, windows.json on top",
           len(evs) >= 2 and "gaps_in = 4" in evs[0] and "gaps_in = 6" in evs[-1])
     os.unlink(geofile)
+    # 4) windows.json без ключей геометрии — пустой eval не вызывается
+    # (Iolite nit, PR #16: window_overrides_lua() → None, jq → пусто).
+    json.dump({}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    check("issue #15: restore with no geometry keys emits no hl.config eval",
+          not any(c.startswith("hyprctl eval hl.config") for c in calls(log)[n:]))
 
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
