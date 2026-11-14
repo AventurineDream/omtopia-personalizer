@@ -190,6 +190,31 @@ def main():
           bool(tn) and tn[0][2] == os.path.join(sys_themes, "tokyo-night/preview.png"))
     check("themes: user palette wins when present", bool(tn) and tn[0][4] == "#000000")
 
+    # ── rollback: snapshot preserves windows.json geometry (Finding #4) ──
+    # Direct import: snapshot() reads paths from os.environ at import time,
+    # so this goes last, after the subprocess-based sections.
+    win_cfg = os.path.join(home, ".config/omarchy/customizer/windows.json")
+    os.makedirs(os.path.dirname(win_cfg), exist_ok=True)
+    with open(win_cfg, "w") as f:
+        json.dump({"windowGapsIn": 6}, f)
+    # the snapshot records theme "default" (no theme.name file): the rollback
+    # refuses a backup whose theme is not installed, so make it exist
+    os.makedirs(os.path.join(home, ".config/omarchy/themes/default"), exist_ok=True)
+    os.environ["HOME"] = home
+    sys.path.insert(0, os.path.join(PLUGIN, "backend"))
+    from customizer import apply_ops
+    backup = os.path.join(home, ".local/state/omarchy-customizer/last-preset.json")
+    apply_ops.snapshot(backup, "Previous setup", "test")
+    doc = json.load(open(backup))
+    check("rollback: snapshot captures windows.json geometry",
+          doc.get("windowsGeometry") == {"windowGapsIn": 6} and doc.get("hyprGeometry") is None)
+    # simulate a preset apply that changed the geometry, then roll back
+    with open(win_cfg, "w") as f:
+        json.dump({"windowGapsIn": 2, "windowGapsOut": 8}, f)
+    run(env, "apply", "presets", backup)
+    check("rollback: windows.json geometry restored verbatim",
+          json.load(open(win_cfg)).get("windowGapsIn") == 6)
+
     print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
     return 1 if fails else 0
 
