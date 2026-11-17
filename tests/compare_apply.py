@@ -16,6 +16,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import compare_tweaks as ct  # noqa: E402
+import known_diffs  # noqa: E402
 
 REAL = ct.REAL_HOME
 PLUGINS = os.path.join(REAL, ".config/omarchy/plugins")
@@ -128,9 +129,10 @@ def norm(snap, root):
 
 
 def main():
+    entries = known_diffs.load()["compare_apply"]
     base = tempfile.mkdtemp(prefix="customizer-apply.", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
     only = sys.argv[1:]
-    bad = total = 0
+    bad = known = total = 0
     for n, (name, steps) in enumerate(scenarios()):
         if only and not any(o in name for o in only):
             continue
@@ -146,19 +148,40 @@ def main():
             cp, _ = ct.run(ep, "py", [s.replace("{HOME}", ep["HOME"]) for s in step], zen)
             sb, sp = norm(ct.snapshot(rb), rb), norm(ct.snapshot(rp), rp)
             if cb != cp or sb != sp:
-                bad += 1
-                print("DIFF ", name, " ".join(step)[:120], f"code {cb}/{cp}")
-                for k in sorted(set(sb) | set(sp)):
-                    if sb.get(k) != sp.get(k):
-                        a = (sb.get(k) or b"").decode(errors="replace").splitlines()
-                        b = (sp.get(k) or b"").decode(errors="replace").splitlines()
-                        print("   file:", k, len(a), len(b))
-                        for x in sorted(set(a) ^ set(b))[:6]:
-                            print("     ", "bash" if x in a else "py  ", x[:160])
-                break
+                differing = sorted(k for k in set(sb) | set(sp) if sb.get(k) != sp.get(k))
+                py_only, bash_only = [], []
+                for k in differing:
+                    a = set((sb.get(k) or b"").decode(errors="replace").splitlines())
+                    b = set((sp.get(k) or b"").decode(errors="replace").splitlines())
+                    py_only += sorted(b - a)
+                    bash_only += sorted(a - b)
+                entry = known_diffs.lookup(entries, name)
+                is_known = False
+                if entry is not None and known_diffs.matches_apply(entry, cb, cp, differing, py_only, bash_only):
+                    known += 1
+                    print("KNOWN", name, " ".join(step)[:120], f"code {cb}/{cp}  ({entry['reason']})")
+                    is_known = True
+                elif entry is not None:
+                    bad += 1
+                    print("KNOWN-CHANGED", name, " ".join(step)[:120], f"code {cb}/{cp}"
+                          + "  (запись в allowlist больше не совпадает — обновить её или разобраться)")
+                else:
+                    bad += 1
+                    print("DIFF ", name, " ".join(step)[:120], f"code {cb}/{cp}")
+                for k in differing:
+                    a = (sb.get(k) or b"").decode(errors="replace").splitlines()
+                    b = (sp.get(k) or b"").decode(errors="replace").splitlines()
+                    print("   file:", k, len(a), len(b))
+                    for x in sorted(set(a) ^ set(b))[:6]:
+                        print("     ", "bash" if x in a else "py  ", x[:160])
+                # После KNOWN продолжаем сценарий: ранний выход только при
+                # DIFF/KNOWN-CHANGED, иначе остаток сценария не проверяется.
+                if not is_known:
+                    break
         else:
             print("ok   ", name)
-    print(f"{total - bad}/{total} шагов совпадают; песочницы: {base}")
+    print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
+          + (f" ({known} известных)" if known else ""))
     return 1 if bad else 0
 
 

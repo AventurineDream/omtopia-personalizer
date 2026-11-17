@@ -15,9 +15,11 @@ import tempfile
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PLUGIN, "backend"))
+sys.path.insert(0, os.path.join(PLUGIN, "tests"))
 REAL_HOME = os.environ["HOME"]
 
 from customizer import settings  # noqa: E402
+import known_diffs  # noqa: E402
 
 CONFIGS = [
     ".config/omarchy/bar-skin.json", ".config/omarchy/shell.json", ".config/omarchy/lock-design.json",
@@ -125,9 +127,10 @@ def scenarios(keys):
 
 
 def main():
+    entries = known_diffs.load()["compare_tweaks"]
     keys = sys.argv[1:]
     base = tempfile.mkdtemp(prefix="customizer-tweaks.", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
-    bad = total = 0
+    bad = known = total = 0
     for n, (name, steps) in enumerate(scenarios(keys)):
         rb, eb = sandbox(base, f"{n:03}-{name}.bash")
         rp, ep = sandbox(base, f"{n:03}-{name}.py")
@@ -140,23 +143,38 @@ def main():
             cp, errp = run(ep, "py", step, zen)
             sb, sp = snapshot(rb), snapshot(rp)
             if (cb, errb) != (cp, errp) or sb != sp:
-                bad += 1
-                print("DIFF ", " ".join(step), f"code {cb}/{cp}")
+                differing = sorted(k for k in set(sb) | set(sp) if sb.get(k) != sp.get(k))
+                entry = known_diffs.lookup(entries, name)
+                is_known = False
+                if entry is not None and known_diffs.matches_tweaks(entry, cb, cp, errb, errp, differing):
+                    known += 1
+                    print("KNOWN", " ".join(step), f"code {cb}/{cp}  ({entry['reason']})")
+                    is_known = True
+                elif entry is not None:
+                    bad += 1
+                    print("KNOWN-CHANGED", " ".join(step), f"code {cb}/{cp}"
+                          + "  (запись в allowlist больше не совпадает — обновить её или разобраться)")
+                else:
+                    bad += 1
+                    print("DIFF ", " ".join(step), f"code {cb}/{cp}")
                 if errb != errp:
                     print("   stderr bash:", errb[:150], "| py:", errp[:150])
-                for k in sorted(set(sb) | set(sp)):
-                    if sb.get(k) != sp.get(k):
-                        print("   file:", k)
-                        a, b = (sb.get(k) or b"").decode(errors="replace"), (sp.get(k) or b"").decode(errors="replace")
-                        for la, lb in zip(a.splitlines(), b.splitlines()):
-                            if la != lb:
-                                print("     bash:", la[:120])
-                                print("     py  :", lb[:120])
-                                break
-                        else:
-                            print("     длина", len(a), len(b))
-                break
-    print(f"{total - bad}/{total} шагов совпадают; песочницы: {base}")
+                for k in differing:
+                    print("   file:", k)
+                    a, b = (sb.get(k) or b"").decode(errors="replace"), (sp.get(k) or b"").decode(errors="replace")
+                    for la, lb in zip(a.splitlines(), b.splitlines()):
+                        if la != lb:
+                            print("     bash:", la[:120])
+                            print("     py  :", lb[:120])
+                            break
+                    else:
+                        print("     длина", len(a), len(b))
+                # После KNOWN продолжаем сценарий: ранний выход только при
+                # DIFF/KNOWN-CHANGED, иначе остаток сценария не проверяется.
+                if not is_known:
+                    break
+    print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
+          + (f" ({known} известных)" if known else ""))
     return 1 if bad else 0
 
 
