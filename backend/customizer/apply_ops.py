@@ -104,18 +104,106 @@ def set_no_gaps(want):
         sh(["omarchy-hyprland-toggle", "window-no-gaps", "off"])
 
 
+def _widget_id(entry):
+    """id виджета: у объекта — .id, иначе само значение."""
+    if isinstance(entry, dict):
+        return entry.get("id")
+    return entry
+
+
+def merge_bar_layout(current, new):
+    """Раскладка бара после применения `new` поверх `current` — с переносом виджетов.
+
+    Структура/позиция — из новой раскладки; набор виджетов — из текущей: ни один
+    виджет не пропадает и не добавляется, а его настройки (pattern/minutes, format,
+    lists/vaultPath и т.д.) сохраняются как есть. Виджет, названный в новой раскладке,
+    встаёт в её секцию; не названный — остаётся в своей. Секции, которых нет в новой
+    раскладке (centerBegin, centerEnd, tray), сохраняются без изменений.
+    """
+    if not isinstance(current, dict) or not isinstance(new, dict):
+        return new
+    # `tray` — не секция бара, а содержимое всплывающего меню трея: она сохраняется
+    # как есть и не участвует в переносе (иначе виджет из трея продублировался бы на бар).
+    by_id = {}
+    for section in current:
+        if section == "tray":
+            continue
+        entries = current.get(section)
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            wid = _widget_id(entry)
+            if wid is not None and wid not in by_id:
+                by_id[wid] = entry
+    new_ids = set()
+    for section in new:
+        if section == "tray":
+            continue
+        entries = new.get(section)
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            wid = _widget_id(entry)
+            if wid is not None:
+                new_ids.add(wid)
+    if not by_id:
+        # переносить нечего (пустой бар) — берём новую раскладку как есть,
+        # а секции, которых в ней нет (трей и т.п.), сохраняем.
+        merged = dict(new)
+        for section, entries in current.items():
+            if section not in merged:
+                merged[section] = entries
+        return merged
+    merged = {}
+    placed = set()
+    for section, entries in new.items():
+        if section == "tray":
+            merged[section] = current.get(section, entries)
+            continue
+        if not isinstance(entries, list):
+            merged[section] = entries
+            continue
+        out = []
+        for entry in entries:
+            wid = _widget_id(entry)
+            if wid is not None and wid in by_id and wid not in placed:
+                out.append(by_id[wid])
+                placed.add(wid)
+            # виджета нет у пользователя — не добавляем (набор виджетов не меняется)
+        cur = current.get(section)
+        if isinstance(cur, list):
+            for entry in cur:
+                wid = _widget_id(entry)
+                if wid is None or wid not in new_ids:
+                    out.append(entry)
+        merged[section] = out
+    for section, entries in current.items():
+        if section not in merged:
+            merged[section] = entries
+    return merged
+
+
 def shell_apply_layout(layout):
-    """Раскладка бара в shell.json: без note*, клоны из cloneSourceRestores остаются в .plugins."""
+    """Раскладка бара в shell.json: без note*, клоны из cloneSourceRestores остаются в .plugins.
+    Виджеты переносятся: новая раскладка меняет только структуру/позицию, а набор виджетов
+    и их настройки сохраняются (см. merge_bar_layout)."""
     shell = jsonio.read(paths.SHELL_JSON)
     if not isinstance(shell, dict) or not isinstance(shell.get("bar"), dict) or not isinstance(layout, dict):
         return
     shell = dict(shell)
     bar = {k: v for k, v in shell["bar"].items() if not NOTE_RE.match(k)}
-    bar.update({k: v for k, v in layout.items() if not NOTE_RE.match(k)})
+    bar.update({k: v for k, v in layout.items() if not NOTE_RE.match(k) and k != "layout"})
     # Якорь центра — свойство раскладки: у новой его нет — старый не оставлять (иначе centerBegin / centerEnd
     # молча перестают рисоваться, а виджеты в них пропадают с бара).
     if "centerAnchor" not in layout:
         bar.pop("centerAnchor", None)
+    cur_layout = shell["bar"].get("layout")
+    new_layout = layout.get("layout")
+    if isinstance(cur_layout, dict) and isinstance(new_layout, dict):
+        bar["layout"] = merge_bar_layout(cur_layout, new_layout)
+    elif "layout" in layout:
+        bar["layout"] = new_layout
+    # иначе: layout в файле нет — текущая раскладка остаётся как есть
     shell["bar"] = bar
     for cid in shell.get("cloneSourceRestores") or []:
         plugins = shell.get("plugins") or []

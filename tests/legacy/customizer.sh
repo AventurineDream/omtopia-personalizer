@@ -289,14 +289,42 @@ shell_edit() {
 
 # Применить раскладку бара из файла $1 в shell.json:
 # - вычищает поля note / note_* из объекта раскладки и из .bar;
+# - переносит виджеты: новая раскладка меняет только структуру/позицию, а набор
+#   виджетов и их настройки сохраняются (как merge_bar_layout в apply_ops.py);
 # - гарантирует, что плагины-клоны из cloneSourceRestores (например, kamradsmeshnyavy.menu,
 #   который раньше мог быть включён только через присутствие в bar.layout) остаются в .plugins,
 #   чтобы смена раскладки бара не отключала лаунчер и другие клоны.
 shell_apply_layout() {
   local layout_file=$1
   shell_edit --slurpfile p "$layout_file" '
-    .bar = ((.bar | with_entries(select(.key | test("^note(_[a-z]+)?$") | not)))
-      + ($p[0] | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))))
+    def wid: if type == "object" then .id else . end;
+    def merge_layout($cur; $new):
+      (reduce ($cur | to_entries[] | select(.key != "tray") | .value[]?) as $e ({};
+         ($e | wid) as $id | if $id == null then . elif has($id) then . else . + {($id): $e} end)) as $byid
+      | ([$new | to_entries[] | select(.key != "tray") | .value[]? | wid | select(. != null)] | unique) as $lids
+      | if ($byid | length) == 0 then
+          $new + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)))
+        else
+          (reduce ($new | keys_unsorted[]) as $s ({}; . + {($s):
+              (if $s == "tray" then ($cur[$s] // $new[$s])
+               elif ($new[$s] | type) != "array" then $new[$s]
+               else ((reduce ($new[$s][]?) as $e ([[], {}];
+                       ($e | wid) as $id
+                       | if ($id != null) and ($byid | has($id)) and ((.[1] | has($id)) | not)
+                         then [.[0] + [$byid[$id]], .[1] + {($id): true}]
+                         else . end) | .[0])
+                     + [$cur[$s][]? | select((wid) as $id | $id == null or (($lids | index($id)) == null))])
+               end)} )
+            + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not))))
+        end;
+    ($p[0] | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))) as $lay
+    | (.bar | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))) as $cur
+    | .bar = ($cur + ($lay | del(.layout))
+        + (if (($cur | has("layout")) and ($cur.layout | type == "object")
+               and ($lay | has("layout")) and ($lay.layout | type == "object"))
+           then {layout: merge_layout($cur.layout; $lay.layout)}
+           elif ($lay | has("layout")) then {layout: ($lay.layout)}
+           else {} end))
     | reduce (.cloneSourceRestores // [])[] as $id (.;
         if ((.bar.id // "") != $id) and (((.plugins // []) | map(.id) | index($id)) == null)
         then .plugins = ((.plugins // []) + [{"id": $id}])
