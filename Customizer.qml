@@ -2621,6 +2621,28 @@ Item {
                   readonly property url wallpaper: visible && root.status.wallpaper ? root.fileUrl(root.status.wallpaper) : ""
                   readonly property var bar: root.mockBar()
                   readonly property bool vertical: bar.position === "left" || bar.position === "right"
+                  readonly property string edge: String((bar && bar.position) || "top")
+                  // Высота полосы бара, когда бар сверху (зеркало BarMock: height
+                  // скина или Style.bar.sizeHorizontal, плюс gap — у full/underline/
+                  // notch/hug/frame gap равен 0). Пилюля IN USE / LIVE PREVIEW
+                  // ставится ниже этой полосы, иначе она ложится на правый
+                  // кластер виджетов макета (issue #13).
+                  readonly property real topStrip: {
+                    if (barStage.vertical || barStage.edge !== "top") return 0
+                    var skin = root.mockSkin()
+                    var h = Number(skin && skin.height) || 0
+                    var size = h > 0 ? h : Style.bar.sizeHorizontal
+                    var shape = String(skin && skin.shape ? skin.shape : "full")
+                    var gap = (["full", "underline", "notch", "hug", "frame"].indexOf(shape) === -1)
+                      ? (Number(skin && skin.gap) || 0) : 0
+                    return gap + size
+                  }
+                  // Куда ставить пилюлю, чтобы она не легла на макет бара: бар
+                  // сверху — под полосой бара; вертикальный бар справа — в левый
+                  // верхний угол (правый край занят баром на всю высоту); иначе —
+                  // правый верхний угол, как раньше.
+                  readonly property bool pillBelowBar: root.category.bar === true && !barStage.vertical && barStage.edge === "top"
+                  readonly property bool pillLeft: root.category.bar === true && barStage.vertical && barStage.edge === "right"
 
                   // Горизонтальный бар — полоса экрана в настоящем масштабе (как было). Вертикальный во всю
                   // высоту экрана в низкую карточку не влезал и обрезался: экран рисуется в настоящем размере
@@ -3174,9 +3196,14 @@ Item {
 
                 Pill {
                   id: headPill
-                  anchors.right: parent.right
+                  // Бар сверху — пилюля под полосой макета (issue #13), бар
+                  // справа — в левом углу; иначе — правый верхний угол.
+                  anchors.right: barStage.pillLeft ? undefined : parent.right
+                  anchors.left: barStage.pillLeft ? parent.left : undefined
                   anchors.top: parent.top
-                  anchors.margins: Style.space(10)
+                  anchors.topMargin: barStage.pillBelowBar ? barStage.topStrip + Style.space(10) : Style.space(10)
+                  anchors.rightMargin: Style.space(10)
+                  anchors.leftMargin: Style.space(10)
                   visible: root.selectedRow !== null && (root.selectedRow.current || root.previewing === root.category.key)
                   label: root.selectedRow && root.selectedRow.current ? root.tr("IN USE") : root.tr("LIVE PREVIEW")
                   tone: root.selectedRow && root.selectedRow.current ? root.primary : Color.urgent
