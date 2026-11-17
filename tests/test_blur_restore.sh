@@ -15,13 +15,25 @@ check() { # $1 = name, $2.. = test command
     if "$@" >/dev/null 2>&1; then echo "ok    $name"; else echo "FAIL  $name"; fails=$((fails + 1)); fi
 }
 
+# Run any subcommand, capturing its exit code without tripping `set -e`.
+# Usage: run_script <script> <root> <args...> — sets $code.
+run_script() {
+    local script="$1" root="$2"; shift 2
+    code=0
+    env -i PATH="$root/stubs:/usr/bin:/bin" HOME="$root/home" XDG_STATE_HOME="$root/state" XDG_RUNTIME_DIR="$root/run" FAKE_STATE="$root/state" FAKE_HYPRCTL_MODE=ok \
+        bash "$PLUGIN/scripts/$script" "$@" || code=$?
+}
+
 # Run a restore, capturing its exit code without tripping `set -e`.
 # Usage: restore <script> <root> — sets $code.
 restore() {
-    local script="$1" root="$2"
-    code=0
-    env -i PATH="$root/stubs:/usr/bin:/bin" HOME="$root/home" XDG_STATE_HOME="$root/state" FAKE_STATE="$root/state" FAKE_HYPRCTL_MODE=ok \
-        bash "$PLUGIN/scripts/$script" restore || code=$?
+    run_script "$1" "$2" restore
+}
+
+# Run a preview, capturing its exit code without tripping `set -e`.
+# Usage: preview <script> <root> <name> — sets $code.
+preview() {
+    run_script "$1" "$2" preview "$3"
 }
 
 # Fake hyprctl: live.txt holds "enabled size passes vibrancy noise active inactive".
@@ -71,7 +83,7 @@ STUB
 setup() { # $1 = live line, $2 = hyprctl mode (ok|fail) -> prints sandbox dir
     local root
     root="$(mktemp -d)"
-    mkdir -p "$root/home" "$root/state" "$root/stubs"
+    mkdir -p "$root/home" "$root/state" "$root/stubs" "$root/run"
     echo "$1" >"$root/state/live.txt"
     : >"$root/state/calls.log"
     write_stub "$root/stubs" "$2"
@@ -88,8 +100,8 @@ r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
 restore blur.sh "$r"
 check "blur restore, no state, live medium: exits 0" test "$code" = "0"
 check "blur restore, no state, live medium: live blur stays medium" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
-check "blur restore, no state, live medium: state file anchored" test "$(cat "$r/state/hypr/blur")" = "medium 6 3 0.17 0.012"
-check "blur restore, no state, live medium: reload happened" grep -q "hyprctl reload" "$r/state/calls.log"
+check "blur restore, no state, live medium: no state file written" test ! -e "$r/state/hypr/blur"
+check "blur restore, no state, live medium: no reload" test "$(grep -c "hyprctl reload" "$r/state/calls.log")" = "0"
 
 # 2. blur, no state, live hand-tuned (no preset matches): raw values kept, no state file.
 r="$(setup "true 5 2 0.13 0.007 0.85 0.70" ok)"
@@ -103,12 +115,12 @@ r="$(setup "false 1 1 0.00 0.000 0.85 0.70" ok)"
 restore blur.sh "$r"
 check "blur restore, no state, live off: exits 0" test "$code" = "0"
 check "blur restore, no state, live off: stays off" test "$(live_field "$r" 1)" = "false"
-check "blur restore, no state, live off: state file anchored" test "$(cat "$r/state/hypr/blur")" = "off 0 1 0.00 0.000"
+check "blur restore, no state, live off: no state file written" test ! -e "$r/state/hypr/blur"
 
 # 4. blur, no state, compositor unreadable: nothing happens, exit 0.
 r="$(setup "true 6 3 0.17 0.012 0.85 0.70" fail)"
 code=0
-env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=fail \
+env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" XDG_RUNTIME_DIR="$r/run" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=fail \
     bash "$PLUGIN/scripts/blur.sh" restore || code=$?
 check "blur restore, no state, hyprctl down: exits 0" test "$code" = "0"
 check "blur restore, no state, hyprctl down: live blur untouched" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
@@ -128,7 +140,7 @@ r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
 restore opacity.sh "$r"
 check "opacity restore, no state, live frosted: exits 0" test "$code" = "0"
 check "opacity restore, no state, live frosted: live opacity stays frosted" test "$(live_field "$r" 6-7)" = "0.85 0.70"
-check "opacity restore, no state, live frosted: state file anchored" test "$(cat "$r/state/hypr/opacity")" = "frosted 0.85 0.70"
+check "opacity restore, no state, live frosted: no state file written" test ! -e "$r/state/hypr/opacity"
 
 # 7. opacity, no state, live hand-tuned: raw values kept, no state file.
 r="$(setup "true 6 3 0.17 0.012 0.93 0.77" ok)"
@@ -146,12 +158,58 @@ check "opacity restore, state glass: live opacity becomes glass" test "$(live_fi
 
 # 9. `current` with no state file: prints the default with no stderr noise.
 r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
-err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
+err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" XDG_RUNTIME_DIR="$r/run" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
     bash "$PLUGIN/scripts/blur.sh" current 2>&1 >/dev/null)"
 check "blur current, no state: no stderr noise" test -z "$err"
-err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
+err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" XDG_RUNTIME_DIR="$r/run" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
     bash "$PLUGIN/scripts/opacity.sh" current 2>&1 >/dev/null)"
 check "opacity current, no state: no stderr noise" test -z "$err"
+
+# 10. blur preview then restore: the hover does not persist.
+r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
+preview blur.sh "$r" strong
+check "blur preview strong: exits 0" test "$code" = "0"
+check "blur preview strong: live blur becomes strong" test "$(live_field "$r" 1-5)" = "true 10 4 0.20 0.015"
+check "blur preview strong: snapshot holds the pre-preview medium" test "$(cat "$r/run/omarchy-customizer/blur-preview")" = "true 6 3 0.17 0.012"
+check "blur preview strong: no state file written" test ! -e "$r/state/hypr/blur"
+restore blur.sh "$r"
+check "blur preview->restore: exits 0" test "$code" = "0"
+check "blur preview->restore: live blur back to medium" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
+check "blur preview->restore: no state file written" test ! -e "$r/state/hypr/blur"
+check "blur preview->restore: snapshot consumed" test ! -e "$r/run/omarchy-customizer/blur-preview"
+check "blur preview->restore: no reload" test "$(grep -c "hyprctl reload" "$r/state/calls.log")" = "0"
+
+# 11. blur preview twice: the second preview keeps the original snapshot.
+r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
+preview blur.sh "$r" strong
+preview blur.sh "$r" light
+check "blur preview strong then light: live blur becomes light" test "$(live_field "$r" 1-5)" = "true 3 2 0.10 0.010"
+check "blur preview strong then light: snapshot still the pre-preview medium" test "$(cat "$r/run/omarchy-customizer/blur-preview")" = "true 6 3 0.17 0.012"
+restore blur.sh "$r"
+check "blur preview x2->restore: live blur back to medium" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
+check "blur preview x2->restore: no state file written" test ! -e "$r/state/hypr/blur"
+
+# 12. opacity preview then restore: the hover does not persist.
+r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
+preview opacity.sh "$r" glass
+check "opacity preview glass: exits 0" test "$code" = "0"
+check "opacity preview glass: live opacity becomes glass" test "$(live_field "$r" 6-7)" = "0.90 0.80"
+check "opacity preview glass: snapshot holds the pre-preview frosted" test "$(cat "$r/run/omarchy-customizer/opacity-preview")" = "0.85 0.70"
+check "opacity preview glass: no state file written" test ! -e "$r/state/hypr/opacity"
+restore opacity.sh "$r"
+check "opacity preview->restore: exits 0" test "$code" = "0"
+check "opacity preview->restore: live opacity back to frosted" test "$(live_field "$r" 6-7)" = "0.85 0.70"
+check "opacity preview->restore: no state file written" test ! -e "$r/state/hypr/opacity"
+check "opacity preview->restore: snapshot consumed" test ! -e "$r/run/omarchy-customizer/opacity-preview"
+
+# 13. blur preview then an explicit set: the snapshot is cleared, the set wins.
+r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
+preview blur.sh "$r" strong
+run_script blur.sh "$r" set light
+check "blur preview then set light: exits 0" test "$code" = "0"
+check "blur preview then set light: live blur becomes light" test "$(live_field "$r" 1-5)" = "true 3 2 0.10 0.010"
+check "blur preview then set light: state file is light" test "$(cat "$r/state/hypr/blur")" = "light 3 2 0.10 0.010"
+check "blur preview then set light: snapshot cleared" test ! -e "$r/run/omarchy-customizer/blur-preview"
 
 echo "$fails failure(s)"
 exit "$fails"

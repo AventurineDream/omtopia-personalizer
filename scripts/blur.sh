@@ -8,8 +8,8 @@
 #   blur.sh                  # next preset (same as `next`)
 #   blur.sh next | prev      # cycle through PRESETS
 #   blur.sh set <name>       # apply a preset by name (used by the customizer)
-#   blur.sh preview <name>   # apply without saving or notifying (customizer hover)
-#   blur.sh restore          # re-apply the saved preset silently (none saved: keep the live blur)
+#   blur.sh preview <name>   # apply without saving or notifying (customizer hover); snapshots the pre-preview live values once
+#   blur.sh restore          # re-apply the saved preset silently (none saved: restore the pre-preview snapshot, else keep the live blur)
 #   blur.sh list             # "<name> <size> <passes> <vibrancy> <noise> <current 0/1>"
 #   blur.sh current          # name of the preset in use
 #
@@ -33,6 +33,12 @@ DEFAULT=medium
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
 STATE="$STATE_DIR/blur"
 mkdir -p "$STATE_DIR"
+
+# Pre-preview snapshot (issue #14): preview saves the live values here on the
+# first hover so restore can put them back; it lives in the runtime dir (gone
+# on logout) and is consumed by restore / cleared by an explicit apply.
+SNAPSHOT_DIR="${XDG_RUNTIME_DIR:-/tmp}/omarchy-customizer"
+SNAPSHOT="$SNAPSHOT_DIR/blur-preview"
 
 names() { local p; for p in "${PRESETS[@]}"; do echo "${p%% *}"; done; }
 
@@ -100,23 +106,39 @@ set_blur_raw() { # $1..$4 = size passes vibrancy noise; re-applies exact live va
 }
 
 restore_live() {
-    # No saved preset: keep whatever blur is live now instead of letting the
-    # reload snap it to the Hyprland config default (issue #14). When the live
-    # values match a preset, record it, so the next restore is anchored;
-    # otherwise re-apply the raw live values and leave no state file behind.
+    # No saved preset. Prefer the pre-preview snapshot (taken by preview):
+    # it holds the values from before the hover, while live is now the
+    # previewed preset — restoring live would keep the hover AND anchor it.
+    # Without a snapshot, keep whatever is live now instead of letting the
+    # reload snap it to the Hyprland config default (issue #14). Never write
+    # state here — a hover must not persist — and never reload: the reload
+    # would re-fire configreloaded and clobber the other script's restore.
     # When the compositor cannot be read at all, do nothing.
     local live on s p v n name
-    live="$(live_blur)" || return 0
-    read -r on s p v n <<<"$live"
-    hyprctl reload >/dev/null || true
+    if [[ -s $SNAPSHOT ]]; then
+        read -r on s p v n <"$SNAPSHOT"
+        rm -f "$SNAPSHOT"
+    else
+        live="$(live_blur)" || return 0
+        read -r on s p v n <<<"$live"
+    fi
     if name="$(match_preset "$on" "$s" "$p" "$v" "$n")"; then
         set_blur "$name"
-        # Anchor it: the next restore re-applies this preset from the file.
-        read -r s p v n < <(lookup "$name")
-        echo "$name $s $p $v $n" >"$STATE"
     else
         set_blur_raw "$s" "$p" "$v" "$n"
     fi
+}
+
+preview() { # $1 = name; snapshot the pre-preview live values once, then apply without saving
+    local live
+    lookup "$1" >/dev/null 2>&1 || return 1
+    if [[ ! -s $SNAPSHOT ]]; then
+        if live="$(live_blur 2>/dev/null)"; then
+            mkdir -p "$SNAPSHOT_DIR"
+            echo "$live" >"$SNAPSHOT"
+        fi
+    fi
+    set_blur "$1"
 }
 
 apply() { # $1 = name
@@ -124,6 +146,7 @@ apply() { # $1 = name
     set_blur "$1" || { notify "$(t "No such preset")" "$1"; exit 1; }
     read -r s p v n < <(lookup "$1")
     echo "$1 $s $p $v $n" >"$STATE"
+    rm -f "$SNAPSHOT" # the preview session (if any) is over; don't let a stale snapshot linger
     if ((s == 0)); then
         notify "$(t "Blur: off")" "$(t "windows show through without blur")"
     else
@@ -146,7 +169,7 @@ case "${1:-next}" in
 next) step 1 ;;
 prev) step -1 ;;
 set) apply "${2:?preset name}" ;;
-preview) set_blur "${2:?preset name}" ;;
+preview) preview "${2:?preset name}" ;;
 restore) if [[ -s $STATE ]]; then set_blur "$(current)"; else restore_live; fi ;;
 current) current ;;
 list)
