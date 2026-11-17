@@ -111,14 +111,21 @@ def _widget_id(entry):
     return entry
 
 
-def merge_bar_layout(current, new):
+def merge_bar_layout(current, new, anchor=None):
     """Раскладка бара после применения `new` поверх `current` — с переносом виджетов.
 
     Структура/позиция — из новой раскладки; набор виджетов — из текущей: ни один
     виджет не пропадает и не добавляется, а его настройки (pattern/minutes, format,
     lists/vaultPath и т.д.) сохраняются как есть. Виджет, названный в новой раскладке,
-    встаёт в её секцию; не названный — остаётся в своей. Секции, которых нет в новой
-    раскладке (centerBegin, centerEnd, tray), сохраняются без изменений.
+    встаёт в её секцию (все его экземпляры — сразу за первым); не названный —
+    остаётся в своей. Секции, которых нет в новой раскладке (centerBegin, centerEnd,
+    tray), сохраняются без изменений, кроме виджетов, уже перенесённых в другую
+    секцию (они не дублируются). Если у новой раскладки нет рабочего якоря центра
+    (`anchor` пуст или его нет в center), записи из centerBegin/centerEnd переезжают
+    в center (begin — в начало, end — в конец): без якоря эти секции бар не рисует,
+    и виджеты в них пропали бы с бара. `anchor` — centerAnchor новой раскладки
+    (None, если его нет). Вызывается только для стоковых раскладок (carry_widgets);
+    сохранённые раскладки, пресеты и бэкапы применяются дословно, без слияния.
     """
     if not isinstance(current, dict) or not isinstance(new, dict):
         return new
@@ -133,8 +140,8 @@ def merge_bar_layout(current, new):
             continue
         for entry in entries:
             wid = _widget_id(entry)
-            if wid is not None and wid not in by_id:
-                by_id[wid] = entry
+            if wid is not None:
+                by_id.setdefault(wid, []).append(entry)
     new_ids = set()
     for section in new:
         if section == "tray":
@@ -153,40 +160,83 @@ def merge_bar_layout(current, new):
         for section, entries in current.items():
             if section not in merged:
                 merged[section] = entries
-        return merged
-    merged = {}
-    placed = set()
-    for section, entries in new.items():
-        if section == "tray":
-            merged[section] = current.get(section, entries)
-            continue
-        if not isinstance(entries, list):
-            merged[section] = entries
-            continue
-        out = []
-        for entry in entries:
-            wid = _widget_id(entry)
-            if wid is not None and wid in by_id and wid not in placed:
-                out.append(by_id[wid])
-                placed.add(wid)
-            # виджета нет у пользователя — не добавляем (набор виджетов не меняется)
-        cur = current.get(section)
-        if isinstance(cur, list):
-            for entry in cur:
+    else:
+        merged = {}
+        placed = set()
+        for section, entries in new.items():
+            if section == "tray":
+                merged[section] = current.get(section, entries)
+                continue
+            if not isinstance(entries, list):
+                merged[section] = entries
+                continue
+            out = []
+            for entry in entries:
                 wid = _widget_id(entry)
-                if wid is None or wid not in new_ids:
-                    out.append(entry)
-        merged[section] = out
-    for section, entries in current.items():
-        if section not in merged:
-            merged[section] = entries
+                if wid is not None and wid in by_id and wid not in placed:
+                    out.extend(by_id[wid])  # первый экземпляр + остальные сразу за ним
+                    placed.add(wid)
+                # виджета нет у пользователя — не добавляем (набор виджетов не меняется)
+            cur = current.get(section)
+            if isinstance(cur, list):
+                for entry in cur:
+                    wid = _widget_id(entry)
+                    if wid is None or wid not in new_ids:
+                        out.append(entry)
+            merged[section] = out
+        for section, entries in current.items():
+            if section in merged:
+                continue
+            if section == "tray":
+                merged[section] = entries
+                continue
+            if not isinstance(entries, list):
+                merged[section] = entries
+                continue
+            # секция, которой нет в новой раскладке: остаются только записи,
+            # которые ещё не перенесены в другую секцию (иначе — дубль).
+            merged[section] = [e for e in entries
+                               if _widget_id(e) is None or _widget_id(e) not in placed]
+    # Без рабочего якоря центра centerBegin/centerEnd не рисуются (см. Bar.qml
+    # hasAnchor и tweak_ops._visible_sections): переносим их записи в center,
+    # чтобы ничего не пропало с бара.
+    center = merged.get("center")
+    if isinstance(center, list):
+        center_list = center
+    elif "center" not in merged:
+        center_list = []
+    else:
+        center_list = None  # center — не список: складывать некуда
+    if center_list is not None:
+        anchored = bool(anchor) and anchor in [_widget_id(e) for e in center_list]
+        if not anchored:
+            begin = merged.get("centerBegin") if isinstance(merged.get("centerBegin"), list) else []
+            end = merged.get("centerEnd") if isinstance(merged.get("centerEnd"), list) else []
+            if begin or end:
+                merged["center"] = begin + center_list + end
+                if "centerBegin" in merged:
+                    merged["centerBegin"] = []
+                if "centerEnd" in merged:
+                    merged["centerEnd"] = []
     return merged
 
 
-def shell_apply_layout(layout):
+def _is_stock_layout(path):
+    """Путь — стоковая раскладка из BAR_DIR/layouts (а не сохранённая пользователем)."""
+    try:
+        stock = os.path.realpath(state.BAR_DIR / "layouts")
+        return os.path.realpath(path).startswith(stock + os.sep)
+    except (OSError, ValueError):
+        return False
+
+
+def shell_apply_layout(layout, carry_widgets=False):
     """Раскладка бара в shell.json: без note*, клоны из cloneSourceRestores остаются в .plugins.
-    Виджеты переносятся: новая раскладка меняет только структуру/позицию, а набор виджетов
-    и их настройки сохраняются (см. merge_bar_layout)."""
+    Перенос виджетов — только для стоковых раскладок (carry_widgets=True): новая раскладка
+    меняет только структуру/позицию, а набор виджетов и их настройки сохраняются
+    (см. merge_bar_layout). Сохранённые раскладки, пресеты, снимки и бэкапы применяются
+    дословно (carry_widgets=False): иначе восстановление не смогло бы вернуть виджеты,
+    которых сейчас нет на баре. Перед записью — копия текущего shell.json в shell.json.bak."""
     shell = jsonio.read(paths.SHELL_JSON)
     if not isinstance(shell, dict) or not isinstance(shell.get("bar"), dict) or not isinstance(layout, dict):
         return
@@ -199,8 +249,8 @@ def shell_apply_layout(layout):
         bar.pop("centerAnchor", None)
     cur_layout = shell["bar"].get("layout")
     new_layout = layout.get("layout")
-    if isinstance(cur_layout, dict) and isinstance(new_layout, dict):
-        bar["layout"] = merge_bar_layout(cur_layout, new_layout)
+    if carry_widgets and isinstance(cur_layout, dict) and isinstance(new_layout, dict):
+        bar["layout"] = merge_bar_layout(cur_layout, new_layout, anchor=layout.get("centerAnchor"))
     elif "layout" in layout:
         bar["layout"] = new_layout
     # иначе: layout в файле нет — текущая раскладка остаётся как есть
@@ -211,6 +261,10 @@ def shell_apply_layout(layout):
             return   # jq: map(.id) на строке — ошибка, файл не пишется
         if (shell["bar"].get("id") or "") != cid and cid not in [p.get("id") for p in plugins]:
             shell["plugins"] = plugins + [{"id": cid}]
+    try:
+        shutil.copyfile(paths.SHELL_JSON, str(paths.SHELL_JSON) + ".bak")
+    except OSError:
+        pass
     write(paths.SHELL_JSON, shell)
 
 
@@ -348,7 +402,8 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
             if bl:
                 for f in (state.USER_LAYOUTS / f"{bl}.json", state.BAR_DIR / f"layouts/{bl}.json"):
                     if f.is_file():
-                        shell_apply_layout(jsonio.read(f))
+                        # стоковая раскладка — с переносом виджетов, сохранённая — дословно
+                        shell_apply_layout(jsonio.read(f), carry_widgets=_is_stock_layout(f))
                         break
         if "barTransparent" in d:
             tweak_ops.set_transparent(jq_str(alt(d.get("barTransparent"), False)))
@@ -1059,7 +1114,8 @@ def apply(category, value):
         if value == "save":
             save_user_layout()
             raise Exit(0)
-        shell_apply_layout(jsonio.read(value))
+        # стоковая раскладка — с переносом виджетов, сохранённая — дословно
+        shell_apply_layout(jsonio.read(value), carry_widgets=_is_stock_layout(value))
         base = os.path.basename(value)
         notify("-t", "2000", "Bar Layout", t("Applied %s", base[:-5] if base.endswith(".json") else base))
     elif category == "bar-skins":

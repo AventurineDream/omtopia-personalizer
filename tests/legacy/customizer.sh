@@ -289,42 +289,77 @@ shell_edit() {
 
 # Применить раскладку бара из файла $1 в shell.json:
 # - вычищает поля note / note_* из объекта раскладки и из .bar;
-# - переносит виджеты: новая раскладка меняет только структуру/позицию, а набор
-#   виджетов и их настройки сохраняются (как merge_bar_layout в apply_ops.py);
+# - переносит виджеты только для стоковых раскладок ($2 == 1): новая раскладка меняет
+#   только структуру/позицию, а набор виджетов и их настройки сохраняются
+#   (как merge_bar_layout в apply_ops.py); сохранённые раскладки, пресеты, снимки
+#   и бэкапы применяются дословно ($2 == 0), чтобы восстановление могло вернуть
+#   виджеты, которых сейчас нет на баре;
 # - гарантирует, что плагины-клоны из cloneSourceRestores (например, kamradsmeshnyavy.menu,
 #   который раньше мог быть включён только через присутствие в bar.layout) остаются в .plugins,
-#   чтобы смена раскладки бара не отключала лаунчер и другие клоны.
+#   чтобы смена раскладки бара не отключала лаунчер и другие клоны;
+# - перед записью — копия текущего shell.json в shell.json.bak.
 shell_apply_layout() {
   local layout_file=$1
-  shell_edit --slurpfile p "$layout_file" '
+  local carry=${2:-0}
+  [[ -f $layout_file ]] || return 1
+  jq -e . "$layout_file" >/dev/null 2>&1 || return 1
+  [[ -f $SHELL_JSON ]] && cp "$SHELL_JSON" "$SHELL_JSON.bak"
+  shell_edit --slurpfile p "$layout_file" --argjson carry "$carry" '
     def wid: if type == "object" then .id else . end;
-    def merge_layout($cur; $new):
-      (reduce ($cur | to_entries[] | select(.key != "tray") | .value[]?) as $e ({};
-         ($e | wid) as $id | if $id == null then . elif has($id) then . else . + {($id): $e} end)) as $byid
-      | ([$new | to_entries[] | select(.key != "tray") | .value[]? | wid | select(. != null)] | unique) as $lids
+    def merge_layout($cur; $new; $anchor):
+      (reduce ($cur | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[]) as $e ({};
+         ($e | wid) as $id
+         | if $id == null then .
+           elif has($id) then .[$id] += [$e]
+           else . + {($id): [$e]} end)) as $byid
+      | ([$new | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[] | wid | select(. != null)] | unique) as $lids
+      | ([$lids[] | select(. as $lid | $byid | has($lid))] | map({(.): true}) | add // {}) as $placed
+      | (reduce ($new | keys_unsorted[]) as $s ({};
+          if $s == "tray" or (($new[$s] | type) != "array") then .
+          else reduce ($new[$s][] | wid | select(. != null)) as $id (.;
+            if has($id) then . else . + {($id): $s} end)
+          end)) as $first
       | if ($byid | length) == 0 then
           $new + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)))
         else
           (reduce ($new | keys_unsorted[]) as $s ({}; . + {($s):
               (if $s == "tray" then ($cur[$s] // $new[$s])
                elif ($new[$s] | type) != "array" then $new[$s]
-               else ((reduce ($new[$s][]?) as $e ([[], {}];
+               else ((reduce ($new[$s][]) as $e ([[], {}];
                        ($e | wid) as $id
-                       | if ($id != null) and ($byid | has($id)) and ((.[1] | has($id)) | not)
-                         then [.[0] + [$byid[$id]], .[1] + {($id): true}]
+                       | if ($id != null) and ($byid | has($id)) and ((.[1] | has($id)) | not) and ($first[$id] == $s)
+                         then [.[0] + $byid[$id], .[1] + {($id): true}]
                          else . end) | .[0])
-                     + [$cur[$s][]? | select((wid) as $id | $id == null or (($lids | index($id)) == null))])
+                   + (if ($cur[$s] | type) == "array"
+                      then [$cur[$s][] | select((wid) as $id | $id == null or (($lids | index($id)) == null))]
+                      else [] end))
                end)} )
-            + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not))))
+            + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)
+                  | .value |= (if type == "array"
+                               then map(select((wid) as $id | $id == null or (($placed | has($id)) | not)))
+                               else . end)))) as $m2
+          | (if (($anchor | type == "string" and . != "") and ([$m2.center[]? | wid] | index($anchor)) != null)
+               or ((($m2.centerBegin // []) | if type == "array" then . else [] end)
+                   + (($m2.centerEnd // []) | if type == "array" then . else [] end) | length) == 0
+               or (($m2 | has("center")) and (($m2.center | type) != "array"))
+              then $m2
+              else ($m2
+                    | .center = ((($m2.centerBegin // []) | if type == "array" then . else [] end)
+                                 + (($m2.center // []) | if type == "array" then . else [] end)
+                                 + (($m2.centerEnd // []) | if type == "array" then . else [] end))
+                    | if has("centerBegin") then .centerBegin = [] else . end
+                    | if has("centerEnd") then .centerEnd = [] else . end)
+              end)
         end;
     ($p[0] | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))) as $lay
     | (.bar | with_entries(select(.key | test("^note(_[a-z]+)?$") | not))) as $cur
     | .bar = ($cur + ($lay | del(.layout))
-        + (if (($cur | has("layout")) and ($cur.layout | type == "object")
+        + (if ($carry == 1) and (($cur | has("layout")) and ($cur.layout | type == "object")
                and ($lay | has("layout")) and ($lay.layout | type == "object"))
-           then {layout: merge_layout($cur.layout; $lay.layout)}
+           then {layout: merge_layout($cur.layout; $lay.layout; ($lay.centerAnchor // null))}
            elif ($lay | has("layout")) then {layout: ($lay.layout)}
            else {} end))
+    | if ($lay | has("centerAnchor")) then . else del(.bar.centerAnchor) end
     | reduce (.cloneSourceRestores // [])[] as $id (.;
         if ((.bar.id // "") != $id) and (((.plugins // []) | map(.id) | index($id)) == null)
         then .plugins = ((.plugins // []) + [{"id": $id}])
@@ -1616,7 +1651,10 @@ apply_form_sections() {
       bl=$(jq -r '.barLayout // ""' "$file")
       if [[ -n $bl ]]; then
         for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
-          [[ -f $lfile ]] && { shell_apply_layout "$lfile"; break; }
+          [[ -f $lfile ]] || continue
+          # стоковая раскладка — с переносом виджетов, сохранённая — дословно
+          if [[ $lfile == "$BAR_DIR"/layouts/* ]]; then shell_apply_layout "$lfile" 1; else shell_apply_layout "$lfile" 0; fi
+          break
         done
       fi
     fi
@@ -2460,7 +2498,8 @@ apply() {
     if [[ $value == save ]]; then save_user_layout; exit 0; fi
     # shell.json перечитывается на лету, рестарт шелла не нужен (он убил бы и overlay).
     # Остальное (idle, bar.id, transparent) не трогаем; клоны страхуем в .plugins.
-    shell_apply_layout "$value"
+    # стоковая раскладка — с переносом виджетов, сохранённая — дословно
+    if [[ $value -ef $BAR_DIR/layouts/${value##*/} ]]; then shell_apply_layout "$value" 1; else shell_apply_layout "$value" 0; fi
     notify-send -t 2000 "Bar Layout" "$(t "Applied %s" "$(basename "$value" .json)")"
     ;;
   bar-skins)
