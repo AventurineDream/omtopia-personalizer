@@ -156,9 +156,11 @@ def main():
                     py_only += sorted(b - a)
                     bash_only += sorted(a - b)
                 entry = known_diffs.lookup(entries, name)
+                is_known = False
                 if entry is not None and known_diffs.matches_apply(entry, cb, cp, differing, py_only, bash_only):
                     known += 1
                     print("KNOWN", name, " ".join(step)[:120], f"code {cb}/{cp}  ({entry['reason']})")
+                    is_known = True
                 elif entry is not None:
                     bad += 1
                     print("KNOWN-CHANGED", name, " ".join(step)[:120], f"code {cb}/{cp}"
@@ -172,7 +174,10 @@ def main():
                     print("   file:", k, len(a), len(b))
                     for x in sorted(set(a) ^ set(b))[:6]:
                         print("     ", "bash" if x in a else "py  ", x[:160])
-                break
+                # После KNOWN продолжаем сценарий: ранний выход только при
+                # DIFF/KNOWN-CHANGED, иначе остаток сценария не проверяется.
+                if not is_known:
+                    break
         else:
             print("ok   ", name)
     print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"

@@ -57,7 +57,7 @@ def main():
             print("ok    " + " ".join(args))
             continue
         entry = known_diffs.lookup(entries, " ".join(args))
-        if entry is not None and known_diffs.matches_readonly(entry, got):
+        if entry is not None and known_diffs.matches_readonly(entry, want, got):
             known += 1
             print("KNOWN " + " ".join(args) + "  (" + entry["reason"] + ")")
         elif entry is not None:

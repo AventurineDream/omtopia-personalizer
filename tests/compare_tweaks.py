@@ -145,9 +145,11 @@ def main():
             if (cb, errb) != (cp, errp) or sb != sp:
                 differing = sorted(k for k in set(sb) | set(sp) if sb.get(k) != sp.get(k))
                 entry = known_diffs.lookup(entries, name)
-                if entry is not None and known_diffs.matches_tweaks(entry, cb, cp, errb == errp, differing):
+                is_known = False
+                if entry is not None and known_diffs.matches_tweaks(entry, cb, cp, errb, errp, differing):
                     known += 1
                     print("KNOWN", " ".join(step), f"code {cb}/{cp}  ({entry['reason']})")
+                    is_known = True
                 elif entry is not None:
                     bad += 1
                     print("KNOWN-CHANGED", " ".join(step), f"code {cb}/{cp}"
@@ -167,7 +169,10 @@ def main():
                             break
                     else:
                         print("     длина", len(a), len(b))
-                break
+                # После KNOWN продолжаем сценарий: ранний выход только при
+                # DIFF/KNOWN-CHANGED, иначе остаток сценария не проверяется.
+                if not is_known:
+                    break
     print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
           + (f" ({known} известных)" if known else ""))
     return 1 if bad else 0
