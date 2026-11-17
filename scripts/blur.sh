@@ -9,7 +9,7 @@
 #   blur.sh next | prev      # cycle through PRESETS
 #   blur.sh set <name>       # apply a preset by name (used by the customizer)
 #   blur.sh preview <name>   # apply without saving or notifying (customizer hover)
-#   blur.sh restore          # re-apply the saved preset silently (none saved: hyprctl reload)
+#   blur.sh restore          # re-apply the saved preset silently (none saved: keep the live blur)
 #   blur.sh list             # "<name> <size> <passes> <vibrancy> <noise> <current 0/1>"
 #   blur.sh current          # name of the preset in use
 #
@@ -47,7 +47,7 @@ lookup() { # $1 = name -> "size passes vibrancy noise", fails when unknown
 
 current() {
     local c
-    read -r c _ <"$STATE" 2>/dev/null || true
+    { read -r c _ <"$STATE"; } 2>/dev/null || true
     lookup "${c:-}" >/dev/null 2>&1 && echo "$c" || echo "$DEFAULT"
 }
 
@@ -64,6 +64,59 @@ set_blur() { # $1 = name; fails when unknown
     read -r s p v n < <(lookup "$1") || return 1
     ((s == 0)) && on=false
     hyprctl eval "hl.config({ decoration = { blur = { enabled = $on, size = $((s > 0 ? s : 1)), passes = $p, vibrancy = $v, noise = $n } } })" >/dev/null
+}
+
+live_blur() { # -> "enabled size passes vibrancy noise" (enabled: true/false), fails when unreadable
+    local on s p v n
+    # NB: `.bool // empty` would swallow `false` (jq `//` treats false as empty),
+    # so read .bool bare and validate it below.
+    on="$(hyprctl getoption decoration:blur:enabled -j 2>/dev/null | jq -r '.bool' 2>/dev/null)" || return 1
+    s="$(hyprctl getoption decoration:blur:size -j 2>/dev/null | jq -r '.int // empty' 2>/dev/null)" || return 1
+    p="$(hyprctl getoption decoration:blur:passes -j 2>/dev/null | jq -r '.int // empty' 2>/dev/null)" || return 1
+    v="$(hyprctl getoption decoration:blur:vibrancy -j 2>/dev/null | jq -r '.float // empty' 2>/dev/null)" || return 1
+    n="$(hyprctl getoption decoration:blur:noise -j 2>/dev/null | jq -r '.float // empty' 2>/dev/null)" || return 1
+    [[ ($on == true || $on == false) && -n $s && -n $p && -n $v && -n $n ]] || return 1
+    echo "$on $s $p $v $n"
+}
+
+match_preset() { # $1..$5 = enabled(true/false) size passes vibrancy noise -> preset name, fails when none matches
+    local on="$1" s="$2" p="$3" v="$4" n="$5" row name rs rp rv rn
+    [[ $on == false ]] && { echo off; return 0; }
+    for row in "${PRESETS[@]}"; do
+        read -r name rs rp rv rn <<<"$row"
+        [[ $name == off ]] && continue
+        [[ $rs == "$s" && $rp == "$p" ]] || continue
+        if awk -v a="$rv" -v b="$v" -v c="$rn" -v d="$n" 'BEGIN { x = a - b; if (x < 0) x = -x; y = c - d; if (y < 0) y = -y; exit !(x < 0.001 && y < 0.001) }'; then
+            echo "$name"
+            return 0
+        fi
+    done
+    return 1
+}
+
+set_blur_raw() { # $1..$4 = size passes vibrancy noise; re-applies exact live values, no state write
+    local s="$1" p="$2" v="$3" n="$4"
+    hyprctl eval "hl.config({ decoration = { blur = { enabled = true, size = $((s > 0 ? s : 1)), passes = $p, vibrancy = $v, noise = $n } } })" >/dev/null
+}
+
+restore_live() {
+    # No saved preset: keep whatever blur is live now instead of letting the
+    # reload snap it to the Hyprland config default (issue #14). When the live
+    # values match a preset, record it, so the next restore is anchored;
+    # otherwise re-apply the raw live values and leave no state file behind.
+    # When the compositor cannot be read at all, do nothing.
+    local live on s p v n name
+    live="$(live_blur)" || return 0
+    read -r on s p v n <<<"$live"
+    hyprctl reload >/dev/null || true
+    if name="$(match_preset "$on" "$s" "$p" "$v" "$n")"; then
+        set_blur "$name"
+        # Anchor it: the next restore re-applies this preset from the file.
+        read -r s p v n < <(lookup "$name")
+        echo "$name $s $p $v $n" >"$STATE"
+    else
+        set_blur_raw "$s" "$p" "$v" "$n"
+    fi
 }
 
 apply() { # $1 = name
@@ -94,7 +147,7 @@ next) step 1 ;;
 prev) step -1 ;;
 set) apply "${2:?preset name}" ;;
 preview) set_blur "${2:?preset name}" ;;
-restore) if [[ -s $STATE ]]; then set_blur "$(current)"; else hyprctl reload >/dev/null; fi ;;
+restore) if [[ -s $STATE ]]; then set_blur "$(current)"; else restore_live; fi ;;
 current) current ;;
 list)
     cur="$(current)"
