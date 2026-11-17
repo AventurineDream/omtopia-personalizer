@@ -12,8 +12,10 @@ import sys
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PLUGIN, "backend"))
+sys.path.insert(0, os.path.join(PLUGIN, "tests"))
 
 from customizer import commands, lists  # noqa: E402
+import known_diffs  # noqa: E402
 
 def _walls_subdir():
     """Первая подпапка обоев темы — чтобы проверить и вход в категорию (list theme-walls <путь>)."""
@@ -38,7 +40,8 @@ def bash(args):
 
 
 def main():
-    bad = 0
+    entries = known_diffs.load()["compare_readonly"]
+    bad = known = 0
     favs = os.path.join(os.environ["HOME"], ".config/omarchy/customizer/favorite-wallpapers.json")
     try:
         has_favs = bool(json.load(open(favs)))
@@ -50,16 +53,27 @@ def main():
             continue
         want = bash(args)
         code, got, err = commands.run(args)
-        ok = got == want and code == 0
-        bad += not ok
-        print(("ok    " if ok else "DIFF  ") + " ".join(args))
-        if not ok:
-            for a, b in zip(want.splitlines(), got.splitlines()):
-                if a != b:
-                    print("  bash  :", a[:200])
-                    print("  python:", b[:200])
-                    break
-    print(f"{len(CASES) - bad}/{len(CASES)} совпадают")
+        if got == want and code == 0:
+            print("ok    " + " ".join(args))
+            continue
+        entry = known_diffs.lookup(entries, " ".join(args))
+        if entry is not None and known_diffs.matches_readonly(entry, got):
+            known += 1
+            print("KNOWN " + " ".join(args) + "  (" + entry["reason"] + ")")
+        elif entry is not None:
+            bad += 1
+            print("KNOWN-CHANGED " + " ".join(args)
+                  + "  (запись в allowlist больше не совпадает — обновить её или разобраться)")
+        else:
+            bad += 1
+            print("DIFF  " + " ".join(args))
+        for a, b in zip(want.splitlines(), got.splitlines()):
+            if a != b:
+                print("  bash  :", a[:200])
+                print("  python:", b[:200])
+                break
+    print(f"{len(CASES) - bad - known}/{len(CASES)} совпадают"
+          + (f", {known} известных" if known else ""))
     return 1 if bad else 0
 
 
