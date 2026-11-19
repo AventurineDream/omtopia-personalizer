@@ -66,6 +66,12 @@ function decideRandomPick(isCandidate, categoryKey, rows, selectedIndex, rand) {
   return { index: i, value: rows[i].value }
 }
 
+// Whether `r` would pick a row over the same rows: the Surprise me button is shown only then, so the
+// button and the key cannot disagree. Same candidate rule as decideRandomPick; nothing is chosen here.
+function canRandomPick(isCandidate, categoryKey, rows, selectedIndex) {
+  return candidateIndexes(isCandidate, categoryKey, rows, selectedIndex).length > 0
+}
+
 // The only external command a successful pick produces. The caller executes it:
 // Quickshell in the shell, a recording stub in tests.
 function applyCommand(scriptPath, categoryKey, value) {
