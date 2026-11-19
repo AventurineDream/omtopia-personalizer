@@ -6,6 +6,9 @@
  * first, as it always did. Every apply the table classifies as open keeps the overlay open and the
  * overlay refreshes its list; anything the table does not classify closes it.
  *
+ * needsZenity lists the applies that open a zenity dialog or list; without zenity the overlay refuses them
+ * and says why, instead of closing.
+ *
  * Shared between Customizer.qml and tests/test_apply_flow.cjs. Pure functions only: nothing here
  * spawns a process. tests/apply_surface_probe.py checks this table against the apply_ops.apply()
  * branches, so a branch that opens a surface cannot be listed as open here unnoticed.
@@ -28,14 +31,15 @@ var FX_OPEN_ACTIONS = ["owe-toggle", "outline-warm", "outline-status"]
  * A category with no entry closes for every value (bar-widgets has no apply_ops branch).
  */
 var RULES = {
-  // presets → apply(): "save" → save_user_preset (zenity entry and question); "tweak:" → tweak_pick,
+  // presets → apply(): "save" → save_user_preset (bare: zenity asks for a name; the overlay's name prompt
+  // passes --name and never gets here); "tweak:" → tweak_pick,
   // which can open a zenity color or text picker; a preset path → apply_preset; geometry-reset → geometry_reset.
   presets: { close: ["save"], closePrefix: ["tweak:"] },
   // fonts → omarchy-font-profile <value>, no UI.
   fonts: {},
   // sounds → pack: sets soundPack; test: plays a sound; tweak: → tweak_pick (may open a zenity picker).
   sounds: { closePrefix: ["tweak:"] },
-  // styles → save → save_user_style (zenity); tweak: → tweak_pick; a style path → apply_style.
+  // styles → save → save_user_style (bare: zenity asks for a name; in-window saves pass --name); tweak: → tweak_pick; a style path → apply_style.
   styles: { close: ["save"], closePrefix: ["tweak:"] },
   // themes → dynamic: runs omarchy-wallpaper-theme (matugen); any other value → omarchy theme set.
   // Theme, preset and style applies keep the overlay open on purpose: they run omarchy-theme-set,
@@ -55,9 +59,9 @@ var RULES = {
   launcher: { close: ["open"], closePrefix: ["tweak:"] },
   // anims → copies the animation file and runs hyprctl reload.
   anims: {},
-  // bar-layouts → save → save_user_layout (zenity); a layout file → shell_apply_layout.
+  // bar-layouts → save → save_user_layout (bare: zenity; in-window saves pass --name); a layout file → shell_apply_layout.
   "bar-layouts": { close: ["save"] },
-  // bar-skins → save → save_user_skin (zenity); a skin file → bar_skin_preview.
+  // bar-skins → save → save_user_skin (bare: zenity; in-window saves pass --name); a skin file → bar_skin_preview.
   "bar-skins": { close: ["save"] },
   // bar-tweaks / lock-tweaks / widgets / dashboard / osd / notifications → every value is tweak_pick,
   // which may open a zenity color, text, folder or file picker, so none of them keep the overlay open.
@@ -70,7 +74,7 @@ var RULES = {
   // wallpaper-fx → a transition value sets the transition; one-off actions per FX_OPEN_ACTIONS;
   // tweak: and every other action (outline-install, enable-plugin, unknown names) close.
   "wallpaper-fx": { only: FX_OPEN_ACTIONS, transition: true },
-  // theme-switcher → prune → zenity question; cache → picker_cache (no UI); style: → sets the picker style; tweak: → tweak_pick.
+  // theme-switcher → prune → zenity question when bare (the overlay asks in its footer and passes --yes); cache → picker_cache (no UI); style: → sets the picker style; tweak: → tweak_pick.
   "theme-switcher": { close: ["prune"], closePrefix: ["tweak:"] },
   // lock → sddm-login-glyph / sddm-login / sddm-fetch-all open a terminal; sddm-fetch → zenity list;
   // regen-thumbs / missing-thumbs show the lock preview over the screen; any other value is a lock design.
@@ -130,4 +134,32 @@ function keepsOpen(categoryKey, value) {
   if (rule.transition && isTransition(v)) return true
   if (rule.only !== undefined) return matches(rule.only, rule.onlyPrefix, v)
   return !matches(rule.close, rule.closePrefix, v)
+}
+
+/** Applies that open a zenity dialog or list in their bare `customizer.sh apply <category> <value>` form, by
+ * category key. The overlay's in-window forms (save with --name, prune with --yes, the *-delete commands)
+ * never reach run(), so they are not listed. Colour, text, file and folder tweak rows are not listed either:
+ * their picker depends on the row's kind, and Customizer.qml checks that itself.
+ */
+var ZENITY_APPLIES = {
+  presets: ["save"],
+  styles: ["save"],
+  "bar-skins": ["save"],
+  "bar-layouts": ["save"],
+  walls: ["pick-dir", "pick-files"],
+  dotify: ["pick-dir", "pick-files"],
+  dock: ["pin-pick"],
+  lock: ["sddm-fetch"],
+  "theme-switcher": ["prune"],
+}
+
+/** Whether applying `value` in `categoryKey` needs zenity: the bare apply opens a dialog or list.
+ *
+ * @param categoryKey customizer.sh category key, e.g. "walls".
+ * @param value the row value passed to `customizer.sh apply`.
+ * @returns true for a value listed in ZENITY_APPLIES, false for anything else.
+ */
+function needsZenity(categoryKey, value) {
+  var list = Object.prototype.hasOwnProperty.call(ZENITY_APPLIES, categoryKey) ? ZENITY_APPLIES[categoryKey] : null
+  return list !== null && list.indexOf(String(value)) !== -1
 }

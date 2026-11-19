@@ -13,6 +13,7 @@ import "previews" as Previews
 import "ui/RandomCandidates.js" as RandomCandidates
 import "ui/RandomPickFlow.js" as RandomPickFlow
 import "ui/ApplyFlow.js" as ApplyFlow
+import "ui/InWindow.js" as InWindow
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -77,11 +78,12 @@ Item {
     { id: "pick", icon: "󰸌", title: "Pickers",  chips: ["picker", "launcher"] }
   ]
 
-  // Tweaks rows whose ⏎ opens a picker (color, text, file) instead of stepping.
+  // Tweaks rows whose ⏎ opens a picker (color, text, folder, file) instead of stepping.
   readonly property var colorTweaks: [
     "background", "gradient", "border", "text", "active", "moduleBackground", "wsActiveColor",
     "ownerMessage", "avatar", "tint", "osdBackground", "notifyBackground", "dashBackground",
     "weatherCity", "dotTint", "dotBackground", "glyphColor", "glyphCriticalColor",
+    "photoDir",
     "dotmatrixBg", "dotmatrixFg", "dotmatrixDim", "dotmatrixMuted", "dotmatrixLine", "dotmatrixSurface", "dotmatrixLit", "dotmatrixSignal", "dotmatrixDanger"
   ]
 
@@ -134,6 +136,9 @@ Item {
     if (root.opened && idx < 0) root.setCategory(0, true)
   }
   function isAvailable(key) { return root.available === null || root.available.indexOf(key) !== -1 }
+  // zenity backs the text, colour, folder and file pickers, the pin list and the qylock list. Until the list of
+  // programs arrives (available === null) it is assumed present, so nothing is refused on a guess.
+  readonly property bool hasZenity: root.available === null || root.available.indexOf("has:zenity") !== -1
   readonly property var categories: allCategories.filter(function(c) { return root.isAvailable(c.key) }).map(root.localized)
   readonly property var groups: allGroups.filter(function(g) {
     return root.categories.some(function(c) { return c.group === g.id })
@@ -153,9 +158,11 @@ Item {
   property bool filtering: false     // "/" pressed: printable keys go to the filter
   property bool pendingG: false      // first "g" of "gg"
   property bool helpOpen: false
-  // Обои: D — спросить здесь же («в корзину?»), ⏎/y — да, Esc/n — нет.
-  property string wallDeletePath: ""
-  property string wallDeleteMsg: ""
+  // In-window confirm (D delete, overwrite, thumbnail clean-up): { text, yesLabel, yes }. ⏎ or y runs yes();
+  // any other key cancels. Shown in the footer; the overlay stays open.
+  property var confirm: null
+  // A refused or failed in-window action, shown in the footer until the next key.
+  property string notice: ""
   // Домашняя страница (пункт 0 рейла) и выделение на ней (карточки, потом действия).
   property bool homeOpen: false
   property bool everOpened: false
@@ -170,6 +177,8 @@ Item {
   // превью — сцена меняется сразу при шаге, без своего FileView.
   property var tweakValues: ({})
   property bool pendingRandom: false  // «Случайная тема» с домашней: выбрать, как только темы загрузятся
+  // Home "Save preset" asked for the name prompt before the list loaded: loadRows opens it.
+  property bool pendingEdit: false
   property string toast: ""           // ошибка записи значения мышью — в футере на 4 с
   property var status: ({})
   property var lastPointer: null     // window coords of the last hover event
@@ -186,6 +195,10 @@ Item {
   property int editingIndex: -1
   property string editInitial: ""
   property string editError: ""
+  // An in-window save is queued or running (a second ⏎ waits). editFocusSeq bumps to hand the keyboard back
+  // to the name field after a footer confirm.
+  property bool savePending: false
+  property int editFocusSeq: 0
   property bool reloadQueued: false  // a reload asked for while the lister was busy
   property var themePalette: ({})    // colors.toml of the current theme, for the bar mock
   property var activeSkin: ({})      // ~/.config/omarchy/bar-skin.json
@@ -319,7 +332,7 @@ Item {
     var a = root.homeActions[i - nC]
     if (!a) return
     if (a.id === "random-theme") { root.pendingRandom = true; root.jumpTo({ cat: "themes", value: "" }) }
-    else if (a.id === "save-preset") { root.dismiss(); Quickshell.execDetached([root.script, "apply", "presets", "save"]) }
+    else if (a.id === "save-preset") root.jumpTo({ cat: "presets", value: "save", edit: true })
     else if (a.id === "picker") { root.dismiss(); Quickshell.execDetached([root.script, "picker-open"]) }
     else if (a.id === "launcher") { root.dismiss(); Quickshell.execDetached([root.script, "launcher-open", "", "home"]) }
     else if (a.id === "keys") root.helpOpen = true
@@ -390,6 +403,8 @@ Item {
       Qt.callLater(root.randomPick)
     }
     root.selectionChanged()
+    // Home "Save preset": the name prompt opens on the 💾 row, once that row is selected (see loadRows).
+    if (res.edit) { if (root.loading) root.pendingEdit = true; else Qt.callLater(root.startEdit) }
   }
   function selectValue(value) {
     for (var i = 0; i < displayModel.count; i++) {
@@ -414,6 +429,11 @@ Item {
   function showToast(text) {
     root.toast = text
     toastTimer.restart()
+  }
+
+  // A zenity-only action with zenity missing: the reason goes to the footer toast; the overlay stays open.
+  function zenityMissing() {
+    root.showToast(root.tr("Needs zenity (sudo pacman -S zenity)"))
   }
 
   // Цвет строки-твика: #hex, роль темы (colors.toml), роль DOT-MATRIX или цвета шелла.
@@ -545,6 +565,8 @@ Item {
   }
 
   function dismiss() {
+    root.confirm = null
+    root.notice = ""
     root.close()
     if (root.shell && typeof root.shell.hide === "function")
       root.shell.hide((root.manifest && root.manifest.id) || "kamradsmeshnyavy.customizer")
@@ -577,10 +599,13 @@ Item {
     contentFade.restart()
     root.reloadQueued = false
     // Queued tweak steps and a pending value stay: each names its own key and category, so it still
-    // writes after the switch. Only the open edit field belongs to the old tab.
+    // writes after the switch. The open edit field, a footer question and a notice belong to the old tab.
+    // A question's yes-callback reads the current category when it is answered, so it must not outlive the switch.
     root.editingIndex = -1
     root.editError = ""
     root.keepValue = ""
+    root.confirm = null
+    root.notice = ""
     root.filtering = false
     root.filterText = ""
     root.selectedIndex = 0
@@ -648,6 +673,7 @@ Item {
     Qt.callLater(root.ensureVisible)
     if (root.reloadQueued) { root.reloadQueued = false; root.reloadCategory() }
     if (root.pendingRandom && key === "themes") { root.pendingRandom = false; Qt.callLater(root.randomPick) }
+    if (root.pendingEdit && key === root.category.key) { root.pendingEdit = false; Qt.callLater(root.startEdit) }
   }
 
   function indexOfValue(rows, value) {
@@ -971,6 +997,19 @@ Item {
       root.enqueueApply("glyph", root.selectedRow.value)
       return
     }
+    // A 💾 row opens the name prompt; the save itself runs in the overlay (submitSave), not in zenity.
+    if (InWindow.isSaveRow(root.category.key, root.selectedRow.value)) { root.startEdit(); return }
+    // Thumbnail clean-up asks in the footer, then runs with --yes, so the apply itself asks nothing.
+    if (root.category.key === "theme-switcher" && String(root.selectedRow.value) === "prune") {
+      root.ask(root.tr("Delete the unused thumbnails?"), root.tr("delete"), function() { root.enqueueApply("theme-switcher", "prune", ["--yes"]) })
+      return
+    }
+    // Colour and text rows edit in place without zenity; file and folder rows say why nothing opened.
+    if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) !== -1 && !root.hasZenity) {
+      if (root.selectedRow.kind === "text" || root.selectedRow.kind === "color") root.startEdit()
+      else root.zenityMissing()
+      return
+    }
     // Виджеты бара: ⏎ убирает с бара / возвращает (h/l двигают), параметр виджета — переключает.
     if (root.isTweakRow(root.selectedRow) && /^wset?:/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
     else if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
@@ -1052,8 +1091,7 @@ Item {
     else if (t === "J") root.scrollPreview(1)
     else if (t === "K") root.scrollPreview(-1)
     else if (t === "r") root.randomPick()
-    else if (t === "D" && key === "theme-walls") root.askWallDelete()
-    else if (t === "D") root.deletePreset()
+    else if (t === "D") root.askDelete()
     else if (t === "f" && (key === "themes" || key === "theme-walls")) root.toggleFavorite()
     else if ((key === "walls" || key === "dotify") && t === "o") root.run("pick-files")
     else if ((key === "walls" || key === "dotify") && t === "O") root.run("pick-dir")
@@ -1219,22 +1257,67 @@ Item {
     root.startNextTweak()
   }
 
-  // i: поле ввода прямо в строке. Проверяет customizer.sh (tweak <key> set <value>):
-  // неверное значение не записывается, причина приходит в stderr и остаётся под полем.
+  // i (и ⏎ на 💾-строке): поле ввода прямо в строке. Для настроек проверяет customizer.sh (tweak <key> set <value>):
+  // неверное значение не записывается, причина приходит в stderr и остаётся под полем. На 💾-строке — имя нового
+  // сохранения (submitSave).
   function startEdit() {
     var row = root.selectedRow
-    if (root.pane !== 1 || !root.isTweakRow(row)) return
-    var parts = String(row.label).split(":  ")
-    root.editInitial = parts.length > 1 ? parts[parts.length - 1].trim() : ""
+    if (root.pane !== 1 || !row) return
+    if (InWindow.isSaveRow(root.category.key, row.value)) root.editInitial = InWindow.defaultSaveName(root.category.key)
+    else if (root.isTweakRow(row)) {
+      var parts = String(row.label).split(":  ")
+      root.editInitial = parts.length > 1 ? parts[parts.length - 1].trim() : ""
+    } else return
     root.editError = ""
     root.editingIndex = root.selectedIndex
   }
+  // Enter in the open field: a 💾 row saves under the typed name, a tweak row writes its value.
   function submitEdit(text) {
     var row = root.editingIndex >= 0 && root.editingIndex < displayModel.count ? displayModel.get(root.editingIndex) : null
-    if (!row || editor.running) return
+    if (!row) return
+    if (InWindow.isSaveRow(root.category.key, row.value)) { root.submitSave(String(text).trim(), false); return }
+    if (editor.running) return
     // A typed value waits for the apply in progress, like a mouse value (setTweakAt).
     if (root.applierBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true }; return }
     root.startEditorWrite(root.tweakKey(row), text, root.category.key, true)
+  }
+  // Saves the current setup under `name` (apply <category> save --name <name>; --overwrite replaces a taken
+  // name). The save waits in the apply queue behind the applies and tweaks already asked for, so it captures
+  // them. The result comes back to onSaved.
+  function submitSave(name, overwrite) {
+    if (root.savePending) return
+    var key = root.category.key
+    var flags = ["--name", name]
+    if (overwrite) flags.push("--overwrite")
+    root.savePending = true
+    root.editError = ""
+    root.enqueueApply(key, "save", flags, function(code, out, err) {
+      root.savePending = false
+      root.onSaved(key, name, code, out, err)
+    })
+  }
+  // Result of an in-window save. Saved: the prompt closes and the new row is selected (keepValue). Name taken
+  // (EXISTS, exit 3): the footer asks to overwrite. Anything else: the reason under the field, or the footer
+  // toast when the prompt is gone (the overlay may have closed).
+  function onSaved(key, name, code, out, err) {
+    var editing = root.isEditingSave(key)
+    if (code === 0) {
+      if (editing) { root.cancelEdit(); root.keepValue = out }
+      return
+    }
+    if (code === 3) {
+      root.ask(root.tr("Overwrite %1?").replace("%1", name), root.tr("overwrite"), function() { root.submitSave(name, true) })
+      return
+    }
+    var msg = String(err || "").trim() || root.tr("Not applied")
+    if (editing) root.editError = msg
+    else if (root.opened) root.showToast(msg)
+    else Quickshell.execDetached(["notify-send", "-u", "critical", "Customizer", msg])
+  }
+  // Whether the open name prompt is the 💾 row of `key` (not a tweak editor, not another category).
+  function isEditingSave(key) {
+    return root.editingIndex >= 0 && root.editingIndex < displayModel.count && root.category.key === key
+      && InWindow.isSaveRow(key, displayModel.get(root.editingIndex).value)
   }
   function cancelEdit() {
     root.editingIndex = -1
@@ -1358,6 +1441,8 @@ Item {
   // decides which applies close.
   function run(value) {
     var key = root.category.key
+    // A zenity-only apply without zenity is refused here: the overlay stays open and says why.
+    if (ApplyFlow.needsZenity(key, value) && !root.hasZenity) { root.zenityMissing(); return }
     // Stop the debounced live preview even when the overlay stays open, so a pending preview cannot
     // start for a row the user moved to after pressing Enter.
     previewTimer.stop()
@@ -1367,15 +1452,20 @@ Item {
     root.enqueueApply(key, value)
   }
 
-  // Queues `customizer.sh apply <key> <value>` behind the applies already waiting. Used by run() and by
-  // the test actions (glyph, sounds listen), which keep the overlay open.
-  function enqueueApply(key, value) {
-    root.applyQueue = root.applyQueue.concat([RandomPickFlow.applyCommand(root.script, key, value)])
+  // Queues `customizer.sh apply <key> <value> [flags]` behind the applies already waiting. Used by run() and by
+  // the in-window actions (glyph, sounds, save, prune), which keep the overlay open. done(code, out, err), when
+  // given, runs once the apply has exited: an in-window save reads its result from it.
+  function enqueueApply(key, value, flags, done) {
+    root.enqueueCommand(RandomPickFlow.applyCommand(root.script, key, value).concat(flags || []), done || null)
+  }
+  // Queues any customizer.sh command (argv) behind the applies already waiting; see enqueueApply.
+  function enqueueCommand(argv, done) {
+    root.applyQueue = root.applyQueue.concat([{ argv: argv, done: done }])
     root.drainWrites()
   }
 
-  // Queued applies, FIFO. They live only in this shell: a shell reload drops the ones not yet started,
-  // while a running apply survives it (see applier).
+  // Queued applies, FIFO: { argv, done }. They live only in this shell: a shell reload drops the ones not yet
+  // started, while a running apply survives it (see applier).
   property var applyQueue: []
 
   // An apply is queued or running: tweaks and typed values wait for it (see drainWrites).
@@ -1387,10 +1477,14 @@ Item {
   // rewrite the same JSON files (apply_form_sections) that a tweak step reads and writes.
   function startNextApply() {
     if (applier.running || root.applyQueue.length === 0 || tweaker.running || editor.running) return
-    applier.command = ["setsid", "-f", "-w"].concat(root.applyQueue[0])
+    var job = root.applyQueue[0]
+    applier.command = ["setsid", "-f", "-w"].concat(job.argv)
+    root.applierDone = job.done
     root.applyQueue = root.applyQueue.slice(1)
     applier.running = true
   }
+  // The done callback of the apply the applier runs (null: none); see enqueueApply and applier.
+  property var applierDone: null
 
   // Starts whichever waiting write can run now, in this order: a queued apply, the queued tweak steps,
   // then the last mouse or typed value. Called wherever a lane may have freed up. Writes never overlap
@@ -1412,13 +1506,41 @@ Item {
       return /\/\.config\/omarchy\/customizer\/styles\/[^/]+\.json$/.test(row.value)
     return (k === "bar-skins" || k === "bar-layouts") && new RegExp("/\\.config/omarchy/" + k + "/[^/]+\\.json$").test(row.value)
   }
-  function deletePreset() {
+  // D: moves the user's own item under the cursor to the trash after an in-window confirm, so no zenity question
+  // is asked. Wallpapers go through wall-delete; presets, styles, bar skins and bar layouts through their
+  // *-delete command with --yes (the backend checks ownership again). Another row says why in a category with
+  // own items, and does nothing elsewhere.
+  function askDelete() {
     var row = root.selectedRow
-    if (!root.isUserPreset(row)) return
-    root.dismiss()
-    var k = root.category.key
-    var cmd = k === "presets" ? "preset-delete" : k === "styles" ? "style-delete" : (k === "bar-skins" ? "skin-delete" : "layout-delete")
-    Quickshell.execDetached([root.script, cmd, row.value])
+    var key = root.category.key
+    if (!row || root.pane !== 1 || root.isHeader(row) || /^(dir|section):/.test(String(row.value))) return
+    var wall = key === "theme-walls"
+    var cmd = wall ? "wall-delete" : InWindow.removeCommand(key)
+    if (cmd === "") return
+    var own = wall ? root.isOwnWall(row) : root.isUserPreset(row)
+    if (!own) {
+      root.notice = root.tr(wall ? "Only your own wallpapers can be deleted (theme copies come back on theme change)" : InWindow.refusal(key))
+      return
+    }
+    root.notice = ""
+    root.ask(root.tr("Move %1 to the trash?").replace("%1", String(row.value).split("/").pop()), root.tr("delete"),
+      function() { root.confirmDelete(cmd, String(row.value)) })
+  }
+  // Runs the delete the footer confirmed. A refusal or failure shows its reason in the footer; a success is silent:
+  // the cursor moves to a neighbour, since the row is gone from the reloaded list.
+  function confirmDelete(cmd, path) {
+    root.call(cmd === "wall-delete" ? [cmd, path] : [cmd, path, "--yes"], function(r) {
+      root.notice = r.code === 0 ? "" : (r.out || r.err || "").trim()
+      // Курсор — на соседнюю строку (удалённой в новом списке нет).
+      if (r.code === 0 && root.selectedRow && String(root.selectedRow.value) === path) {
+        var before = root.selectedIndex
+        if (root.isTileRow(root.selectedRow)) root.tileStep(1)
+        else root.move(1)
+        if (root.selectedIndex === before && root.isTileRow(root.selectedRow)) root.tileStep(-1)
+        if (root.selectedIndex === before) root.move(-1)
+      }
+      root.reloadCategory()
+    })
   }
 
   // Lock: показать дизайн по-настоящему (окно превью экрана блокировки поверх
@@ -1437,32 +1559,20 @@ Item {
     return !!row && root.category.key === "theme-walls"
       && /\/\.config\/omarchy\/(backgrounds|themes\/[^/]+\/backgrounds)\/.+\.(jpe?g|png|webp|gif|bmp)$/i.test(String(row.value))
   }
-  function askWallDelete() {
-    var row = root.selectedRow
-    if (!root.isOwnWall(row)) {
-      if (root.category.key === "theme-walls" && row && !/^dir:|^section:/.test(String(row.value)))
-        root.wallDeleteMsg = root.tr("Only your own wallpapers can be deleted (theme copies come back on theme change)")
-      return
-    }
-    root.wallDeleteMsg = ""
-    root.wallDeletePath = String(row.value)
+  // Asks in the footer; ⏎ or y runs yes(), any other key cancels (keyCatcher). The key catcher keeps the keyboard,
+  // so a focused name field cannot take the answer.
+  function ask(text, yesLabel, yes) {
+    root.notice = ""
+    root.confirm = { text: text, yesLabel: yesLabel, yes: yes }
+    keyCatcher.forceActiveFocus()
   }
-  function confirmWallDelete() {
-    var path = root.wallDeletePath
-    root.wallDeletePath = ""
-    if (!path) return
-    root.call(["wall-delete", path], function(r) {
-      root.wallDeleteMsg = r.code === 0 ? "" : (r.out || r.err || "").trim()
-      // Курсор — на соседнюю строку (удалённой в новом списке нет).
-      if (r.code === 0 && root.selectedRow && String(root.selectedRow.value) === path) {
-        var before = root.selectedIndex
-        if (root.isTileRow(root.selectedRow)) root.tileStep(1)
-        else root.move(1)
-        if (root.selectedIndex === before && root.isTileRow(root.selectedRow)) root.tileStep(-1)
-        if (root.selectedIndex === before) root.move(-1)
-      }
-      root.reloadCategory()
-    })
+  // Ends the footer confirm. An open name prompt takes the keyboard back; otherwise the key catcher keeps it.
+  function answer(ok) {
+    var c = root.confirm
+    root.confirm = null
+    if (root.editingIndex >= 0) root.editFocusSeq += 1
+    else keyCatcher.forceActiveFocus()
+    if (ok) c.yes()
   }
 
   function toggleFavorite() {
@@ -1785,9 +1895,13 @@ Item {
   // the raw signal number and is shown as "Not applied", even if the apply itself succeeded.
   Process {
     id: applier
+    stdout: StdioCollector { id: applierOut }
     stderr: StdioCollector { id: applierErr }
     onExited: function(code) {
-      if (code !== 0) {
+      var done = root.applierDone
+      root.applierDone = null
+      // An apply with its own result handler (an in-window save) reports through it, not through the toast.
+      if (code !== 0 && done === null) {
         var msg = applierErr.text.trim() || root.tr("Not applied")
         // The footer is visible only while the overlay is open; a failure after the close goes to a
         // critical notification, as apply_ops.py does for its own failures.
@@ -1802,6 +1916,11 @@ Item {
         root.reloadCategory()
         statusProc.running = false
         statusProc.running = true
+      }
+      // Called later, not here: the callback may queue the next apply, which restarts this process.
+      if (done !== null) {
+        var out = applierOut.text.trim(), err = applierErr.text.trim()
+        Qt.callLater(function() { done(code, out, err) })
       }
       Qt.callLater(root.drainWrites)
     }
@@ -2089,13 +2208,12 @@ Item {
           var pendingG = root.pendingG
           root.pendingG = false
 
-          if (root.wallDeletePath) {
-            if (k === Qt.Key_Return || k === Qt.Key_Enter || (lk || t) === "y") root.confirmWallDelete()
-            else root.wallDeletePath = ""
+          if (root.confirm) {
+            root.answer(k === Qt.Key_Return || k === Qt.Key_Enter || (lk || t) === "y")
             event.accepted = true
             return
           }
-          if (root.wallDeleteMsg) root.wallDeleteMsg = ""
+          if (root.notice) root.notice = ""
 
           if (root.helpOpen) {
             if (k === Qt.Key_Escape || (lk || t) === "?" || (lk || t) === "q") root.helpOpen = false
@@ -3464,6 +3582,13 @@ Item {
                     selected: vrow.idx === root.selectedIndex
                     focused: root.pane === 1 && !root.filtering
                     onActivated: { root.clickSelect(vrow.idx); root.activate() }
+                    editing: vrow.idx === root.editingIndex
+                    editInitial: root.editInitial
+                    editError: root.editError
+                    focusSeq: root.editFocusSeq
+                    onSubmit: function(text) { root.submitEdit(text) }
+                    onCancel: root.cancelEdit()
+                    onEdited: root.editError = ""
                     onHoverAt: function(p) { root.hoverSelect(vrow.idx, p) }
                   }
                 }
@@ -3547,11 +3672,11 @@ Item {
           }
         }
 
-        // ── Обои: «в корзину?» (D) или отказ ──────────────────────
+        // ── Footer confirm (D, overwrite, thumbnail clean-up) or a notice ──────────────
         Rectangle {
-          id: wallDeleteBar
-          readonly property bool asking: root.wallDeletePath !== ""
-          visible: asking || root.wallDeleteMsg !== ""
+          id: noticeBar
+          readonly property bool asking: root.confirm !== null
+          visible: asking || root.notice !== ""
           anchors.horizontalCenter: parent.horizontalCenter
           anchors.bottom: parent.bottom
           anchors.bottomMargin: Style.space(64)
@@ -3568,23 +3693,21 @@ Item {
             anchors.centerIn: parent
             spacing: Style.space(10)
             Text {
-              text: wallDeleteBar.asking ? "󰩹" : "󰀦"
+              text: noticeBar.asking ? "󰩹" : "󰀦"
               color: root.foreground; font.family: root.iconFont; font.pixelSize: Style.font.title
               anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-              text: wallDeleteBar.asking
-                ? root.tr("Move %1 to the trash?").replace("%1", root.wallDeletePath.split("/").pop())
-                : root.wallDeleteMsg
+              text: noticeBar.asking ? root.confirm.text : root.notice
               color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
               elide: Text.ElideMiddle
-              width: Math.min(implicitWidth, wallDeleteBar.parent.width * 0.5)
+              width: Math.min(implicitWidth, noticeBar.parent.width * 0.5)
               anchors.verticalCenter: parent.verticalCenter
             }
-            Keycap { visible: wallDeleteBar.asking; label: "⏎ y"; anchors.verticalCenter: parent.verticalCenter }
-            Text { visible: wallDeleteBar.asking; text: root.tr("delete"); color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
-            Keycap { visible: wallDeleteBar.asking; label: "Esc"; anchors.verticalCenter: parent.verticalCenter }
-            Text { visible: wallDeleteBar.asking; text: root.tr("cancel"); color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+            Keycap { visible: noticeBar.asking; label: "⏎ y"; anchors.verticalCenter: parent.verticalCenter }
+            Text { visible: noticeBar.asking; text: noticeBar.asking ? root.confirm.yesLabel : ""; color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+            Keycap { visible: noticeBar.asking; label: "Esc"; anchors.verticalCenter: parent.verticalCenter }
+            Text { visible: noticeBar.asking; text: root.tr("cancel"); color: root.foreground; opacity: 0.7; font.family: root.fontFamily; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
           }
         }
 
