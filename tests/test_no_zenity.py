@@ -201,14 +201,14 @@ def main():
     code, out, err = run(env, "apply", "theme-switcher", "prune", "--yes")
     check("prune --yes deletes the thumbnails", code == 0 and not any(os.path.exists(p) for p in orphans))
 
-    # ── Bar Skin: listing the tab keeps no backup, so a colour set since survives the 💾 row and a save ──
+    # ── Bar Skin: listing the tab keeps no backup, so with no preview running the 💾 row's preview leaves a colour set since the listing, and a save keeps it ──
     live = os.path.join(cfg, "bar-skin.json")
     touch_json(live, json.dumps({"background": "#112233"}))
     run(env, "list", "bar-skins")
     run(env, "tweak", "background", "set", "#c0ffee")
     run(env, "list", "bar-skins")
     run(env, "bar-skins-preview", "save")
-    check("previewing the 💾 row after a colour change keeps the colour",
+    check("the 💾 row's preview with no skin preview running keeps a colour set after the list",
           json.load(open(live)).get("background") == "#c0ffee")
     code, out, err = run(env, "apply", "bar-skins", "save", "--name", "issue-b")
     saved = json.load(open(os.path.join(skins, "issue-b.json"))) if code == 0 else {}

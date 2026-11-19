@@ -234,7 +234,7 @@ test('needsZenity names exactly the applies whose surface is zenity', () => {
   assert.deepEqual(wrong, []);
 });
 
-test('needsZenity covers every zenity-only form the overlay can reach, and no in-window or plain form', () => {
+test('needsZenity covers every CLI form that opens zenity, and no in-window or plain form', () => {
   const ZENITY = [['presets', 'save'], ['styles', 'save'], ['bar-skins', 'save'], ['bar-layouts', 'save'],
     ['walls', 'pick-dir'], ['walls', 'pick-files'], ['dotify', 'pick-dir'], ['dotify', 'pick-files'],
     ['dock', 'pin-pick'], ['lock', 'sddm-fetch'], ['theme-switcher', 'prune']];

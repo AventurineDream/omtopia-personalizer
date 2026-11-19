@@ -84,7 +84,7 @@ Each is a separate plugin; the Customizer finds them on its own.
 ### Optional programs
 
 - `libvips` — fast thumbnails for themes and wallpapers (package `libvips`)
-- `zenity` — dialogs for colours, text and files in the tweaks. Saving and deleting your own presets, styles, bar skins and layouts does not need it; without it, colour and text tweaks are typed in place and the actions that need it say so
+- `zenity` — dialogs for colours, text and files in the tweaks. In the Customizer, saving and deleting your own presets, styles, bar skins and layouts does not need it; without it, colour and text tweaks are typed in place and the actions that need it say so
 - `kamradsmeshnyavy.widgets` plugin — **Widgets** category in Desktop (clock, now playing, cava visualizer, system rings)
 - `lutgen` — Recolor (shown only when both lutgen and zenity are there)
 - `omarchy-wallpaper-theme` on `PATH` + `matugen` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper (a video / GIF wallpaper gives its colours through a representative frame and stays live) ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))

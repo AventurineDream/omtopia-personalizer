@@ -136,10 +136,11 @@ function keepsOpen(categoryKey, value) {
   return !matches(rule.close, rule.closePrefix, v)
 }
 
-/** Applies that open a zenity dialog or list in their bare `customizer.sh apply <category> <value>` form, by
- * category key. The overlay's in-window forms (save with --name, prune with --yes, the *-delete commands)
- * never reach run(), so they are not listed. Colour, text, file and folder tweak rows are not listed either:
- * their picker depends on the row's kind, and Customizer.qml checks that itself.
+/** The CLI forms that open a zenity dialog or list, by category key: a bare `customizer.sh apply <category> <value>`
+ * opens one. The overlay's in-window forms (save with --name, prune with --yes, the *-delete commands) never reach
+ * run(), so they are not listed. The overlay does not reach a bare prune either (activate() asks in the footer), but
+ * the prune entry stays for the CLI form. Colour, text, file and folder tweak rows are not listed either: their picker
+ * depends on the row's kind, and Customizer.qml checks that itself.
  */
 var ZENITY_APPLIES = {
   presets: ["save"],
