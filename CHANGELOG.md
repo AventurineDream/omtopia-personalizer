@@ -19,3 +19,5 @@
 - Pick up a language change in `customizer.json` the next time the Customizer opens, without restarting the shell (the overlay used to keep the old language for its chrome while list rows were already translated).
 - Applying a style keeps your bar widgets: the style's bar position and arrangement apply, but the widgets (and the tray drawer) stay yours, as the README describes. A preset's style part works the same way; a preset's own saved bar layout still applies as saved.
 - Restore previous setup brings back a stock bar layout exactly as it was saved, instead of keeping the widgets you have now.
+- "In use" follows a restore: a preset with nothing comparable (such as DOT-MATRIX with "Apply theme" off) is no longer reported as in use by list order, and "Restore previous setup" reports the preset that was in use when its snapshot was taken, or `custom`.
+- "In use" follows a restore: a preset that compares nothing (such as DOT-MATRIX with "Apply theme" off) is no longer shown as in use after a restore, and "Restore previous setup" restores the preset that was in use when the snapshot was taken, or `custom`.

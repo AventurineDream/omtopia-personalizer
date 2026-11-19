@@ -151,29 +151,50 @@ def _str(v) -> str:
     return "" if v is None or v is False else jsonio.tostring(v)
 
 
-def preset_matches(path) -> bool:
+def preset_check(path):
+    """Compare the live desktop with the fields a preset applies.
+
+    Returns True when every compared field matches, False on the first mismatch,
+    and None when nothing is comparable (theme not applied because "Apply theme"
+    is off, preset without barSkin/lock, or the plugin is not installed). A preset
+    with nothing comparable must never be reported as in use on its own.
+    """
     d = jsonio.read(path)
     d = d if isinstance(d, dict) else {}
     lock = d.get("lock")
     p_theme, p_skin = _str(d.get("theme")), _str(d.get("barSkin"))
     p_lock = _str(lock.get("design")) if isinstance(lock, dict) else ""
-    if section_on(PRESET_CFG, "presetTheme") and p_theme and p_theme != theme_name():
-        return False
-    if section_on(PRESET_CFG, "presetBar") and p_skin and (BAR_DIR / "manifest.json").is_file() and p_skin != current_skin():
-        return False
-    if section_on(PRESET_CFG, "presetLock") and p_lock and (LOCK_PLUGIN / "manifest.json").is_file() and p_lock != lock_current():
-        return False
-    return True
+    checked = False
+    if section_on(PRESET_CFG, "presetTheme") and p_theme:
+        if p_theme != theme_name():
+            return False
+        checked = True
+    if section_on(PRESET_CFG, "presetBar") and p_skin and (BAR_DIR / "manifest.json").is_file():
+        if p_skin != current_skin():
+            return False
+        checked = True
+    if section_on(PRESET_CFG, "presetLock") and p_lock and (LOCK_PLUGIN / "manifest.json").is_file():
+        if p_lock != lock_current():
+            return False
+        checked = True
+    return True if checked else None
 
 
 def current_preset_stem() -> str:
+    """Stem of the preset in use, or "custom".
+
+    The preset recorded in ACTIVE_PRESET (by apply or by a restore) stays in use
+    unless a compared field contradicts it, so a preset applied with "Apply theme"
+    off is still reported. Without a recorded preset, only a preset whose compared
+    fields all match counts, in glob order.
+    """
     saved = fsutil.read_text(ACTIVE_PRESET) if fsutil.nonempty(ACTIVE_PRESET) else None
     if saved:
         for f in (USER_PRESETS / f"{saved}.json", PRESET_DIR / f"{saved}.json"):
-            if f.is_file() and preset_matches(f):
+            if f.is_file() and preset_check(f) is not False:
                 return saved
     for f in fsutil.glob_sorted(USER_PRESETS, ".json") + fsutil.glob_sorted(PRESET_DIR, ".json"):
-        if preset_matches(f):
+        if preset_check(f) is True:
             return os.path.basename(f)[:-5]
     return "custom"
 
