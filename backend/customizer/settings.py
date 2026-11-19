@@ -65,10 +65,11 @@ def _num(x) -> str:
 
 
 _tables = None
+_owner = None   # ключ → id первой таблицы, где он объявлен (см. command_key)
 
 
 def tables() -> dict:
-    global _tables
+    global _tables, _owner
     if _tables is None:
         doc = json.loads(paths.SETTINGS_JSON.read_text())
         _tables = {}
@@ -82,6 +83,11 @@ def tables() -> dict:
                                       min=it.get("min", 0), max=it.get("max", 0), step=it.get("step", 0),
                                       default=it.get("default")))
             _tables[t["id"]] = Table(t["id"], t["category"], t["valuePrefix"], t["file"], items)
+        _owner = {}
+        for tbl in _tables.values():
+            for it in tbl.items:
+                if it.key:
+                    _owner.setdefault(it.key, tbl.id)
     return _tables
 
 
@@ -90,9 +96,36 @@ def table(table_id: str) -> Table:
 
 
 def find(key: str):
-    """(Table, Item) по ключу настройки, как tweak_spec + tweak_file."""
+    """(Table, Item) по ключу команды, как tweak_spec + tweak_file.
+
+    Ключ — голый («clock24») или «ТАБЛИЦА:ключ» («WIDGET_TWEAKS:clock24»). Голый ключ, объявленный в
+    нескольких таблицах, резолвится в первую — как раньше. Квалифицированный ищется только в своей
+    таблице: иначе строка Widgets уехала бы в Lock Tweaks и писала бы lock-design.json. Пустой ключ
+    (в том числе «ТАБЛИЦА:» без имени) и заголовки раздела (ключ «») не совпадают ни с чем — (None, None).
+    """
+    table_id, sep, bare = key.partition(":")
+    if sep and bare and table_id in tables():
+        tbl = tables()[table_id]
+        for it in tbl.items:
+            if it.key and it.key == bare:
+                return tbl, it
+        return None, None
     for tbl in tables().values():
         for it in tbl.items:
-            if it.key == key:
+            if it.key and it.key == key:
                 return tbl, it
     return None, None
+
+
+def command_key(tbl: Table, it: Item) -> str:
+    """Ключ строки: он же value в list / search-index и аргумент `tweak` из overlay.
+
+    Голый, если эта таблица — первая в settings.json, где объявлен ключ; иначе «ТАБЛИЦА:ключ».
+    Предусловие: it — пункт с непустым ключом, не заголовок раздела (для заголовка — KeyError).
+    Первая таблица определяется порядком в settings.json: перестановка таблиц меняет, какая из них
+    остаётся голой. Голая первая нужна, потому что overlay читает значения по голому ключу (LockPreview:
+    tweakValues.clock24), а старые вызовы `tweak clock24` должны попадать в ту же таблицу.
+    Ключи, объявленные в одной таблице, не меняются.
+    """
+    tables()
+    return it.key if _owner[it.key] == tbl.id else f"{tbl.id}:{it.key}"

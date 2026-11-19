@@ -124,7 +124,7 @@ def list_tweaks(table_id: str) -> list:
         lab = t(it.label)
         note = (t("Now: %s", long) + "\\n" + t("Default: %s", deflong) + ("\\n" + na if na else "")
                 + "\\n\\n" + _hint(it) + " · " + t("x — reset to default"))
-        out.append("\t".join([f"{mark}{lab}:  {long.split(' (', 1)[0]}", it.key, str(path), "0", note, sub,
+        out.append("\t".join([f"{mark}{lab}:  {long.split(' (', 1)[0]}", settings.command_key(tbl, it), str(path), "0", note, sub,
                               it.type, it.args, value, lab]))
     return out
 
