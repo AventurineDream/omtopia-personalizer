@@ -1,6 +1,6 @@
 """settings.json: таблицы настроек (категория, файл, пункты с типом, пределами и подписью)."""
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import paths
 
@@ -36,14 +36,39 @@ class Item:
 
     @property
     def default_value(self) -> str:
-        """Значение по умолчанию строкой — как def в list_tweaks."""
+        """Default as a string, as list_tweaks prints it. Enums use `default` when set, else the first value."""
         if self.type == "num":
             return _num(self.default)
         if self.type == "enum":
-            return self.values[0] if self.values else ""
+            return str(self.default) if self.default is not None else (self.values[0] if self.values else "")
         if self.type in ("bool", "color"):
             return self.args
         return ""
+
+    def with_default(self, text: str) -> "Item":
+        """Copy with another default, given as the string Hyprland reports (see hypr_defaults.effective).
+
+        Integral numbers become int so args and labels read like settings.json."""
+        if self.type == "num":
+            x = float(text)
+            value = int(x) if x.is_integer() else x
+        elif self.type == "bool":
+            value = text == "true"
+        else:
+            value = text
+        return replace(self, default=value)
+
+    def canonical(self, text: str) -> str:
+        """File value in canonical form: 0.0, -1.00 and 0 print alike, as in settings.json.
+
+        Without this a sentinel (0 / -1 meaning "from the style/theme") fails to match its default and shows as a number."""
+        if self.type != "num":
+            return text
+        try:
+            x = float(text)
+        except ValueError:
+            return text
+        return _num(int(x) if x.is_integer() else x)
 
 
 @dataclass

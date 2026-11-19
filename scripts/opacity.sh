@@ -10,7 +10,7 @@
 #   opacity.sh preview <name>  # apply without saving or notifying (customizer hover); snapshots the pre-preview live values once
 #   opacity.sh restore       # re-apply the saved preset silently (none saved: restore the pre-preview snapshot, else keep the live opacity)
 #   opacity.sh list          # "<name> <active> <inactive> <current 0/1>" per line
-#   opacity.sh current       # name of the preset in use
+#   opacity.sh current       # name of the preset in use; empty when none was applied
 #
 # Bind it if you like, e.g. SUPER+ALT+O (next), SUPER+ALT+SHIFT+O (prev).
 set -euo pipefail
@@ -26,7 +26,7 @@ PRESETS=(
     "glass   0.90 0.80"
     "frosted 0.85 0.70"
 )
-DEFAULT=subtle
+DEFAULT=subtle # what next/prev apply when no preset is in use; never reported as in use (see current)
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
 STATE="$STATE_DIR/opacity"
@@ -47,10 +47,12 @@ lookup() { # $1 = name -> "active inactive", fails when unknown
     return 1
 }
 
+# Name of the saved preset, or nothing when none was applied. A fresh system is not "subtle": the
+# lists, status and Home card must not mark a preset the compositor is not using.
 current() {
-    local c
+    local c=""
     { read -r c _ <"$STATE"; } 2>/dev/null || true
-    lookup "${c:-}" >/dev/null 2>&1 && echo "$c" || echo "$DEFAULT"
+    if lookup "$c" >/dev/null 2>&1; then echo "$c"; fi
 }
 
 notify() { # $1 = title, $2 = body

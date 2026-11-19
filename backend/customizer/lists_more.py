@@ -625,9 +625,16 @@ def dock_enabled():
 
 
 def _desktop_names():
-    """id .desktop → Name, из стандартных каталогов приложений."""
+    """Pinned id → Name= of its .desktop file, searched in XDG order: $XDG_DATA_HOME, $XDG_DATA_DIRS, flatpak exports.
+
+    The first file with an id wins, as with desktop-file lookup elsewhere. Ids without a file are absent:
+    the caller shows the id itself (a PWA whose launcher was removed has nothing to name it by)."""
     out = {}
-    dirs = [paths.HOME / ".local/share/applications", "/usr/share/applications", "/var/lib/flatpak/exports/share/applications"]
+    data_home = os.environ.get("XDG_DATA_HOME") or str(paths.HOME / ".local/share")
+    data_dirs = [d for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":") if d]
+    dirs = [os.path.join(d, "applications") for d in [data_home, *data_dirs]]
+    dirs.append("/var/lib/flatpak/exports/share/applications")
+    dirs.append(str(paths.HOME / ".local/share/flatpak/exports/share/applications"))
     for d in dirs:
         try:
             names = os.listdir(d)

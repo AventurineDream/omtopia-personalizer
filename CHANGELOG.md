@@ -23,3 +23,7 @@
 - Restore previous setup brings back a stock bar layout exactly as it was saved, instead of keeping the widgets you have now.
 - "In use" follows a restore: a preset with nothing comparable (such as DOT-MATRIX with "Apply theme" off) is no longer reported as in use by list order, and "Restore previous setup" reports the preset that was in use when its snapshot was taken, or `custom`.
 - "In use" follows a restore: a preset that compares nothing (such as DOT-MATRIX with "Apply theme" off) is no longer shown as in use after a restore, and "Restore previous setup" restores the preset that was in use when the snapshot was taken, or `custom`.
+- Windows tab shows the value Hyprland really uses when a key is not in windows.json (after «x» or «Reset window geometry»), read from the Hyprland Lua config chain, instead of the settings.json placeholder (gaps 2/4, rounding 10, …).
+- Transparency shows no preset in use on a fresh system instead of "subtle"; the Home card and list no longer mark a preset the compositor is not using.
+- Theme Switcher rows whose value equals the sentinel (0 / -1, "from the style / theme") show the default's words, not a bare number or a stray change mark.
+- Dock pinned rows resolve app names from desktop files in $XDG_DATA_HOME and $XDG_DATA_DIRS, not only the fixed directories.

@@ -6,13 +6,21 @@
 import os
 import re
 
-from . import jsonio, paths, settings
+from . import hypr_defaults, jsonio, paths, settings
 from .i18n import t
 
 
 def file_values(path) -> dict:
     """Значения файла настроек строками (null — как будто ключа нет)."""
     return {k: jsonio.tostring(v) for k, v in jsonio.read_object(path).items() if v is not None}
+
+
+def effective_item(it: settings.Item) -> settings.Item:
+    """The item with the default that applies now: for Windows-tab keys, what Hyprland uses when windows.json lacks them.
+
+    Other keys (and an unreadable Hyprland config) keep the settings.json default."""
+    v = hypr_defaults.effective(it.key)
+    return it if v is None else it.with_default(v)
 
 
 def default_label(key: str, value: str) -> str:
@@ -97,16 +105,18 @@ def list_tweaks(table_id: str) -> list:
         if it.is_section:
             out.append(f"{t(it.section)}\tsection:{it.section}\t\t0\t\theader")
             continue
+        it = effective_item(it)
         default = it.default_value
         if it.key == "transparent":
             bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
             tr = bar.get("transparent") if isinstance(bar, dict) else None
             value = jsonio.tostring(tr) if tr not in (None, False) else "false"
         else:
-            value = values.get(it.key, default)
+            value = it.canonical(values.get(it.key, default))
         mark = "●  " if value != default else ""
-        long = default_label(it.key, value)
         deflong = default_label(it.key, default)
+        # A value equal to the default prints as the default's words, so a sentinel (-1 = "from the theme") never shows as a bare number.
+        long = deflong if value == default else default_label(it.key, value)
         if it.type == "dir":
             if not value:
                 long = t("default (current wallpaper)")

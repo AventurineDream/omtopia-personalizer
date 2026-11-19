@@ -586,6 +586,7 @@ tweak() {
   wset:*) widget_setting "${key#wset:}"; return ;;
   esac
   spec=$(tweak_spec "$key") || exit 1
+  spec=$(window_spec "$spec")
   TW_FILE=$(tweak_file "$key")
   IFS='|' read -r _ kind args _ <<<"$spec"
   [[ $how == - ]] && dir=-1
@@ -785,6 +786,53 @@ tw_load() {
     'if type == "object" then to_entries[] | select(.value != null) | .key, "\u001f", (.value | tostring), "\u001e" else empty end' "$1" 2>/dev/null)
 }
 
+# Окна: значение Hyprland, которое видно, пока windows.json не задаёт ключ — зеркало hypr_defaults.py
+# (geometry-состояние пресета → цепочка конфига через hypr_chain.lua → встроенное значение). Без читаемого
+# конфига — $2 (значение из settings.json). Только для ключей вкладки «Окна».
+hypr_default() { # $1 = key, $2 = settings default -> prints the effective default
+  local key=$1 dflt=$2 opt builtin layer="" hs="${XDG_STATE_HOME:-$HOME/.local/state}/hypr" lua line v _n gi go bs r shd
+  case $key in
+  windowGapsIn) opt=general.gaps_in builtin=5 ;;
+  windowGapsOut) opt=general.gaps_out builtin=20 ;;
+  windowBorder) opt=general.border_size builtin=2 ;;
+  windowDecoRounding) opt=decoration.rounding builtin=0 ;;
+  windowShadow) opt=decoration.shadow.enabled builtin=true ;;
+  windowShadowRange) opt=decoration.shadow.range builtin=4 ;;
+  windowDim) opt=decoration.dim_inactive builtin=false ;;
+  windowDimStrength) opt=decoration.dim_strength builtin=0.5 ;;
+  windowLayout) opt=general.layout builtin=dwindle ;;
+  *) printf '%s' "$dflt"; return ;;
+  esac
+  if [[ ! -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua && -s $hs/geometry ]]; then
+    read -r _n gi go bs r shd <"$hs/geometry" || true
+    if [[ -n $shd ]]; then
+      case $key in
+      windowGapsIn) layer=$gi ;; windowGapsOut) layer=$go ;; windowBorder) layer=$bs ;; windowDecoRounding) layer=$r ;;
+      windowShadow) [[ $shd =~ ^-?[0-9]+$ ]] && { ((shd > 0)) && layer=true || layer=false; } ;;
+      esac
+    fi
+  fi
+  [[ -n $layer ]] && { printf '%s' "$layer"; return; }
+  lua=$(command -v lua5.4 || command -v lua) && [[ -f $HOME/.config/hypr/hyprland.lua ]] || { printf '%s' "$dflt"; return; }
+  line=$(OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} timeout 10 "$lua" "$CUSTOMIZER_DIR/backend/customizer/hypr_chain.lua" \
+    "$HOME/.config/hypr/hyprland.lua" "$opt" 2>/dev/null) || { printf '%s' "$dflt"; return; }
+  v=$(awk -F'\t' -v o="$opt" '$1 == o { print $2 }' <<<"$line")
+  printf '%s' "${v:-$builtin}"
+}
+
+# Строка настройки окна с эффективным значением по умолчанию (как tweaks.effective_item), для num и bool.
+window_spec() { # $1 = spec line "key|kind|args|label" -> same line, default taken from hypr_default
+  local key kind args label lo hi st
+  IFS='|' read -r key kind args label <<<"$1"
+  case $key in window*) ;; *) printf '%s\n' "$1"; return ;; esac
+  case $kind in
+  num) read -r lo hi st _ <<<"$args"; args="$lo $hi $st $(hypr_default "$key" "${args##* }")" ;;
+  bool) args=$(hypr_default "$key" "$args") ;;
+  *) printf '%s\n' "$1"; return ;;
+  esac
+  printf '%s|%s|%s|%s\n' "$key" "$kind" "$args" "$label"
+}
+
 # Строки Bar Tweaks / Lock Tweaks: $1 — имя массива параметров, $2 — файл настроек.
 # Без подоболочек на строку: переводы и подписи пишутся в переменные (T_OUT, printf -v).
 list_tweaks() {
@@ -804,6 +852,7 @@ list_tweaks() {
       printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
+    [[ $1 == WINDOW_LAYOUT_TWEAKS ]] && t=$(window_spec "$t")
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
     num) def=${args##* }; read -r lo hi st _ <<<"$args"; T_OUT=hint t "h/l or −/+ — step %s, range %s" "$st" "$lo … $hi" ;;
@@ -815,6 +864,7 @@ list_tweaks() {
     file) def=""; T_OUT=hint t "⏎ — pick an image" ;;
     dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
+    [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == windowLayout ]] && def=$(hypr_default "$key" "$def")
     if [[ $key == transparent ]]; then v=$(jq -r '.bar.transparent // false' "$SHELL_JSON")
     else v=${TWV[$key]-$def}; fi
     mark=""
