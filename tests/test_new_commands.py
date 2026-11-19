@@ -329,6 +329,8 @@ def main():
     check("window corners: restore re-applies rounding power and the float rule without the hook",
           any("rounding_power = 3" in c for c in evs)
           and any("hl.window_rule({ match = { float = true }, rounding = 12 })" in c for c in evs))
+    check("window corners: restore disables the rule it registered before",
+          any("pcall(CUSTOMIZER_CORNER_RULE.set_enabled" in c for c in evs))
     # 6) mode off: ни power, ни правила.
     json.dump({"windowRounding": "off", "windowRadius": 12, "windowRoundingPower": 3}, open(wincfg, "w"))
     n = len(calls(log))

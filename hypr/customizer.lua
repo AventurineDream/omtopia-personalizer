@@ -151,10 +151,13 @@ do
 	if power ~= nil and mode ~= "off" then
 		hl.config({ decoration = { rounding_power = power } })
 	end
+	-- restore() in preview_ops.py disables the handle it kept in CUSTOMIZER_CORNER_RULE before it registers its own,
+	-- so this rule and the restored one never stack: both places use the same global.
+	if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end
 	if radius ~= nil and mode == "all" then
-		hl.window_rule({ match = { class = ".*" }, rounding = radius })
+		CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = { class = ".*" }, rounding = radius })
 	elseif radius ~= nil and mode == "float" then
-		hl.window_rule({ match = { float = true }, rounding = radius })
+		CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = { float = true }, rounding = radius })
 	end
 end
 

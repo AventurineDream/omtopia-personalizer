@@ -801,6 +801,7 @@ hypr_live() {
   windowDecoRounding) opt=decoration:rounding ;; windowShadow) opt=decoration:shadow:enabled ;;
   windowShadowRange) opt=decoration:shadow:range ;; windowDim) opt=decoration:dim_inactive ;;
   windowDimStrength) opt=decoration:dim_strength ;; windowLayout) opt=general:layout ;;
+  windowRoundingPower) opt=decoration:rounding_power ;; windowRadius) opt=decoration:rounding ;;
   windowNoGaps) [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && v=true || v=false ;;
   *) return 0 ;;
   esac
@@ -866,7 +867,8 @@ list_tweaks() {
       printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
-    [[ $1 == WINDOW_LAYOUT_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
+    # The corner keys sit in WINDOW_TWEAKS, so both window tables take Hyprland's live value (window_spec skips other keys).
+    [[ $1 == WINDOW_LAYOUT_TWEAKS || $1 == WINDOW_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
     num) def=${args##* }; read -r lo hi st _ <<<"$args"; T_OUT=hint t "h/l or −/+ — step %s, range %s" "$st" "$lo … $hi" ;;
@@ -879,7 +881,7 @@ list_tweaks() {
     dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
     W_LIVE="" W_PRESENT=""
-    if [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == window* ]]; then
+    if [[ ($1 == WINDOW_LAYOUT_TWEAKS || $1 == WINDOW_TWEAKS) && $key == window* ]]; then
       W_LIVE=$HYPR_LIVE   # set by window_spec for this row
       [[ -n ${TWV[$key]+x} ]] && W_PRESENT=1
       [[ -n $W_LIVE ]] && def=$W_LIVE
@@ -1460,7 +1462,7 @@ window_overrides_eval() {
          (if .windowRounding != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
        ] | map(select(. != null)) | join(", ")) as $deco
       | ([ (if (.windowRounding == "float" or .windowRounding == "all") and n("windowRadius") != null
-            then "hl.window_rule({ match = " + (if .windowRounding == "all" then "{ class = \".*\" }" else "{ float = true }" end)
+            then "if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + (if .windowRounding == "all" then "{ class = \".*\" }" else "{ float = true }" end)
                  + ", rounding = " + n("windowRadius") + " })"
             else null end) ]
          | map(select(. != null))) as $rules

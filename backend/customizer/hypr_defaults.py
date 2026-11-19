@@ -13,7 +13,8 @@ from . import paths
 # The no-gaps row is a toggle file, not a Hyprland option: the file's presence is the state.
 NO_GAPS_FLAG = paths.STATE.parent / "omarchy/toggles/hypr/window-no-gaps.lua"
 
-# windows.json key -> Hyprland option it overrides (preview_ops.window_overrides_lua).
+# windows.json key -> Hyprland option it overrides (preview_ops.window_overrides_lua). windowRadius sets a window
+# rule, so for an absent radius the global rounding (decoration:rounding) is what a window gets, and what is shown.
 OPTIONS = {
     "windowGapsIn": "general:gaps_in",
     "windowGapsOut": "general:gaps_out",
@@ -24,6 +25,8 @@ OPTIONS = {
     "windowDim": "decoration:dim_inactive",
     "windowDimStrength": "decoration:dim_strength",
     "windowLayout": "general:layout",
+    "windowRoundingPower": "decoration:rounding_power",
+    "windowRadius": "decoration:rounding",
     "windowNoGaps": None,
 }
 

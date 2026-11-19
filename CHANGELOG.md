@@ -36,3 +36,5 @@
 - Dock pinned rows resolve app names from desktop files in $XDG_DATA_HOME and $XDG_DATA_DIRS, not only the fixed directories.
 - Window corners (Windows tab): the corner shape, radius and rounded-windows mode are restored after a reload or a shell restart even without the Hyprland hook, as the other window keys are.
 - Window corners: the hook applies only the corner keys windows.json has. A user who saved nothing keeps Hyprland's own corners instead of the shape 2.5 and radius 16 that the hook applied before.
+- Window corners: a restore replaces the corner rule it registered before instead of adding another enabled copy. hl.window_rule keeps earlier rules enabled, and a rule with the same name does not replace them (probed in a box), so the earlier rule is disabled through its handle first.
+- Window corners: the Windows tab shows Hyprland's own rounding power and rounding for the corner keys that windows.json does not set, instead of the settings.json placeholders (2.5 and 16).
