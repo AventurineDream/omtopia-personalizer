@@ -1207,8 +1207,8 @@ Item {
     if (!root.isTweakRow(row)) return
     root.clickSelect(index)
     if (row.kind === "num" || row.kind === "enum" || row.kind === "bool") root.setRowRaw(index, String(value))
-    // The applier in progress holds writes too: the value starts when it exits (drainWrites).
-    if (editor.running || root.applierBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(value), category: root.category.key, typed: false }; return }
+    // The writes ahead of this one hold it too: it starts when they have all exited (drainWrites).
+    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(value), category: root.category.key, typed: false }; return }
     root.startEditorWrite(root.tweakKey(row), value, root.category.key, false)
   }
 
@@ -1273,8 +1273,8 @@ Item {
     var key = root.tweakKey(root.selectedRow)
     var next = root.predictStep(displayModel.get(root.selectedIndex), dir)
     if (next !== null) root.setRowRaw(root.selectedIndex, next)
-    root.tweakQueue = root.tweakQueue.concat([{ key: key, dir: dir, category: root.category.key }])
-    root.startNextTweak()
+    root.tweakQueue = root.tweakQueue.concat([{ key: key, dir: dir, category: root.category.key, seq: root.nextWriteSeq() }])
+    root.drainWrites()
   }
 
   // i (и ⏎ на 💾-строке): поле ввода прямо в строке. Для настроек проверяет customizer.sh (tweak <key> set <value>):
@@ -1297,8 +1297,8 @@ Item {
     if (!row) return
     if (InWindow.isSaveRow(root.category.key, row.value)) { root.submitSave(root.category.key, String(text).trim(), false); return }
     if (editor.running) return
-    // A typed value waits for the apply in progress, like a mouse value (setTweakAt).
-    if (root.applierBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true }; return }
+    // A typed value waits for the writes in progress, like a mouse value (setTweakAt).
+    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true }; return }
     root.startEditorWrite(root.tweakKey(row), text, root.category.key, true)
   }
   // Saves the setup of category `key` under `name` (apply <key> save --name <name>; --overwrite replaces a taken
@@ -1355,12 +1355,12 @@ Item {
 
   function tweakDone() {
     root.dropCache(tweaker.category)
-    if (root.tweakQueue.length > 0) { Qt.callLater(root.drainWrites); return }
+    if (root.tweakQueue.length > 0 || root.applyQueue.length > 0 || root.pendingSet !== null) { Qt.callLater(root.drainWrites); return }
     root.reloadCategory()
   }
-  // Next queued tweak step, once no apply is queued or running and the tweaker is idle.
+  // Next queued tweak step. drainWrites calls it only when this step is the next write asked for.
   function startNextTweak() {
-    if (tweaker.running || root.applierBusy() || root.tweakQueue.length === 0) return
+    if (tweaker.running || root.tweakQueue.length === 0) return
     var step = root.tweakQueue[0]
     root.tweakQueue = root.tweakQueue.slice(1)
     tweaker.key = step.key
@@ -1393,6 +1393,11 @@ Item {
   // Шаги или запись ещё идут — перечитанный список не должен перебить показанное значение.
   function stepsInFlight() {
     return tweaker.running || root.tweakQueue.length > 0 || editor.running || root.pendingSet !== null || root.applierBusy()
+  }
+
+  // A write is running or waiting: a value set now waits behind it (pendingSet), so writes never overlap.
+  function writesBusy() {
+    return editor.running || tweaker.running || root.tweakQueue.length > 0 || root.applierBusy()
   }
 
   function reloadCategory() {
@@ -1480,15 +1485,15 @@ Item {
     root.enqueueApply(key, value)
   }
 
-  // Queues `customizer.sh apply <key> <value> [flags]` behind the applies already waiting. Used by run() and by
+  // Queues `customizer.sh apply <key> <value> [flags]` behind the writes already waiting. Used by run() and by
   // the in-window actions (glyph, sounds, save, prune), which keep the overlay open. done(code, out, err), when
   // given, runs once the apply has exited: an in-window save reads its result from it.
   function enqueueApply(key, value, flags, done) {
     root.enqueueCommand(RandomPickFlow.applyCommand(root.script, key, value).concat(flags || []), done || null)
   }
-  // Queues any customizer.sh command (argv) behind the applies already waiting; see enqueueApply.
+  // Queues any customizer.sh command (argv) behind the writes already waiting; see enqueueApply.
   function enqueueCommand(argv, done) {
-    root.applyQueue = root.applyQueue.concat([{ argv: argv, done: done }])
+    root.applyQueue = root.applyQueue.concat([{ argv: argv, done: done, seq: root.nextWriteSeq() }])
     root.drainWrites()
   }
 
@@ -1496,7 +1501,15 @@ Item {
   // started, while a running apply survives it (see applier).
   property var applyQueue: []
 
-  // An apply is queued or running: tweaks and typed values wait for it (see drainWrites).
+  // Each queued write takes the next number when it is asked for, so applies and tweak steps run in the order they
+  // were asked (InWindow.nextLane): a save then captures the tweak steps asked before it.
+  property int writeSeq: 0
+  function nextWriteSeq() {
+    root.writeSeq += 1
+    return root.writeSeq
+  }
+
+  // An apply is queued or running (see drainWrites for the order the writes run in).
   function applierBusy() {
     return applier.running || root.applyQueue.length > 0
   }
@@ -1514,14 +1527,15 @@ Item {
   // The done callback of the apply the applier runs (null: none); see enqueueApply and applier.
   property var applierDone: null
 
-  // Starts whichever waiting write can run now, in this order: a queued apply, the queued tweak steps,
-  // then the last mouse or typed value. Called wherever a lane may have freed up. Writes never overlap
-  // an apply: while one is queued or running, tweaks and values wait behind it.
+  // Starts the next write once no write is running: the first asked of a queued apply and the queued tweak steps
+  // (InWindow.nextLane), else the last mouse or typed value (pendingSet). Called wherever a lane may have freed up.
   function drainWrites() {
-    root.startNextApply()
-    if (root.applierBusy()) return
-    root.startNextTweak()
-    if (!editor.running && root.pendingSet !== null) root.startPendingSet()
+    if (applier.running || tweaker.running || editor.running) return
+    var lane = InWindow.nextLane(root.applyQueue.length > 0 ? root.applyQueue[0].seq : -1,
+                                 root.tweakQueue.length > 0 ? root.tweakQueue[0].seq : -1)
+    if (lane === "apply") root.startNextApply()
+    else if (lane === "tweak") root.startNextTweak()
+    else if (root.pendingSet !== null) root.startPendingSet()
   }
 
   // Bar Skin / Bar Layout / Presets: удалить свой пресет (★) — с подтверждением в customizer.sh.
@@ -1988,9 +2002,6 @@ Item {
     property bool typed: false
     onExited: function(code) {
       root.dropCache(editor.category)
-      // A value waiting in pendingSet starts first, unless an apply holds the writes now (then it starts
-      // when the applier exits). Its exit code is ignored, as before.
-      if (root.pendingSet !== null && !root.applierBusy()) { root.startPendingSet(); return }
       // Only a typed edit owns the open edit field: a value still pending from before a tab switch must not
       // close an edit started in the new tab.
       if (code === 0) {
