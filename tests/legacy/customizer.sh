@@ -1319,22 +1319,28 @@ cur_opacity() { if [[ -n $MATCH_PRIMED ]]; then echo "$CUR_OPACITY"; else "$OPAC
 preset_on() { section_on "$PRESET_CFG" "$1"; }
 style_on() { section_on "$STYLE_CFG" "$1"; }
 
-# Сравниваются только разделы, которые пресет применяет.
-preset_matches() {
-  local f=$1 p_theme="" p_skin="" p_lock=""
+# Сравниваются только разделы, которые пресет применяет. 0 — совпало; 1 — расхождение;
+# 2 — сравнивать нечего (зеркало state.preset_check: пресет без темы/скина/блокировки
+# не подтверждает «в использовании» сам по себе).
+preset_check() {
+  local f=$1 p_theme="" p_skin="" p_lock="" checked=false
   match_prime
   IFS=$'\x1f' read -r -d $'\x1e' p_theme p_skin p_lock < <(jq -j \
     '[(.theme // ""), (.barSkin // ""), (.lock.design // "")] | map(tostring) | join("\u001f"), "\u001e"' "$f" 2>/dev/null)
-  if preset_on presetTheme; then
-    [[ -n $p_theme && $p_theme != "$(cur_theme)" ]] && return 1
+  if preset_on presetTheme && [[ -n $p_theme ]]; then
+    [[ $p_theme != "$(cur_theme)" ]] && return 1
+    checked=true
   fi
-  if preset_on presetBar; then
-    [[ -n $p_skin && -f $BAR_DIR/manifest.json && $p_skin != "$(current_skin)" ]] && return 1
+  if preset_on presetBar && [[ -n $p_skin && -f $BAR_DIR/manifest.json ]]; then
+    [[ $p_skin != "$(current_skin)" ]] && return 1
+    checked=true
   fi
-  if preset_on presetLock; then
-    [[ -n $p_lock && -f $LOCK_PLUGIN/manifest.json && $p_lock != "$(cur_lock)" ]] && return 1
+  if preset_on presetLock && [[ -n $p_lock && -f $LOCK_PLUGIN/manifest.json ]]; then
+    [[ $p_lock != "$(cur_lock)" ]] && return 1
+    checked=true
   fi
-  return 0
+  $checked && return 0
+  return 2
 }
 
 # Геометрия окон из пресета: ~/.local/state/hypr/geometry, читает hypr/customizer.lua.
@@ -1413,20 +1419,21 @@ theme_exists() {
   [[ -n $1 && ( -d $HOME/.config/omarchy/themes/$1 || -d ${OMARCHY_PATH:-/usr/share/omarchy}/themes/$1 ) ]]
 }
 
+# Пресет из ACTIVE_PRESET держится, пока никакое сравниваемое поле не расходится (зеркало state.current_preset_stem).
 current_preset_stem() {
-  local saved f stem
+  local saved f rc
   if [[ -s $ACTIVE_PRESET ]]; then
     saved=$(<"$ACTIVE_PRESET")
     for f in "$USER_PRESETS/$saved.json" "$PRESET_DIR/$saved.json"; do
-      if [[ -f $f ]] && preset_matches "$f"; then
-        echo "$saved"
-        return
+      if [[ -f $f ]]; then
+        preset_check "$f"; rc=$?
+        [[ $rc != 1 ]] && { echo "$saved"; return; }
       fi
     done
   fi
   for f in "$USER_PRESETS"/*.json "$PRESET_DIR"/*.json; do
     [[ -f $f ]] || continue
-    if preset_matches "$f"; then
+    if preset_check "$f"; then
       basename "$f" .json
       return
     fi
@@ -1493,6 +1500,13 @@ snapshot_preset() {
   local style_id
   style_id=$(current_style_stem)
   [[ $style_id == custom ]] && style_id=""
+  # The rollback snapshot records the preset in use when it is taken, so a restore
+  # reports that preset again instead of guessing from the live desktop (apply_preset).
+  local origin=""
+  if [[ $(realpath -m "$out") == "$(realpath -m "$LAST_PRESET")" ]]; then
+    origin=$(current_preset_stem)
+    [[ $origin == custom ]] && origin=""
+  fi
 
   mkdir -p "$(dirname "$out")"
   jq -n \
@@ -1500,6 +1514,7 @@ snapshot_preset() {
     --arg note "$note" \
     --arg theme "$theme" \
     --arg style "$style_id" \
+    --arg preset "$origin" \
     --arg wallpaper "$wp" \
     --arg anims "$anim" \
     --arg opacity "$op" \
@@ -1547,7 +1562,8 @@ snapshot_preset() {
        sounds: $sounds,
        glyph: $glyph,
        look: $look
-     }' >"$out.tmp" && cp "$out.tmp" "$out"
+     }
+     + (if $preset != "" then {preset: $preset} else {} end)' >"$out.tmp" && cp "$out.tmp" "$out"
 }
 
 apply_preset() {
@@ -1612,7 +1628,10 @@ apply_preset() {
   { $is_backup || preset_on presetLook; } && refresh_app_looks
 
   if $is_backup; then
-    : >"$ACTIVE_PRESET"
+    # Restore brings back the preset recorded in the snapshot, or none (apply_preset in Python).
+    local origin
+    origin=$(jq -r '.preset // ""' "$file")
+    if [[ -n $origin ]]; then printf '%s\n' "$origin" >"$ACTIVE_PRESET"; else : >"$ACTIVE_PRESET"; fi
   else
     basename "$file" .json >"$ACTIVE_PRESET"
   fi

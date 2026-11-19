@@ -288,6 +288,11 @@ def _current_or(script, fallback):
 # ── Снимок текущей настройки (пресет / резервная копия / основа стиля) ──
 
 def snapshot(out, title="", note=""):
+    """Write the live desktop to `out` as a preset document (name, note, theme, bar, looks…).
+
+    `out` == LAST_PRESET is the rollback snapshot; its "preset" key names the preset in use
+    when it was taken. Errors propagate from the file writes; nothing is changed on the desktop.
+    """
     theme = state.theme_name()
     wp = stable_wallpaper(state.current_bg())
     home = str(paths.HOME) + "/"
@@ -358,6 +363,12 @@ def snapshot(out, title="", note=""):
         "widgets": read_or_empty(WIDGET_CFG), "osd": read_or_empty(OSD_CFG), "notifications": read_or_empty(NOTIFY_CFG),
         "sounds": read_or_empty(state.SOUND_CFG), "glyph": read_or_empty(state.GLYPH_CFG), "look": read_or_empty(LOOK_CFG),
     })
+    # The rollback snapshot records the preset in use when it is taken, so a restore
+    # reports that preset again instead of guessing from the live desktop (apply_preset).
+    if os.path.realpath(out) == os.path.realpath(state.LAST_PRESET):
+        origin = state.current_preset_stem()
+        if origin != "custom":
+            doc["preset"] = origin
     write(out, doc)
 
 
@@ -506,6 +517,12 @@ def _now(fmt):
 # ── Пресеты ──
 
 def apply_preset(path):
+    """Apply the preset file at `path`, or roll back when it is the LAST_PRESET snapshot.
+
+    Records the preset in use in ACTIVE_PRESET: the file's own stem for a preset, or the stem
+    stored in the snapshot for a rollback (empty when none). Raises Exit(1) when the file is
+    missing or its theme is not installed (checked before anything is written).
+    """
     path = str(path)
     if not os.path.isfile(path):
         notify("-u", "critical", "Presets", t("Preset not found: %s", path))
@@ -552,7 +569,9 @@ def apply_preset(path):
     preview_ops.restore()
     if section_on(state.PRESET_CFG, "presetLook", is_backup):
         refresh_app_looks()
-    state.ACTIVE_PRESET.write_text("" if is_backup else os.path.basename(path)[:-5] + "\n")
+    # A restore brings back the preset that was in use when its snapshot was taken, or none.
+    active = jq_str(alt(d.get("preset"), "")) if is_backup else os.path.basename(path)[:-5]
+    state.ACTIVE_PRESET.write_text(active + "\n" if active else "")
     state.ACTIVE_STYLE.write_text(style_ref + "\n" if style_ref else "")
     notify("-t", "3000", "Presets", t("Applied preset: %s", label))
 
