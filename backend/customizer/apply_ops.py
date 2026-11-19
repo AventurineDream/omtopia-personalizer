@@ -124,8 +124,9 @@ def merge_bar_layout(current, new, anchor=None):
     (`anchor` пуст или его нет в center), записи из centerBegin/centerEnd переезжают
     в center (begin — в начало, end — в конец): без якоря эти секции бар не рисует,
     и виджеты в них пропали бы с бара. `anchor` — centerAnchor новой раскладки
-    (None, если его нет). Вызывается только для стоковых раскладок (carry_widgets);
-    сохранённые раскладки, пресеты и бэкапы применяются дословно, без слияния.
+    (None, если его нет). Вызывается при вливании стиля и для стоковых раскладок (carry_widgets);
+    остальные раскладки — сохранённые, снимки, бэкапы, собственная раскладка пресета — применяются
+    дословно, без слияния.
     """
     if not isinstance(current, dict) or not isinstance(new, dict):
         return new
@@ -232,11 +233,11 @@ def _is_stock_layout(path):
 
 def shell_apply_layout(layout, carry_widgets=False):
     """Раскладка бара в shell.json: без note*, клоны из cloneSourceRestores остаются в .plugins.
-    Перенос виджетов — только для стоковых раскладок (carry_widgets=True): новая раскладка
-    меняет только структуру/позицию, а набор виджетов и их настройки сохраняются
-    (см. merge_bar_layout). Сохранённые раскладки, пресеты, снимки и бэкапы применяются
-    дословно (carry_widgets=False): иначе восстановление не смогло бы вернуть виджеты,
-    которых сейчас нет на баре. Перед записью — копия текущего shell.json в shell.json.bak."""
+    Перенос виджетов (carry_widgets=True): новая раскладка меняет только структуру/позицию,
+    а набор виджетов и их настройки сохраняются (см. merge_bar_layout). Так применяют стиль
+    и стоковые раскладки. Остальное — сохранённые раскладки, снимки, бэкапы и собственная
+    раскладка пресета — дословно (carry_widgets=False): иначе восстановление не смогло бы
+    вернуть виджеты, которых сейчас нет на баре. Перед записью — копия текущего shell.json в shell.json.bak."""
     shell = jsonio.read(paths.SHELL_JSON)
     if not isinstance(shell, dict) or not isinstance(shell.get("bar"), dict) or not isinstance(layout, dict):
         return
@@ -395,15 +396,19 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
                         shutil.copyfile(f, paths.BAR_SKIN)
                         skin_applied = True
                         break
+        # A style (mode=merge, also a preset's style part) merges into the bar: layout and position
+        # come from it, the widget set stays the user's (merge_bar_layout). A preset's own layout
+        # (a saved snapshot) and any restore (is_backup) apply verbatim, as saved.
+        carry = not is_backup and mode == "merge"
         if isinstance(d.get("barLayoutData"), dict):
-            shell_apply_layout(d["barLayoutData"])
+            shell_apply_layout(d["barLayoutData"], carry_widgets=carry)
         else:
             bl = jq_str(alt(d.get("barLayout"), ""))
             if bl:
                 for f in (state.USER_LAYOUTS / f"{bl}.json", state.BAR_DIR / f"layouts/{bl}.json"):
                     if f.is_file():
-                        # стоковая раскладка — с переносом виджетов, сохранённая — дословно
-                        shell_apply_layout(jsonio.read(f), carry_widgets=_is_stock_layout(f))
+                        # стоковая раскладка переносит виджеты (и при вливании стиля любая), сохранённая — дословно
+                        shell_apply_layout(jsonio.read(f), carry_widgets=carry or (not is_backup and _is_stock_layout(f)))
                         break
         if "barTransparent" in d:
             tweak_ops.set_transparent(jq_str(alt(d.get("barTransparent"), False)))

@@ -289,10 +289,10 @@ shell_edit() {
 
 # Применить раскладку бара из файла $1 в shell.json:
 # - вычищает поля note / note_* из объекта раскладки и из .bar;
-# - переносит виджеты только для стоковых раскладок ($2 == 1): новая раскладка меняет
+# - переносит виджеты при вливании стиля и для стоковых раскладок ($2 == 1): новая раскладка меняет
 #   только структуру/позицию, а набор виджетов и их настройки сохраняются
-#   (как merge_bar_layout в apply_ops.py); сохранённые раскладки, пресеты, снимки
-#   и бэкапы применяются дословно ($2 == 0), чтобы восстановление могло вернуть
+#   (как merge_bar_layout в apply_ops.py); сохранённые раскладки, снимки, бэкапы и собственная
+#   раскладка пресета применяются дословно ($2 == 0), чтобы восстановление могло вернуть
 #   виджеты, которых сейчас нет на баре;
 # - гарантирует, что плагины-клоны из cloneSourceRestores (например, kamradsmeshnyavy.menu,
 #   который раньше мог быть включён только через присутствие в bar.layout) остаются в .plugins,
@@ -1663,17 +1663,21 @@ apply_form_sections() {
         done
       fi
     fi
+    # A style (mode=merge, also a preset's style part) merges into the bar: the widget set stays
+    # the user's (see the Python apply_form_sections). A preset's own layout and any restore apply verbatim.
+    local carry=0
+    if ! $is_backup && [[ $mode == merge ]]; then carry=1; fi
     if jq -e '.barLayoutData != null and (.barLayoutData | type == "object")' "$file" >/dev/null 2>&1; then
       local ltmp="$RUN_DIR/preset-layout.tmp"
       jq '.barLayoutData' "$file" >"$ltmp"
-      shell_apply_layout "$ltmp"
+      shell_apply_layout "$ltmp" "$carry"
     else
       bl=$(jq -r '.barLayout // ""' "$file")
       if [[ -n $bl ]]; then
         for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
           [[ -f $lfile ]] || continue
-          # стоковая раскладка — с переносом виджетов, сохранённая — дословно
-          if [[ $lfile == "$BAR_DIR"/layouts/* ]]; then shell_apply_layout "$lfile" 1; else shell_apply_layout "$lfile" 0; fi
+          # стоковая раскладка переносит виджеты (и при вливании стиля любая), сохранённая — дословно
+          if ! $is_backup && { [[ $mode == merge ]] || [[ $lfile == "$BAR_DIR"/layouts/* ]]; }; then shell_apply_layout "$lfile" 1; else shell_apply_layout "$lfile" 0; fi
           break
         done
       fi
