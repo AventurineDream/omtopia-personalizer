@@ -12,6 +12,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -63,7 +64,12 @@ def main():
 
     # Backend metadata ↔ live list rows: every catalog value is emitted by `list wallpaper-fx`.
     home = tempfile.mkdtemp(prefix="fx-catalog.")
-    env = dict(os.environ, HOME=home)
+    run_dir = os.path.join(home, "run")
+    os.makedirs(run_dir)
+    # Своё состояние XDG: иначе backend читает и пишет живые каталоги пользователя.
+    env = dict(os.environ, HOME=home, XDG_CONFIG_HOME=os.path.join(home, ".config"),
+               XDG_STATE_HOME=os.path.join(home, ".local/state"), XDG_CACHE_HOME=os.path.join(home, ".cache"),
+               XDG_RUNTIME_DIR=run_dir)
     r = subprocess.run(["/usr/bin/python3", "-I", os.path.join(PLUGIN, "backend/run.py"),
                         "list", "wallpaper-fx"], env=env, capture_output=True, text=True)
     values = [ln.split("\t")[1] for ln in r.stdout.splitlines() if "\t" in ln]
@@ -79,7 +85,12 @@ def main():
     check("current transition is flagged from wallpaper-transition.json", cur == ["outline-cut"])
 
     print("%d checks failed" % len(fails) if fails else "all metadata checks passed")
-    return 1 if fails else 0
+    if fails:
+        print("песочница сохранена: " + home)
+        return 1
+    # /tmp здесь tmpfs (RAM): зелёный прогон удаляет свою песочницу.
+    shutil.rmtree(home)
+    return 0
 
 
 if __name__ == "__main__":
