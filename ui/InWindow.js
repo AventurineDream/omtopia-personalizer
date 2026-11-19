@@ -1,6 +1,8 @@
 /** @file In-window save and delete for the user's own items (presets, styles, bar skins, bar layouts):
  * which categories have a 💾 save row and the name a new save starts with, the backend command that
- * moves one of the user's items to the trash, and the refusal for a row that is not the user's.
+ * moves one of the user's items to the trash, and the refusal for any other row. It also holds the small
+ * decisions the overlay makes around them: which handler takes a key (keyRoute), what a save result means
+ * (saveOutcome), what a tab switch drops (clearTransient) and which queued write runs next (nextLane).
  *
  * Shared between Customizer.qml and tests/test_in_window.cjs. The commands these names feed carry
  * --name or --yes (see backend/customizer/apply_ops.py and preview_ops.py), so neither opens a zenity
@@ -63,4 +65,53 @@ function removeCommand(categoryKey) {
  */
 function refusal(categoryKey) {
   return has(categoryKey) ? OWN_ITEMS[categoryKey].refusal : ""
+}
+
+/** Clears the footer question and the notice of the overlay. A question's yes-callback reads the overlay's
+ * state when it is answered, so every change of tab or view clears them first.
+ *
+ * @param o the overlay object (Customizer.qml passes root); its confirm and notice are set in place.
+ */
+function clearTransient(o) {
+  o.confirm = null
+  o.notice = ""
+}
+
+/** What a finished in-window save means, by its exit code. The backend exits 3 (EXISTS) for a taken name
+ * without --overwrite, so the overlay asks to overwrite instead of reporting a failure.
+ *
+ * @param code exit code of `customizer.sh apply <category> save --name <name>`.
+ * @returns "saved" for 0, "taken" for 3, "failed" for any other code.
+ */
+function saveOutcome(code) {
+  if (code === 0) return "saved"
+  if (code === 3) return "taken"
+  return "failed"
+}
+
+/** Which handler takes a key press: a footer question first (⏎ or y answers it, any other key cancels), then an
+ * open name or value field (the key belongs to the field), then the overlay's own commands.
+ *
+ * @param editing whether a field is open in the rows of the current tab.
+ * @param confirm whether a footer question waits for its answer.
+ * @returns "confirm", "field" or "overlay".
+ */
+function keyRoute(editing, confirm) {
+  if (confirm) return "confirm"
+  if (editing) return "field"
+  return "overlay"
+}
+
+/** Which queued write starts next. Applies and tweak steps share one order, the order they were asked for: a
+ * save waits for the tweak steps asked before it, and tweak steps asked after it wait for the save.
+ *
+ * @param applySeq sequence number of the first queued apply, or -1 when none is queued.
+ * @param tweakSeq sequence number of the first queued tweak step, or -1 when none is queued.
+ * @returns "apply" or "tweak" for the write asked first, "none" when both queues are empty.
+ */
+function nextLane(applySeq, tweakSeq) {
+  if (applySeq < 0 && tweakSeq < 0) return "none"
+  if (tweakSeq < 0) return "apply"
+  if (applySeq < 0) return "tweak"
+  return applySeq < tweakSeq ? "apply" : "tweak"
 }
