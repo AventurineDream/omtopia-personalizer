@@ -231,3 +231,27 @@ test('the button rule and the key agree for every highlight position', () => {
     assert.equal(shown('dock', rows, s), pick !== null, `selected ${s}`);
   }
 });
+
+// The footer's r hint and the Surprise me button both ask randomAvailable (category refusal, then the row
+// rule), so these checks cover the hint's decision on the real backend rows.
+function gate(category, tweak, rows, selected = -1) {
+  return flow.randomAvailable(candidates.isCandidate, category, tweak, rows, selected);
+}
+
+test('r hint hidden on Windows, where every row is a tweak or the geometry reset', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'windows'));
+  assert.equal(gate('windows', false, rows), false);
+});
+
+test('r hint shown on Dock and Sounds, where a candidate row exists', () => {
+  assert.equal(gate('dock', false, flow.parseRows(listRows(sandbox(null), 'dock'))), true);
+  assert.equal(gate('sounds', false, flow.parseRows(listRows(sandbox(null), 'sounds'))), true);
+});
+
+test('r hint hidden in refused categories and tweak categories, even with candidate rows', () => {
+  const dock = flow.parseRows(listRows(sandbox(null), 'dock'));
+  for (const category of ['walls', 'dotify', 'presets', 'styles', 'glyph']) {
+    assert.equal(gate(category, false, dock), false, category);
+  }
+  assert.equal(gate('dock', true, dock), false, 'tweak category');
+});
