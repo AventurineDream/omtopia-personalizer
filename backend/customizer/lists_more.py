@@ -486,6 +486,20 @@ def _entry_id(e):
 
 
 def bar_widgets():
+    """Rows of the Customizer's Bar Widgets list (`list bar-widgets`), one TSV line per row, as the QML parses them.
+
+    Returns list[str] in this order: a `section:left`, `section:center` and `section:right` header, each followed
+    by its widgets (centerBegin/centerEnd count as center only when bar.centerAnchor is one of its ids); then,
+    only when the tray has widgets, a `section:tray` header and the tray-drawer widgets; then `section:off`
+    ("Not on the bar") with the widgets stashed in bar-hidden.json, the catalog's bar-widget plugins not cloned by
+    another plugin, and the QML modules in BAR_DIR/modules; then `section:settings`. A `tweak:w:<id>` row carries
+    `move` (on the bar) or `add` (off the bar or in the drawer) in its 7th column.
+
+    Each id gets one row: the first section that lists it wins, so a drawer copy of an id already on the bar is
+    not listed again. Drawer entries without an id are skipped; an on-bar entry without an id keeps its legacy
+    `null` row (parity with customizer.sh). Reads shell.json, bar-hidden.json, the plugin manifests and
+    `omarchy plugin list --json`; writes nothing.
+    """
     try:
         catalog = json.loads(fsutil.run(["omarchy", "plugin", "list", "--json"]) or "[]")
     except ValueError:
@@ -519,6 +533,24 @@ def bar_widgets():
             seen.add(wid)
             out.append(f"● {label(wid)}\ttweak:w:{wid}\t\t0\t{t('On the bar · %s', wid)}{NL}{NL}"
                        f"{t('h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar')}\t{wid}\tmove\t\t\t{label(wid)}")
+    # Tray drawer entries are listed apart: the stock shell counts them as on the bar, so a second entry
+    # would be a duplicate. The row moves the existing entry (with its settings) onto the bar.
+    # kamradsmeshnyavy.bar draws only left/center/right, so there the drawer is never shown: the row says so.
+    tray = layout.get("tray")
+    drawer, dseen = [], set()
+    for e in (tray if isinstance(tray, list) else []):
+        wid = jsonio.tostring(_entry_id(e)) if _entry_id(e) is not None else ""
+        if wid and wid not in seen and wid not in dseen:
+            dseen.add(wid)
+            drawer.append(wid)
+    if drawer:
+        not_drawn = (f"{t('This bar does not draw the tray drawer, so the widget stays invisible until it is moved onto the bar')}"
+                     f"{NL}{NL}") if bar.get("id") == "kamradsmeshnyavy.bar" else ""
+        out.append(f"{t('In the tray drawer')}\tsection:tray\t\t0\t\theader")
+        for wid in drawer:
+            out.append(f"○ {label(wid)}\ttweak:w:{wid}\t\t0\t{t('In the tray drawer · %s', wid)}{NL}{NL}"
+                       f"{not_drawn}{t('⏎ — move onto the bar (end of the right section, settings kept)')}\t{wid}\tadd\t\t\t{label(wid)}")
+        seen.update(drawer)
     out.append(f"{t('Not on the bar')}\tsection:off\t\t0\t\theader")
     hidden = jsonio.read(BAR_HIDDEN)
     cand = sorted(hidden.keys()) if isinstance(hidden, dict) else []

@@ -256,20 +256,6 @@ def _loc(wid):
     return None
 
 
-def _append_right(entry, drop_from=()):
-    """Добавить запись в конец правой секции (и убрать её из невидимых centerBegin / centerEnd)."""
-    shell, lay = _layout()
-    wid = entry.get("id")
-    shell = dict(shell)
-    shell["bar"] = dict(shell.get("bar") or {})
-    lay = dict(lay)
-    for sec in drop_from:
-        lay[sec] = [e for e in (lay.get(sec) or []) if (e.get("id") if isinstance(e, dict) else e) != wid]
-    lay["right"] = list(lay.get("right") or []) + [entry]
-    shell["bar"]["layout"] = lay
-    write_inplace(paths.SHELL_JSON, shell)
-
-
 def widget_step(wid, how):
     loc = _loc(wid)
     if how == "set":
@@ -305,6 +291,12 @@ def widget_step(wid, how):
 
 
 def _widget_hide(wid, sec, idx):
+    """Take a widget off the bar: stash its visible copy, then drop every copy of its id from the layout.
+
+    Copies in tray and in centerBegin/centerEnd go too: the shell counts a copy in any section as on the
+    bar, so keeping one would leave the widget drawn, or listed as «in the tray drawer», after «remove».
+    The stash keeps the visible copy only; a drawer copy's inline settings are dropped with it.
+    """
     shell, lay = _layout()
     entry = (lay.get(sec) or [])[idx]
     hidden = jsonio.read(BAR_HIDDEN) if fsutil.nonempty(BAR_HIDDEN) else {}
@@ -313,52 +305,64 @@ def _widget_hide(wid, sec, idx):
     write_inplace(BAR_HIDDEN, hidden)
     shell = dict(shell)
     shell["bar"] = dict(shell["bar"])
-    shell["bar"]["layout"] = dict(lay)
-    items = list(lay.get(sec) or [])
-    shell["bar"]["layout"][sec] = items[:idx] + items[idx + 1:]
+    lay = dict(lay)
+    for s, items in lay.items():
+        if isinstance(items, list):
+            lay[s] = [e for e in items if (e.get("id") if isinstance(e, dict) else e) != wid]
+    shell["bar"]["layout"] = lay
     write_inplace(paths.SHELL_JSON, shell)
 
 
 def _widget_show(wid):
+    """Put a widget that is off the bar back on it, as exactly one layout entry for its id.
+
+    Entry: the first copy found in the tray drawer or an un-anchored centerBegin/centerEnd (it moves with
+    its inline settings, and every such copy is removed), else the entry stashed by _widget_hide, else a new one.
+    Slot: the stashed section and index whenever a stash exists and that section is drawn, else the end of
+    right. Writes shell.json and bar-hidden.json directly, not via putBarWidget: the shell puts a new widget
+    in centerEnd, which is not drawn without a centerAnchor, and it leaves a widget already in the drawer alone.
+    """
+    shell, lay = _layout()
+    visible = _visible_sections()
+    lay = dict(lay)
+    entry = None
+    for sec in ("tray", "centerBegin", "centerEnd"):
+        if sec in visible or not isinstance(lay.get(sec), list):
+            continue
+        kept = []
+        for e in lay[sec]:
+            if (e.get("id") if isinstance(e, dict) else e) == wid:
+                if entry is None:
+                    entry = e if isinstance(e, dict) else {"id": e}
+            else:
+                kept.append(e)
+        lay[sec] = kept
     hidden = jsonio.read(BAR_HIDDEN)
     stash = hidden.get(wid) if isinstance(hidden, dict) else None
-    if stash:
-        shell, lay = _layout()
-        sec = stash["section"]
-        items = list(lay.get(sec) or [])
-        i = min(stash["index"], len(items))
-        shell = dict(shell)
-        shell["bar"] = dict(shell.get("bar") or {})
-        shell["bar"]["layout"] = dict(lay)
-        shell["bar"]["layout"][sec] = items[:i] + [stash["entry"]] + items[i:]
-        write_inplace(paths.SHELL_JSON, shell)
-        write_inplace(BAR_HIDDEN, {k: v for k, v in hidden.items() if k != wid})
-    else:
+    sec, idx = "right", None
+    if isinstance(stash, dict):
+        sec, idx = stash["section"], stash["index"]
+        if entry is None:
+            entry = stash["entry"]
+    if entry is None:
         from .lists_more import BAR_MODULES
-        # Застрял в centerBegin / centerEnd без якоря центра (бар их не рисует) — перенести направо.
-        _, lay = _layout()
-        hidden_secs = [sec for sec in ("centerBegin", "centerEnd") if sec not in _visible_sections()]
-        for sec in hidden_secs:
-            for e in lay.get(sec) or []:
-                if (e.get("id") if isinstance(e, dict) else e) == wid:
-                    _append_right(e if isinstance(e, dict) else {"id": e}, hidden_secs)
-                    return
-        if wid not in BAR_MODULES:
-            # Плагин-виджет: сами в правую секцию — putBarWidget кладёт новые в centerEnd, а без якоря её не видно.
-            _append_right({"id": wid})
-            return
         if wid in BAR_MODULES:
-            # Новый QML-модуль бара: в конец правой секции записью {id, type: qml, source}.
-            shell, lay = _layout()
-            shell = dict(shell)
-            shell["bar"] = dict(shell.get("bar") or {})
-            shell["bar"]["layout"] = dict(lay)
+            # Новый QML-модуль бара: запись {id, type: qml, source}.
             entry = {"id": wid, "type": "qml",
                      "source": f"~/.config/omarchy/plugins/kamradsmeshnyavy.bar/modules/{BAR_MODULES[wid]}"}
-            shell["bar"]["layout"]["right"] = list(lay.get("right") or []) + [entry]
-            write_inplace(paths.SHELL_JSON, shell)
-            return
-        _quiet(["omarchy-shell", "shell", "putBarWidget", wid, "{}"])
+        else:
+            entry = {"id": wid}
+    if sec not in visible:
+        sec, idx = "right", None
+    items = list(lay.get(sec) or [])
+    i = len(items) if idx is None else min(idx, len(items))
+    lay[sec] = items[:i] + [entry] + items[i:]
+    shell = dict(shell)
+    shell["bar"] = dict(shell.get("bar") or {})
+    shell["bar"]["layout"] = lay
+    write_inplace(paths.SHELL_JSON, shell)
+    if isinstance(hidden, dict) and wid in hidden:
+        write_inplace(BAR_HIDDEN, {k: v for k, v in hidden.items() if k != wid})
 
 
 def widget_setting(spec):
