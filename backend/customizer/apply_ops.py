@@ -612,8 +612,6 @@ def geometry_reset():
         win = jsonio.read(WINDOW_CFG)
         if isinstance(win, dict):
             write(WINDOW_CFG, {k: v for k, v in win.items() if k not in WINDOW_GEOM_KEYS})
-    # The no-gaps row is part of this tab: reset returns it to the Hyprland config too, so it agrees with the gaps.
-    set_no_gaps("false")
     sh(["hyprctl", "reload"])
     out = preview_ops.restore()[1]
     notify("-t", "2000", "Windows", t("Window geometry: Hyprland config"))

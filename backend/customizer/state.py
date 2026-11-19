@@ -320,7 +320,8 @@ def style_summary(path) -> str:
         if isinstance(launcher, dict) and launcher.get("skin") not in (None, False):
             parts.append("launcher: " + launcher["skin"])
         for k in ("opacity", "blur"):
-            if d.get(k) not in (None, False):
+            # Presets saved on a fresh system stored "" for opacity: that is no choice, so it is not summarised.
+            if d.get(k) not in (None, False, ""):
                 parts.append(f"{k}: " + d[k])
         if d.get("anims") not in (None, False, ""):
             parts.append("anims: " + d["anims"])

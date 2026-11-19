@@ -30,7 +30,10 @@ def live_item(it: settings.Item):
 
 
 def effective_item(it: settings.Item) -> settings.Item:
-    """The item whose default applies now when its key is absent from the file (see live_item)."""
+    """The item whose default applies now when its key is absent from the file (see live_item).
+
+    One call is one read: the hyprctl timeout budget starts afresh (hypr_defaults.begin_read)."""
+    hypr_defaults.begin_read()
     return live_item(it)[0]
 
 
@@ -112,14 +115,15 @@ def list_tweaks(table_id: str) -> list:
     shape = values.get("shape", "full")
     compact = values.get("compact", "off")
     out = []
+    hypr_defaults.begin_read()  # one hyprctl timeout budget per list
     for it in tbl.items:
         if it.is_section:
             out.append(f"{t(it.section)}\tsection:{it.section}\t\t0\t\theader")
             continue
-        it, live = live_item(it)
+        it = live_item(it)[0]
         default = it.default_value
-        # A Windows-tab key the file sets: its default is Hyprland's config, which this list cannot name as a
-        # number, so the label says so and a change is marked against the live value (any change when unknown).
+        # A key the file sets is marked whatever Hyprland reports: the user chose it. Its default is named as the
+        # Hyprland config, because this list cannot print a number for it.
         present = hypr_defaults.is_window_key(it.key) and it.key in values
         if it.key == "transparent":
             bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
@@ -128,7 +132,7 @@ def list_tweaks(table_id: str) -> list:
         else:
             value = it.canonical(values.get(it.key, default))
         if present:
-            mark = "●  " if live is None or value != it.canonical(live) else ""
+            mark = "●  "
             deflong = t("Hyprland config")
             long = default_label(it.key, value)
         else:

@@ -27,6 +27,9 @@
 - Transparency shows no preset in use on a fresh system instead of "subtle"; the Home card and list no longer mark a preset the compositor is not using.
 - Windows tab shows the value Hyprland uses when a key is not in windows.json (after «x» or «Reset window geometry»), read with `hyprctl -j getoption`, instead of the settings.json placeholder (gaps 2/4, rounding 10, …). A key the file sets shows "default: Hyprland config" and is marked as changed against the live value. A CSS gap whose sides differ (e.g. "5 10") falls back to the settings.json default.
 - «Reset window geometry» also turns the no-gaps toggle off, so the No gaps row and the gaps rows agree.
+- Windows tab shows the value Hyprland uses when a key is not in windows.json (after «x» or «Reset window geometry»), read with `hyprctl -j getoption`, instead of the settings.json placeholder (gaps 2/4, rounding 10, …). A key the file sets shows "default: Hyprland config" and is always marked, since the user set it. A CSS gap whose sides differ (e.g. "5 10") falls back to the settings.json default.
+- A hung `hyprctl` costs one second per list, not one per row; the bash mirror of the list does the same.
+- «Reset window geometry» leaves the no-gaps toggle as it is, so the No gaps row and the gap rows show the same state.
 - Transparency shows no preset in use on a fresh system instead of "subtle"; the Home card and list no longer mark a preset the compositor is not using. On a fresh system the first next/prev applies "subtle"; styles that name an opacity report "custom" there.
 - Presets saved on a fresh system no longer store an empty opacity; `opacity.sh restore` with a saved name that no longer exists keeps the live values instead of exiting 1.
 - Theme Switcher rows whose value equals the sentinel (0 / -1, "from the style / theme") show the default's words, not a bare number or a stray change mark.

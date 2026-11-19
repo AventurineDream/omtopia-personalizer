@@ -9,6 +9,7 @@
 #   opacity.sh set <name>    # apply a preset by name (used by the customizer)
 #   opacity.sh preview <name>  # apply without saving or notifying (customizer hover); snapshots the pre-preview live values once
 #   opacity.sh restore       # re-apply the saved preset silently (none saved: restore the pre-preview snapshot, else keep the live opacity)
+#                            a saved name that is no longer in PRESETS also keeps the live opacity (exit 0).
 #   opacity.sh list          # "<name> <active> <inactive> <current 0/1>" per line
 #   opacity.sh current       # name of the preset in use; empty when none was applied
 #

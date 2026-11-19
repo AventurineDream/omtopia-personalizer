@@ -33,15 +33,34 @@ def is_window_key(key: str) -> bool:
     return key in OPTIONS
 
 
-def _getoption(option: str):
-    """Parsed `hyprctl -j getoption <option>`; None when hyprctl is missing, fails or prints no object.
+# One hyprctl call waits at most TIMEOUT_S. A list asks once per row, so without a shared budget a hung
+# compositor would stall the list for rows × TIMEOUT_S; after one timeout the list stops asking (begin_read).
+TIMEOUT_S = 1
+_unresponsive = False
 
-    Not cached: the value changes whenever the config is reloaded, and a list reads each option once.
+
+def begin_read() -> None:
+    """Start a new list or tweak: forget an earlier timeout, so each read gets its own budget."""
+    global _unresponsive
+    _unresponsive = False
+
+
+def _getoption(option: str):
+    """Parsed `hyprctl -j getoption <option>`; None when hyprctl is missing, fails, times out or prints no object.
+
+    After a timeout, calls return None at once until begin_read(): the compositor is not answering, and each
+    further call would wait TIMEOUT_S again. Not cached: the value changes whenever the config is reloaded.
     """
+    global _unresponsive
+    if _unresponsive:
+        return None
     try:
         p = subprocess.run(["hyprctl", "-j", "getoption", option], capture_output=True, text=True,
-                           timeout=5, stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.TimeoutExpired):
+                           timeout=TIMEOUT_S, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        _unresponsive = True
+        return None
+    except OSError:
         return None
     if p.returncode != 0:
         return None

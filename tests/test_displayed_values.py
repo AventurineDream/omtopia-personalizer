@@ -4,26 +4,30 @@
   /usr/bin/python3 -I tests/test_displayed_values.py
 
 All cases run in order in one sandbox HOME under $XDG_RUNTIME_DIR; each case leaves the state the next one
-expects. hyprctl, omarchy, notify-send and omarchy-hyprland-toggle are stubs that only log their calls, and
-the stub hyprctl answers `getoption` from JSON files the test writes (a missing file or a `hyprctl-fail` marker
-makes it fail). Gaps follow the no-gaps flag as Hyprland does: with the flag file present the stub reports
-gaps 0. The live desktop is never touched.
+expects. hyprctl, omarchy, notify-send and omarchy-hyprland-toggle are stubs that only log their calls. The stub
+hyprctl answers `getoption` from JSON files the test writes; marker files switch it to failing (exit 1), printing
+non-JSON with exit 0, or hanging. With the no-gaps flag file present the stub reports gaps 0, as Hyprland does.
+The live desktop is never touched.
   1. Windows tab: an absent key shows Hyprland's live value (int, bool, float, str, CSS gap of equal sides).
-  2. A CSS gap with different sides, or a failing hyprctl, falls back to the settings.json default.
-  3. A key the file sets: the default is named "Hyprland config" and a change is marked against the live value.
-  4. windowNoGaps reads the flag file; after «Reset window geometry» the no-gaps row and the gaps rows agree.
+  2. A CSS gap with different sides, a failing hyprctl, or non-JSON output falls back to the settings.json default.
+  3. A key windows.json sets is always marked; its default is named "Hyprland config".
+  4. windowNoGaps reads the flag file; «Reset window geometry» keeps the toggle, and the rows agree.
   5. Transparency: a fresh system has no preset in use; a saved name that no longer exists restores live.
   6. Theme Switcher: sentinel values print the default's words, in rows and in the slider readout.
   7. Dock: pinned ids print the desktop file's Name=, from XDG_DATA_HOME and XDG_DATA_DIRS.
+  8. Bash mirror (tests/legacy/customizer.sh): the same rows as the backend; enum step from the live layout;
+     one hyprctl timeout per list.
 """
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import time
 
 PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUN = os.path.join(PLUGIN, "backend/run.py")
+LEGACY = os.path.join(PLUGIN, "tests/legacy/customizer.sh")
 OPACITY = os.path.join(PLUGIN, "scripts/opacity.sh")
 
 
@@ -44,6 +48,8 @@ def sandbox():
     write(os.path.join(stubs, "hyprctl"), f"""#!/bin/sh
 printf '%s\\n' "hyprctl $*" >> "{log}"
 [ -f "{base}/hyprctl-fail" ] && exit 1
+[ -f "{base}/hyprctl-garbage" ] && {{ echo "not json"; exit 0; }}
+[ -f "{base}/hyprctl-hang" ] && exec sleep 30
 if [ "$1" = "-j" ] && [ "$2" = "getoption" ]; then
   case "$3" in
   general:gaps_in|general:gaps_out)
@@ -72,8 +78,21 @@ def set_opt(base, option, obj):
     write(os.path.join(base, "opts", option + ".json"), json.dumps(obj))
 
 
+def set_marker(base, name, on):
+    path = os.path.join(base, name)
+    if on:
+        write(path, "")
+    elif os.path.exists(path):
+        os.unlink(path)
+
+
 def backend(env, *args):
     r = subprocess.run(["/usr/bin/python3", "-I", RUN, *args], env=env, capture_output=True, text=True)
+    return r.returncode, r.stdout
+
+
+def legacy(env, *args):
+    r = subprocess.run(["bash", LEGACY, *args], env=env, capture_output=True, text=True)
     return r.returncode, r.stdout
 
 
@@ -88,6 +107,10 @@ def row(env, category, key):
         if len(f) > 1 and f[1] == key:
             return f
     return None
+
+
+def load_json(path):
+    return json.load(open(path)) if os.path.exists(path) else {}
 
 
 LIVE = {
@@ -107,12 +130,16 @@ def main():
     base, home, state, env = sandbox()
     flag = os.path.join(state, "omarchy/toggles/hypr/window-no-gaps.lua")
     win_json = os.path.join(home, ".config/omarchy/customizer/windows.json")
+    calls = os.path.join(base, "calls.log")
     fails = []
 
     def check(name, cond):
         print(("ok    " if cond else "FAIL  ") + name)
         if not cond:
             fails.append(name)
+
+    def call_count():
+        return len(open(calls).read().splitlines()) if os.path.exists(calls) else 0
 
     for option, obj in LIVE.items():
         set_opt(base, option, obj)
@@ -133,16 +160,16 @@ def main():
     # A step from an absent key starts from the live value: 5 → 6, and the enum from master → dwindle.
     backend(env, "tweak", "windowGapsIn", "+")
     check("1 step from an absent key starts from the live value (5 → 6)",
-          json.load(open(win_json)).get("windowGapsIn") == 6)
+          load_json(win_json).get("windowGapsIn") == 6)
     backend(env, "tweak", "windowGapsIn", "reset")
     check("1 reset drops the key; the row shows the live value again",
-          "windowGapsIn" not in json.load(open(win_json)) and row(env, "windows", "tweak:windowGapsIn")[8] == "5")
+          "windowGapsIn" not in load_json(win_json) and row(env, "windows", "tweak:windowGapsIn")[8] == "5")
     backend(env, "tweak", "windowLayout", "+")
     check("1 enum step from an absent key starts from the live layout (master → dwindle)",
-          json.load(open(win_json)).get("windowLayout") == "dwindle")
+          load_json(win_json).get("windowLayout") == "dwindle")
     os.unlink(win_json)
 
-    # ── 2. Not one value → settings.json default; hyprctl failing → settings.json default ──
+    # ── 2. Not one value, a failing hyprctl, or non-JSON output → settings.json default ──
     set_opt(base, "general:gaps_in", {"css": "5 10 5 10", "set": True})
     gin = row(env, "windows", "tweak:windowGapsIn")
     check("2 CSS gap with different sides → settings default 2, row still listed",
@@ -150,40 +177,57 @@ def main():
     check("2 the other rows still list after a multi-value gap",
           row(env, "windows", "tweak:windowBorder") is not None and len(rows(env, "windows")) > 10)
     set_opt(base, "general:gaps_in", LIVE["general:gaps_in"])
-    write(os.path.join(base, "hyprctl-fail"), "")
+    set_marker(base, "hyprctl-fail", True)
     check("2 hyprctl failing → settings default 10 for rounding",
           row(env, "windows", "tweak:windowDecoRounding")[8] == "10")
-    os.unlink(os.path.join(base, "hyprctl-fail"))
+    set_marker(base, "hyprctl-fail", False)
+    set_marker(base, "hyprctl-garbage", True)
+    check("2 hyprctl exit 0 with non-JSON stdout → settings defaults (rounding 10, gaps 2)",
+          row(env, "windows", "tweak:windowDecoRounding")[8] == "10"
+          and row(env, "windows", "tweak:windowGapsIn")[8] == "2")
+    set_marker(base, "hyprctl-garbage", False)
 
-    # ── 3. A key the file sets: default named as the Hyprland config; change marked against live ──
+    # ── 3. A key windows.json sets is always marked; its default is named as the Hyprland config ──
     write(win_json, json.dumps({"windowGapsIn": 4}))
     gin = row(env, "windows", "tweak:windowGapsIn")
-    check("3 key set to 4 (live 5): default is the Hyprland config, and it is marked",
-          gin[5] == "default: Hyprland config" and gin[0].startswith("●") and gin[8] == "4")
+    check("3 key set to 4 (live 5): marked, default named as the Hyprland config",
+          gin[0].startswith("●  ") and gin[5] == "default: Hyprland config" and gin[8] == "4")
     write(win_json, json.dumps({"windowGapsIn": 5}))
     gin = row(env, "windows", "tweak:windowGapsIn")
-    check("3 key set equal to live 5: no change mark, label still names the config",
-          gin[5] == "default: Hyprland config" and not gin[0].startswith("●"))
-    write(os.path.join(base, "hyprctl-fail"), "")
+    check("3 key set equal to live 5: still marked (the user chose it)",
+          gin[0].startswith("●  ") and gin[5] == "default: Hyprland config" and gin[8] == "5")
+    set_marker(base, "hyprctl-fail", True)
     gin = row(env, "windows", "tweak:windowGapsIn")
-    check("3 key set and live unknown: marked as changed (nothing to compare with)",
-          gin[0].startswith("●") and gin[5] == "default: Hyprland config")
-    os.unlink(os.path.join(base, "hyprctl-fail"))
+    check("3 key set and live unknown: marked", gin[0].startswith("●  ") and gin[5] == "default: Hyprland config")
+    set_marker(base, "hyprctl-fail", False)
     os.unlink(win_json)
+    gin = row(env, "windows", "tweak:windowGapsIn")
+    check("3 key absent: not marked, default is the live value", not gin[0].startswith("●") and gin[5] == "default: 5")
 
-    # ── 4. windowNoGaps reads the flag; after reset the no-gaps row and the gaps rows agree ──
-    write(win_json, json.dumps({"windowNoGaps": True}))
-    write(flag, "")
+    # ── 4. windowNoGaps reads the flag; «Reset window geometry» keeps the toggle and the rows agree ──
+    write(win_json, json.dumps({"windowNoGaps": True, "windowGapsOut": 12}))
+    write(flag, "")  # the toggle is on
     ng = row(env, "windows", "tweak:windowNoGaps")
     gin = row(env, "windows", "tweak:windowGapsIn")
-    check("4 flag file present, key set true: no-gaps row true, gaps row shows 0 (live)",
-          ng[8] == "true" and gin[8] == "0")
+    check("4 no-gaps on, key set true: no-gaps row true, gaps row 0 (live)",
+          ng[8] == "true" and gin[8] == "0" and ng[0].startswith("●  "))
+    before = call_count()
     backend(env, "apply", "windows", "geometry-reset")
     ng = row(env, "windows", "tweak:windowNoGaps")
     gin = row(env, "windows", "tweak:windowGapsIn")
-    check("4 after reset: flag file gone and no-gaps row false", not os.path.exists(flag) and ng[8] == "false")
-    check("4 after reset: gaps row shows the live value 5 — agrees with no-gaps off",
-          gin[8] == "5" and "windowNoGaps" not in json.load(open(win_json)))
+    check("4 reset keeps the toggle: flag file still there", os.path.exists(flag))
+    check("4 reset drops the geometry keys from windows.json (windowNoGaps and windowGapsOut)",
+          "windowNoGaps" not in load_json(win_json) and "windowGapsOut" not in load_json(win_json))
+    check("4 reset does not turn the toggle off (no toggle call after reset)",
+          not any("window-no-gaps off" in c for c in open(calls).read().splitlines()[before:]))
+    check("4 after reset the rows agree: no-gaps row true and gaps row 0",
+          ng[8] == "true" and gin[8] == "0")
+    os.unlink(flag)
+    backend(env, "apply", "windows", "geometry-reset")
+    ng = row(env, "windows", "tweak:windowNoGaps")
+    gin = row(env, "windows", "tweak:windowGapsIn")
+    check("4 toggle off, reset: no-gaps row false and gaps row shows the live 5",
+          ng[8] == "false" and gin[8] == "5")
 
     # ── 5. Transparency: fresh system has no preset in use; a stale saved name restores live ──
     def opacity(*args):
@@ -198,11 +242,11 @@ def main():
           opacity("current") == (0, "subtle")
           and [f[1] for f in rows(env, "opacity") if f[3] == "1"] == ["subtle"])
     write(os.path.join(state, "hypr/opacity"), "frosty 0.5 0.5\n")
-    calls_before = len(open(os.path.join(base, "calls.log")).read().splitlines())
+    before = call_count()
     rc, _ = opacity("restore")
     check("5 stale saved name: restore exits 0 (keeps the live values)", rc == 0)
     check("5 stale saved name: restore applies no preset",
-          not any("active_opacity = 1" in c for c in open(os.path.join(base, "calls.log")).read().splitlines()[calls_before:]))
+          not any("active_opacity = 1" in c for c in open(calls).read().splitlines()[before:]))
 
     # ── 6. Theme Switcher: sentinel values print the default's words ──
     write(os.path.join(home, ".config/omarchy/image-picker.json"),
@@ -229,6 +273,34 @@ def main():
     check("7 pinned id from an XDG data dir → its Name=", dock.get("unpin:tool-x") == "★ Tool X")
     check("7 pinned id without a desktop file → the id itself",
           dock.get("unpin:chrome-gone-Default") == "★ chrome-gone-Default")
+
+    # ── 8. Bash mirror: same rows as the backend, enum from the live layout, one timeout per list ──
+    def same_rows(category):
+        py = backend(env, "list", category)[1].splitlines()
+        rc, sh = legacy(env, "list", category)
+        return rc == 0 and py == sh.splitlines()
+
+    write(win_json, json.dumps({"windowGapsIn": 4}))
+    check("8 bash list windows = backend list windows (a present key, live values)", same_rows("windows"))
+    os.unlink(win_json)
+    check("8 bash list windows = backend list windows (all keys absent)", same_rows("windows"))
+    set_opt(base, "general:gaps_in", {"css": "5 10 5 10", "set": True})
+    check("8 bash list windows = backend list windows (multi-value gap → settings default)", same_rows("windows"))
+    set_opt(base, "general:gaps_in", LIVE["general:gaps_in"])
+    rc, _ = legacy(env, "tweak", "windowLayout", "+")
+    check("8 bash enum step starts from the live layout (master → dwindle)",
+          rc == 0 and load_json(win_json).get("windowLayout") == "dwindle")
+    os.unlink(win_json)
+    set_marker(base, "hyprctl-hang", True)
+    t0 = time.monotonic()
+    backend(env, "list", "windows")
+    py_s = time.monotonic() - t0
+    t0 = time.monotonic()
+    legacy(env, "list", "windows")
+    sh_s = time.monotonic() - t0
+    check(f"8 hung hyprctl: one 1 s budget per list, not one per row (backend {py_s:.1f} s, bash {sh_s:.1f} s)",
+          py_s < 4 and sh_s < 4)
+    set_marker(base, "hyprctl-hang", False)
 
     print(f"{'OK' if not fails else 'FAIL'}; sandbox: {base}")
     return 1 if fails else 0
