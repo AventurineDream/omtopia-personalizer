@@ -41,10 +41,11 @@ def _strip_markers(line, markers):
 
 def matches_readonly(entry, bash_output, python_output):
     """Строгая сверка: все маркеры в выводе Python, ни одной bash-only строки,
-    и каждая лишняя строка Python содержит маркер (из expect или optional).
+    и каждая лишняя строка Python содержит маркер из записи.
 
-    Маркеры из "optional" могут отсутствовать в выводе, потому что строка зависит
-    от состояния хоста; обязательны только маркеры из "expect".
+    Все маркеры записи обязательны. Строки, зависящие от состояния хоста (плагин FX, установленный
+    owe), не делаются необязательными: их случай запускается в песочнице с фиксированным состоянием
+    (compare_readonly), поэтому строки там всегда присутствуют.
 
     Строка bash считается покрытой, если она есть в выводе Python как есть,
     является префиксом строки Python (бэкенд дописал поле в конец строки,
@@ -57,9 +58,6 @@ def matches_readonly(entry, bash_output, python_output):
     на месте.
     """
     markers = entry["expect"]
-    # optional: строки, которые зависят от состояния хоста (включён ли плагин FX,
-    # установлен ли owe). Их может не быть; если они есть, они лишние и содержат маркер.
-    optional = entry.get("optional", [])
     if not all(s in python_output for s in markers):
         return False
     bash_lines = bash_output.splitlines()
@@ -88,7 +86,7 @@ def matches_readonly(entry, bash_output, python_output):
         return False
     # Каждая лишняя строка Python содержит маркер.
     for p in python_lines:
-        if is_extra(p) and not any(m in p for m in markers + optional):
+        if is_extra(p) and not any(m in p for m in markers):
             return False
     return True
 
@@ -140,6 +138,11 @@ def _matches_apply_variant(variant, code_bash, code_py, differing_files, py_only
     # допустимые (например, '{}' — пустой windows.json у bash при restore).
     if sorted(bash_only) != sorted(variant.get("bash_only", [])):
         return False
+    # Точный набор py-only строк: любое отличие значения или состава ключа — другая подпись.
+    # Подписи без "py_only" (thumbs: набор системных тем зависит от машины) сверяются по маркерам.
+    exact = variant.get("py_only")
+    if exact is not None:
+        return sorted(py_only) == sorted(exact)
     if variant.get("expect") not in "\n".join(py_only):
         return False
     allowed = variant.get("expect_all")

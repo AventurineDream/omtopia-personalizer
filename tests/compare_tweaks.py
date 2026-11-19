@@ -80,11 +80,17 @@ def snapshot(root):
 
 
 def discard_if_green(base, failed):
-    """Удаляет каталог песочниц (base) после зелёного прогона, чтобы tmpfs $XDG_RUNTIME_DIR
-    (~770 МБ) не заполнялся накопленными прогонами. При провале (failed=True) каталог остаётся
-    для разбора — вызывающий печатает его путь. Вызывается из всех compare-харнессов."""
-    if not failed:
-        shutil.rmtree(base, ignore_errors=True)
+    """Удаляет каталог песочниц base после зелёного прогона, чтобы накопленные прогоны не заполняли
+    tmpfs $XDG_RUNTIME_DIR. Вызывают все харнессы, которые создают песочницы (compare_readonly,
+    compare_apply, compare_commands, compare_tweaks). При провале (failed=True) каталог остаётся
+    для разбора — вызывающий печатает его путь. Ошибка удаления не прячется: путь печатается,
+    чтобы каталог не потерялся незамеченным."""
+    if failed:
+        return
+    try:
+        shutil.rmtree(base)
+    except OSError:
+        print("не удалось удалить песочницу: " + base)
 
 
 def run(env, impl, args, zenity=""):
