@@ -9,7 +9,10 @@ Item {
 
   property string style: "slices"
   property var config: ({})
-  property var images: []          // пути превью тем; выбранная — посередине
+  // Пути превью тем; выбранная — посередине. null — статус ещё не пришёл (не путать с пустым списком).
+  property var images: []
+  // Подсказка, когда миниатюр нет (⚡ Cache thumbnails ещё не собрал): иначе карточка пустая и выглядит чёрной.
+  property string emptyText: ""
 
   readonly property var presets: ({
     "slices":    { expandedWidth: 768,  expandedHeight: 475, sliceWidth: 108, sliceHeight: 432, spacing: -30,  skew: 28, radius: 0,  tilt: 0 },
@@ -36,7 +39,7 @@ Item {
   readonly property real dim: num("dim", 0.42)
   readonly property bool polaroid: style === "polaroid"
 
-  readonly property int count: Math.max(1, images.length)
+  readonly property int count: Math.max(1, mock.images ? mock.images.length : 0)
   readonly property int center: Math.floor(count / 2)
   // Полная ширина карусели в «настоящих» пикселях → масштаб под превью.
   readonly property real fullWidth: ew + (count - 1) * (sw + gap)
@@ -107,5 +110,16 @@ Item {
         }
       }
     }
+  }
+
+  Text {
+    visible: mock.images !== null && mock.images.length === 0
+    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: Style.space(24) }
+    horizontalAlignment: Text.AlignHCenter
+    wrapMode: Text.WordWrap
+    text: mock.emptyText
+    color: Color.foreground
+    opacity: 0.7
+    font.pixelSize: Style.font.body
   }
 }

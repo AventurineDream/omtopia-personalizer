@@ -2406,7 +2406,9 @@ Item {
             t: root
             items: root.groupTabs
             currentIndex: root.groupCategories.indexOf(root.categoryIndex)
-            onPicked: function(i) { root.setCategory(root.groupCategories[i]) }
+            // A tab click selects the category and focuses its list (pane 1); otherwise the rail keeps focus and j/k would step through the groups instead of this list.
+            // selectionChanged() after pane = 1: setCategory() ran with pane 0 on a cache hit, so the live preview would not start (as in jumpTo()/activate()).
+            onPicked: function(i) { root.setCategory(root.groupCategories[i]); root.pane = 1; root.selectionChanged() }
           }
           Row {
             id: tabTools
@@ -2905,7 +2907,9 @@ Item {
                       anchors.margins: Style.space(10)
                       style: pickerStage.style
                       config: root.activePicker
-                      images: root.status["picker-previews"] ? String(root.status["picker-previews"]).split("|") : []
+                      emptyText: root.tr("No thumbnails yet — run “⚡ Cache thumbnails” to fill the carousel")
+                      // null until the status has loaded: the empty-cache hint must not flash before it.
+                      images: "picker-previews" in root.status ? (root.status["picker-previews"] ? String(root.status["picker-previews"]).split("|") : []) : null
                     }
                   }
 
