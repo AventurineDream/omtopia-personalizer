@@ -139,7 +139,7 @@ set_theme() {
 # Brightness and theme of a session that is already reading, applied at once when readingBrightness or
 # readingTheme changes. Not routed through restore: restore ends in apply_look, which reloads Hyprland, and
 # a theme switch reloads Hyprland too, so a theme applied via restore would reload again and loop. A config
-# reload does not call restore: customizer.sh restore calls `reading-mode.sh look` instead.
+# reload does not reach this script's restore subcommand: customizer.sh restore runs `reading-mode.sh look` instead.
 live() {
     [[ -f $STATE ]] || return 0
     set_brightness

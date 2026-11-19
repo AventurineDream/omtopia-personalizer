@@ -229,7 +229,7 @@ def reading_after(name=""):
     readingTheme и readingBrightness: `reading-mode.sh live` — только тема и яркость, шейдер не трогаем.
     Остальные ключи: `restore` — перепечь шейдер и перезагрузить Hyprland (apply_look). Тему через restore не
     применяем: restore сам перезагружает Hyprland, и смена темы тоже — получился бы цикл. Перезагрузка конфига
-    не вызывает restore: customizer.sh restore вызывает `reading-mode.sh look`.
+    не доходит до подкоманды `reading-mode.sh restore`: customizer.sh restore запускает `reading-mode.sh look`.
     """
     from . import state
     if not (state.STATE_HYPR / "reading-mode").is_file():
