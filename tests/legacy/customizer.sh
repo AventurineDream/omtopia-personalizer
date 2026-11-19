@@ -2380,12 +2380,12 @@ STYLES
   themes)
     local current dir slug label
     current=$(theme_name)
-    # Тема «dynamic» из текущих обоев — если установлен omarchy-wallpaper-theme (matugen)
+    # Тема «dynamic» из текущих обоев — если установлен omarchy-wallpaper-theme
     if command -v omarchy-wallpaper-theme >/dev/null; then
       local scheme
       for scheme in tonal-spot vibrant expressive fruit-salad monochrome light; do
         printf '%s\t%s\t\t0\t%s\n' "$(t "🎨 Theme from wallpaper: %s" "$scheme")" "dynamic:$scheme" \
-          "$(t "Build the “dynamic” theme from the current wallpaper with matugen (Material You) and apply it.")"
+          "$(t "Build the “dynamic” theme from the current wallpaper (Material You) and apply it.")"
       done
     fi
     # Избранные (f) — отдельным разделом наверху, в порядке добавления; в общем списке их нет.
@@ -2663,7 +2663,7 @@ apply() {
       local -a opts=(--scheme "${value#dynamic:}")
       [[ $value == dynamic:light ]] && opts=(--mode light)
       notify-send -t 3000 "Theme" "$(t "Building a theme from the wallpaper…")"
-      omarchy-wallpaper-theme "${opts[@]}" || { notify-send -u critical "Theme" "$(t "matugen failed")"; exit 1; }
+      omarchy-wallpaper-theme "${opts[@]}" || { notify-send -u critical "Theme" "$(t "Could not build the theme from the wallpaper")"; exit 1; }
       notify-send -t 3000 "Theme" "$(t "Applied %s" dynamic)"
       exit 0
     fi

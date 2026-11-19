@@ -87,14 +87,14 @@ bash ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh           
 - `zenity` — диалоги выбора цвета, текста и файла в твиках
 - плагин `kamradsmeshnyavy.widgets` — категория **Виджеты** на Рабочем столе (часы, сейчас играет, визуализатор cava, кольца системы)
 - `lutgen` — Recolor (виден, только когда есть и lutgen, и zenity)
-- `omarchy-wallpaper-theme` в `PATH` + `matugen` — строки «🎨 Тема из обоев» в **Теме**: тема `dynamic` в стиле Material You из текущих обоев ([скрипт](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
+- `omarchy-wallpaper-theme` в `PATH` — строки «🎨 Тема из обоев» в **Теме**: тема `dynamic` в стиле Material You из текущих обоев; скрипт запускает `omarchy-rice-dynamic` ([скрипт](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
 
 ## Требования
 
 Omarchy 4 (Quattro) с его оболочкой. Проверено на Omarchy 4.0.6 и Quickshell 0.3.2.
 
 - `python3` и `jq` (оба есть в Omarchy).
-- Необязательно: `libvips` (миниатюры), `zenity` (диалоги цвета, текста, файлов), `lutgen` (Recolor), `matugen` (тема из обоев), `ffmpeg` и `pipewire` (`pw-play`) — звуки, `uv` — сборка шрифтов Dotify. Функция без своей программы просто скрывается.
+- Необязательно: `libvips` (миниатюры), `zenity` (диалоги цвета, текста, файлов), `lutgen` (Recolor), `omarchy-wallpaper-theme` (тема из обоев), `ffmpeg` и `pipewire` (`pw-play`) — звуки, `uv` — сборка шрифтов Dotify. Функция без своей программы просто скрывается.
 - Плагины-компаньоны — по желанию, см. таблицу выше.
 
 ## Удаление

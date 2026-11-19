@@ -241,7 +241,7 @@ def themes():
     if fsutil.which("omarchy-wallpaper-theme"):
         for scheme in ("tonal-spot", "vibrant", "expressive", "fruit-salad", "monochrome", "light"):
             out.append(f"{t('🎨 Theme from wallpaper: %s', scheme)}\tdynamic:{scheme}\t\t0\t"
-                       + t("Build the “dynamic” theme from the current wallpaper with matugen (Material You) and apply it."))
+                       + t("Build the “dynamic” theme from the current wallpaper (Material You) and apply it."))
     user_root = str(paths.CONFIG / "themes")
     sys_root = OMARCHY_PATH + "/themes"
     names = set()
