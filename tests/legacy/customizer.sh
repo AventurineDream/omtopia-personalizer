@@ -583,7 +583,6 @@ tweak() {
   case "$key" in
   w:*) widget_step "${key#w:}" "$how"; return ;;
   fontProfile) font_profile_step "$how"; return ;;
-  wset:*) widget_setting "${key#wset:}"; return ;;
   esac
   spec=$(tweak_spec "$key") || exit 1
   TW_FILE=$(tweak_file "$key")
@@ -1030,8 +1029,7 @@ bar_skin_restore() {
 }
 
 # ── Виджеты бара: включение, порядок, параметры (shell.json .bar.layout) ──
-# Строки категории bar-widgets — твики с ключами w:<id> (h/l — сдвиг, ⏎/x — вкл/выкл) и
-# wset:<id>:<key> (параметр виджета). Перемещение и добавление делает сам шелл
+# Строки категории bar-widgets — твики с ключами w:<id> (h/l — сдвиг, ⏎/x — вкл/выкл). Перемещение и добавление делает сам шелл
 # (moveBarWidget / putBarWidget); убранный виджет вместе с настройками и местом
 # запоминается в bar-hidden.json, чтобы вернуться туда же.
 BAR_HIDDEN="$HOME/.config/omarchy/customizer/bar-hidden.json"
@@ -1162,27 +1160,6 @@ list_font_profile() {
     "$(t "$desc")" "$cur" "$(t "Font profile")"
 }
 
-# Параметры виджетов (bool): id|key|default|label
-WIDGET_SETTINGS=(
-  "kamradsmeshnyavy.tray|collapse|false|Tray: collapse into a drawer (opens on hover)"
-  "kamradsmeshnyavy.tray|monochrome|true|Tray: monochrome icons (colour on hover)"
-)
-
-widget_setting_value() { # id key default
-  jq -r --arg id "$1" --arg k "$2" --arg d "$3" '[.bar.layout[][] | select(type == "object" and .id == $id)][0]
-    | if . != null and has($k) and .[$k] != null then .[$k] | tostring else $d end' "$SHELL_JSON"
-}
-
-widget_setting() { # "<id>:<key>"
-  local id=${1%:*} key=${1##*:} t def cur
-  for t in "${WIDGET_SETTINGS[@]}"; do
-    IFS='|' read -r tid tkey def _ <<<"$t"
-    [[ $tid == "$id" && $tkey == "$key" ]] && break
-  done
-  cur=$(widget_setting_value "$id" "$key" "$def")
-  omarchy-shell shell setBarWidget "$id" "$key" "$([[ $cur == true ]] && echo false || echo true)" '{}' >/dev/null
-}
-
 list_bar_widgets() {
   WIDGET_CATALOG=$(omarchy plugin list --json 2>/dev/null || echo '[]')
   local sec id on t tid tkey def label v
@@ -1229,14 +1206,6 @@ list_bar_widgets() {
     printf '%s\t%s\t\t0\t%s\t%s\tadd\t\t\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
       "$(t "Not on the bar · %s" "$id")"'\n\n'"$(t "⏎ — put on the bar (back to its old place if it was removed here)")" "$id" \
       "$(widget_label "$id")"
-  done
-  printf '%s\t%s\t\t0\t\theader\n' "$(t "Widget settings")" "section:settings"
-  for t in "${WIDGET_SETTINGS[@]}"; do
-    IFS='|' read -r tid tkey def label <<<"$t"
-    v=$(widget_setting_value "$tid" "$tkey" "$def")
-    printf '%s\t%s\t\t0\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(t "$label"):  $v" "tweak:wset:$tid:$tkey" \
-      "$(t "Now: %s" "$v")"'\n'"$(t "Default: %s" "$def")"'\n\n'"$(t "h/l or ⏎ — on/off")" "$(t "default: %s" "$def")" \
-      bool "$def" "$v" "$(t "$label")"
   done
 }
 

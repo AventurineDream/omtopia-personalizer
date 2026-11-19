@@ -365,24 +365,6 @@ def _widget_show(wid):
         write_inplace(BAR_HIDDEN, {k: v for k, v in hidden.items() if k != wid})
 
 
-def widget_setting(spec):
-    from .lists_more import WIDGET_SETTINGS
-    wid, key = spec.rsplit(":", 1)
-    default = "false"
-    for tid, tkey, d, _ in WIDGET_SETTINGS:
-        default = d
-        if tid == wid and tkey == key:
-            break
-    _, lay = _layout()
-    cur = default
-    for sec in lay.values():
-        hit = next((e for e in (sec or []) if isinstance(e, dict) and e.get("id") == wid), None)
-        if hit is not None:
-            cur = jsonio.tostring(hit[key]) if hit.get(key) is not None else default
-            break
-    _quiet(["omarchy-shell", "shell", "setBarWidget", wid, key, "false" if cur == "true" else "true", "{}"])
-
-
 def font_profile_step(how):
     if not fsutil.which("omarchy-font-profile"):
         return
@@ -408,8 +390,6 @@ def tweak(key, how):
         return widget_step(key[2:], how)
     if key == "fontProfile":
         return font_profile_step(how)
-    if key.startswith("wset:"):
-        return widget_setting(key[5:])
     tbl, it = settings.find(key)
     if it is None:
         raise SystemExit(1)

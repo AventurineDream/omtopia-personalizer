@@ -475,10 +475,6 @@ _WIDGET_LABEL = {"dotmatrix-mark": "DOT-MATRIX logo", "active-app": "Active app"
 BAR_MODULES = {"dotmatrix-mark": "DotMatrixMark.qml", "active-app": "ActiveAppIcon.qml", "battery-gauge": "BatteryGauge.qml",
                "dot-clock": "DotClock.qml", "privacy-led": "PrivacyLed.qml", "runcat": "RunCat.qml",
                "cpu-ram": "CpuRamRings.qml", "cava-dots": "CavaDots.qml", "focus-timer": "FocusTimer.qml", "taskbar": "Taskbar.qml"}
-WIDGET_SETTINGS = [
-    ("kamradsmeshnyavy.tray", "collapse", "false", "Tray: collapse into a drawer (opens on hover)"),
-    ("kamradsmeshnyavy.tray", "monochrome", "true", "Tray: monochrome icons (colour on hover)"),
-]
 
 
 def _entry_id(e):
@@ -492,7 +488,7 @@ def bar_widgets():
     by its widgets (centerBegin/centerEnd count as center only when bar.centerAnchor is one of its ids); then,
     only when the tray has widgets, a `section:tray` header and the tray-drawer widgets; then `section:off`
     ("Not on the bar") with the widgets stashed in bar-hidden.json, the catalog's bar-widget plugins not cloned by
-    another plugin, and the QML modules in BAR_DIR/modules; then `section:settings`. A `tweak:w:<id>` row carries
+    another plugin, and the QML modules in BAR_DIR/modules. A `tweak:w:<id>` row carries
     `move` (on the bar) or `add` (off the bar or in the drawer) in its 7th column.
 
     Each id gets one row: the first section that lists it wins, so a drawer copy of an id already on the bar is
@@ -575,16 +571,6 @@ def bar_widgets():
             continue
         out.append(f"○ {label(wid)}\ttweak:w:{wid}\t\t0\t{t('Not on the bar · %s', wid)}{NL}{NL}"
                    f"{t('⏎ — put on the bar (back to its old place if it was removed here)')}\t{wid}\tadd\t\t\t{label(wid)}")
-    out.append(f"{t('Widget settings')}\tsection:settings\t\t0\t\theader")
-    for tid, key, default, lab in WIDGET_SETTINGS:
-        v = default
-        for sec in layout.values():
-            hit = next((e for e in (sec or []) if isinstance(e, dict) and e.get("id") == tid), None)
-            if hit is not None:
-                v = jsonio.tostring(hit[key]) if hit.get(key) is not None else default
-                break
-        out.append(f"{t(lab)}:  {v}\ttweak:wset:{tid}:{key}\t\t0\t{t('Now: %s', v)}{NL}{t('Default: %s', default)}{NL}{NL}"
-                   f"{t('h/l or ⏎ — on/off')}\t{t('default: %s', default)}\tbool\t{default}\t{v}\t{t(lab)}")
     return out
 
 
