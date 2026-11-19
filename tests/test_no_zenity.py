@@ -157,6 +157,73 @@ def main():
     code, out, err = run(env, "apply", "bar-layouts", "save", "--name", "bad/name")
     check("a layout name with a slash is refused", code == 1 and "Use latin letters, digits, - and _ only" in err)
 
+    # ── names: latin letters, digits, spaces, - and _; the file name is the slug, and a refusal writes nothing ──
+    code, out, err = run(env, "apply", "presets", "save", "--name", "../../escape")
+    stray = [n for _, _, names in os.walk(home) for n in names if n.startswith("escape")]
+    check("a preset name with ../ is refused and writes no file",
+          code == 1 and "Use latin letters, digits, - and _ only" in err and not stray)
+    code, out, err = run(env, "apply", "styles", "save", "--name", "Работа")
+    timestamped = [n for n in os.listdir(styles) if n.startswith("style-")]
+    check("a style name with no latin letters is refused, not saved under a timestamp",
+          code == 1 and "Use latin letters, digits, - and _ only" in err and not timestamped)
+    code, out, err = run(env, "apply", "styles", "save", "--name", "Soft Test")
+    check("a style name with a space is saved as soft-test.json",
+          code == 0 and out == os.path.join(styles, "soft-test.json"))
+
+    # ── flags: each apply takes only the options its save or prune uses ──
+    code, out, err = run(env, "apply", "presets", "save", "--name", "x", "--yes")
+    check("a save takes no --yes: exit 2 with the option named", code == 2 and "Unknown option: --yes" in err)
+    code, out, err = run(env, "apply", "walls", "pick-dir", "--name", "y")
+    check("walls pick-dir takes no --name: exit 2 with the option named", code == 2 and "Unknown option: --name" in err)
+    code, out, err = run(env, "apply", "theme-switcher", "prune", "--name", "y")
+    check("prune takes --yes and --dry-run only: exit 2 with the option named", code == 2 and "Unknown option: --name" in err)
+
+    # ── the Bar Layout 💾 row is a layout save row ──
+    code, out, err = run(env, "list", "bar-layouts")
+    check("the Bar Layout 💾 row says layout",
+          out.split("\n")[0].split("\t")[:2] == ["💾 Save the current one as a layout…", "save"])
+
+    # ── thumbnail prune: --dry-run only counts (the footer's question), --yes deletes ──
+    picker_dir = os.path.join(home, ".cache/omarchy/image-selector")
+    orphans = [touch_json(os.path.join(picker_dir, n), "jpg") for n in ("orphan-a.jpg", "orphan-b.jpg")]
+    code, out, err = run(env, "apply", "theme-switcher", "prune", "--dry-run")
+    check("prune --dry-run counts the thumbnails it would delete",
+          code == 0 and out == "Can delete: 2 thumbnails, 0.0 GB; 0 stay")
+    check("prune --dry-run deletes nothing", all(os.path.exists(p) for p in orphans))
+    code, out, err = run(env, "apply", "theme-switcher", "prune", "--yes")
+    check("prune --yes deletes the thumbnails", code == 0 and not any(os.path.exists(p) for p in orphans))
+
+    # ── Bar Skin: listing the tab keeps no backup, so a colour set since survives the 💾 row and a save ──
+    live = os.path.join(cfg, "bar-skin.json")
+    touch_json(live, json.dumps({"background": "#112233"}))
+    run(env, "list", "bar-skins")
+    run(env, "tweak", "background", "set", "#c0ffee")
+    run(env, "list", "bar-skins")
+    run(env, "bar-skins-preview", "save")
+    check("previewing the 💾 row after a colour change keeps the colour",
+          json.load(open(live)).get("background") == "#c0ffee")
+    code, out, err = run(env, "apply", "bar-skins", "save", "--name", "issue-b")
+    saved = json.load(open(os.path.join(skins, "issue-b.json"))) if code == 0 else {}
+    check("saving the bar skin keeps the colour in the saved skin", saved.get("background") == "#c0ffee")
+    check("saving keeps the colour on the bar", json.load(open(live)).get("background") == "#c0ffee")
+    # A skin preview the shell never restored (it restarted mid-preview) is undone by the overlay's restore.
+    night = touch_json(os.path.join(skins, "night.json"), json.dumps({"background": "#445566"}))
+    run(env, "bar-skins-preview", night)
+    previewed = json.load(open(live)).get("background")
+    run(env, "bar-skins-restore")
+    check("a skin preview shows its colour, and the restore puts the bar back",
+          previewed == "#445566" and json.load(open(live)).get("background") == "#c0ffee")
+    # A save during a preview saves the bar as it was before the preview, and ends the preview.
+    run(env, "bar-skins-preview", night)
+    code, out, err = run(env, "apply", "bar-skins", "save", "--name", "issue-b2")
+    saved2 = json.load(open(os.path.join(skins, "issue-b2.json"))) if code == 0 else {}
+    check("saving during a preview saves the bar before it and leaves the bar as it was",
+          saved2.get("background") == "#c0ffee" and json.load(open(live)).get("background") == "#c0ffee")
+    run(env, "tweak", "background", "set", "#aaaaaa")
+    run(env, "bar-skins-restore")
+    check("after a save no backup is left to restore over a later change",
+          json.load(open(live)).get("background") == "#aaaaaa")
+
     # ── thumbnail clean-up: the overlay asks in its footer and runs with --yes ──
     code, out, err = run(env, "apply", "theme-switcher", "prune", "--yes")
     check("theme-switcher prune --yes runs without a question", code == 0)
