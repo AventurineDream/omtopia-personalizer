@@ -749,8 +749,10 @@ def save_user_style(name=None, overwrite=False):
 # ── Бар ──
 
 def save_user_skin(name=None, overwrite=False):
-    """Save the bar's current skin. name / overwrite as in save_user_preset; a typed name is checked by
-    _typed_name. Returns the written path, "" when zenity was cancelled."""
+    """Save the bar's skin as it was before any preview (the backup), or the live skin when none runs. name /
+    overwrite as in save_user_preset; a typed name is checked by _typed_name. The save then ends the preview:
+    the bar is put back as it was and the backup removed (preview_ops.bar_skin_restore). Returns the written
+    path, "" when zenity was cancelled."""
     if name is None:
         name = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Skin name (latin letters, digits, - and _):')}",
                         "--entry-text=my-skin"])
@@ -773,8 +775,8 @@ def save_user_skin(name=None, overwrite=False):
     src = jsonio.read(SKIN_BACKUP) if fsutil.nonempty(SKIN_BACKUP) else jsonio.read(paths.BAR_SKIN)
     src = {k: v for k, v in (src or {}).items() if not NOTE_RE.match(k)}
     write(path, ({"note": note} if note else {}) | src)
-    if SKIN_BACKUP.is_file():
-        shutil.copyfile(SKIN_BACKUP, paths.BAR_SKIN)
+    # The save is a commit: the bar goes back to what it was before any preview, and the backup is gone.
+    preview_ops.bar_skin_restore()
     notify("-t", "3000", "Bar Skin", t("Saved %s", name))
     return str(path)
 
