@@ -90,7 +90,10 @@ def main():
                         print("     py  :", (sp.get(k) or b"")[-300:].decode(errors="replace"))
                 break
             print("ok   ", " ".join(step))
-    print(f"{total - bad}/{total} команд совпадают; песочницы: {base}")
+    print(f"{total - bad}/{total} команд совпадают")
+    if bad:
+        print("песочницы сохранены: " + base)
+    ct.discard_if_green(base, bad)
     return 1 if bad else 0
 
 

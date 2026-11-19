@@ -41,7 +41,10 @@ def _strip_markers(line, markers):
 
 def matches_readonly(entry, bash_output, python_output):
     """Строгая сверка: все маркеры в выводе Python, ни одной bash-only строки,
-    и каждая лишняя строка Python содержит маркер.
+    и каждая лишняя строка Python содержит маркер (из expect или optional).
+
+    Маркеры из "optional" могут отсутствовать в выводе, потому что строка зависит
+    от состояния хоста; обязательны только маркеры из "expect".
 
     Строка bash считается покрытой, если она есть в выводе Python как есть,
     является префиксом строки Python (бэкенд дописал поле в конец строки,
@@ -54,6 +57,9 @@ def matches_readonly(entry, bash_output, python_output):
     на месте.
     """
     markers = entry["expect"]
+    # optional: строки, которые зависят от состояния хоста (включён ли плагин FX,
+    # установлен ли owe). Их может не быть; если они есть, они лишние и содержат маркер.
+    optional = entry.get("optional", [])
     if not all(s in python_output for s in markers):
         return False
     bash_lines = bash_output.splitlines()
@@ -82,7 +88,7 @@ def matches_readonly(entry, bash_output, python_output):
         return False
     # Каждая лишняя строка Python содержит маркер.
     for p in python_lines:
-        if is_extra(p) and not any(m in p for m in markers):
+        if is_extra(p) and not any(m in p for m in markers + optional):
             return False
     return True
 
@@ -121,7 +127,7 @@ def matches_tweaks(entry, code_bash, code_py, err_bash, err_py, differing_files)
 
 def _is_structural(line):
     """Строка — только структурный JSON (скобки/запятая), без содержимого."""
-    return line.strip() in ("", "{", "}", "[", "]", ",")
+    return line.strip() in ("", "{", "}", "[", "]", ",", "},", "],")
 
 
 def _matches_apply_variant(variant, code_bash, code_py, differing_files, py_only, bash_only):

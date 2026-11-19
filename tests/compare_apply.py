@@ -41,6 +41,9 @@ def theme_names():
     return sorted(n for n in names if n)
 
 
+WINDOWS_FIXTURE = {"windowGapsIn": 6, "windowGapsOut": 8, "windowBorder": 2}
+
+
 def sandbox(base, name):
     root, env = ct.sandbox(base, name)
     home = env["HOME"]
@@ -66,6 +69,12 @@ def sandbox(base, name):
         src = os.path.join(REAL, rel)
         if os.path.isfile(src):
             open(os.path.join(home, rel), "w").write(open(src).read())
+    # windows.json живой: его значения зависят от машины, а снапшот windowsGeometry копирует их
+    # в каждый пресет. Пин фиксирует содержимое в обеих песочницах, и подпись расхождения не зависит от хоста.
+    wcfg = os.path.join(home, ".config/omarchy/customizer/windows.json")
+    os.makedirs(os.path.dirname(wcfg), exist_ok=True)
+    with open(wcfg, "w") as f:
+        json.dump(WINDOWS_FIXTURE, f)
     return root, env
 
 
@@ -180,8 +189,11 @@ def main():
                     break
         else:
             print("ok   ", name)
-    print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
+    print(f"{total - bad - known}/{total} шагов совпадают"
           + (f" ({known} известных)" if known else ""))
+    if bad:
+        print("песочницы сохранены: " + base)
+    ct.discard_if_green(base, bad)
     return 1 if bad else 0
 
 
