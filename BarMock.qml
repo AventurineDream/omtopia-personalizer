@@ -15,6 +15,8 @@ Item {
   property var bar: ({})           // shell.json .bar или пресет раскладки
   property var palette: ({})       // colors.toml темы: имя -> #hex
   property string fontFamily: Style.font.family
+  property var t: null             // объект с tr() (Customizer / превью): переводит подписи-заглушки
+  function tr(s) { return mock.t ? mock.t.tr(s) : s }
   property real screenWidth: 1440
 
   readonly property real scaleX: width / Math.max(1, screenWidth)
@@ -129,7 +131,7 @@ Item {
       "tray": "󰅁", "indicators": "󰂚", "privacy-led": "•",
       "system-update": "󰚰", "agents": "󰚩", "network": "󰖩",
       "bluetooth": "󰂯", "audio": "󰕾", "power": "󰁹", "battery-gauge": "󰁹",
-      "tailscale": "󰖂", "media": "󰎆 Song", "weather": "󰖐 12°", "active-window": "kitty",
+      "tailscale": "󰖂", "media": "󰎆 " + mock.tr("Song"), "weather": "󰖐 12°", "active-window": "kitty",
       "keyboard-layout": "EN", "microphone": "󰍬", "monitor": "󰃠", "spacer": " ", "dropbox": "󰇣"
     }
     return map[short] !== undefined ? map[short] : "•"
