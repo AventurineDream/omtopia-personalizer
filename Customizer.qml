@@ -258,6 +258,9 @@ Item {
     root.revertPreview()
     root.heroFull = false
     root.homeOpen = true
+    InWindow.clearTransient(root)
+    root.editingIndex = -1
+    root.editError = ""
     root.filtering = false
     root.homeSel = Math.min(root.homeSel, Math.max(0, root.homeCards.length + root.homeActions.length - 1))
     contentFade.restart()
@@ -568,8 +571,7 @@ Item {
   }
 
   function dismiss() {
-    root.confirm = null
-    root.notice = ""
+    InWindow.clearTransient(root)
     root.close()
     if (root.shell && typeof root.shell.hide === "function")
       root.shell.hide((root.manifest && root.manifest.id) || "kamradsmeshnyavy.customizer")
@@ -607,14 +609,15 @@ Item {
     root.editingIndex = -1
     root.editError = ""
     root.keepValue = ""
-    root.confirm = null
-    root.notice = ""
+    InWindow.clearTransient(root)
     root.filtering = false
     root.filterText = ""
     root.selectedIndex = 0
     var key = categories[index].key
     if (root.cache[key]) {
       root.items = root.cache[key]
+      root.loading = false
+      if (root.pendingEdit && key === root.category.key) { root.pendingEdit = false; Qt.callLater(root.startEdit) }
       // A step still in flight shows over the cached row, as loadRows does for a fresh list.
       if (root.stepsInFlight()) {
         for (var ci = 0; ci < root.items.length; ci++)
@@ -883,6 +886,10 @@ Item {
     if (root.pane !== 1) return
     root.revertPreview()
     root.pane = 0
+    // Leaving the page closes an open field and a footer question: neither belongs to the rail.
+    InWindow.clearTransient(root)
+    root.editingIndex = -1
+    root.editError = ""
   }
 
   // Rows that fit on the page, halved: the Ctrl+D / Ctrl+U step (in the gallery — whole rows of tiles).
