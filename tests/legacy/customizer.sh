@@ -800,6 +800,7 @@ hypr_live() {
   windowDecoRounding) opt=decoration:rounding ;; windowShadow) opt=decoration:shadow:enabled ;;
   windowShadowRange) opt=decoration:shadow:range ;; windowDim) opt=decoration:dim_inactive ;;
   windowDimStrength) opt=decoration:dim_strength ;; windowLayout) opt=general:layout ;;
+  windowRoundingPower) opt=decoration:rounding_power ;; windowRadius) opt=decoration:rounding ;;
   windowNoGaps) [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && v=true || v=false ;;
   *) return 0 ;;
   esac
@@ -865,7 +866,7 @@ list_tweaks() {
       printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
-    [[ $1 == WINDOW_LAYOUT_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
+    [[ $1 == WINDOW_LAYOUT_TWEAKS || $1 == WINDOW_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
     num) def=${args##* }; read -r lo hi st _ <<<"$args"; T_OUT=hint t "h/l or −/+ — step %s, range %s" "$st" "$lo … $hi" ;;
@@ -878,7 +879,7 @@ list_tweaks() {
     dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
     W_LIVE="" W_PRESENT=""
-    if [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == window* ]]; then
+    if [[ ($1 == WINDOW_LAYOUT_TWEAKS || $1 == WINDOW_TWEAKS) && $key == window* ]]; then
       W_LIVE=$HYPR_LIVE   # set by window_spec for this row
       [[ -n ${TWV[$key]+x} ]] && W_PRESENT=1
       [[ -n $W_LIVE ]] && def=$W_LIVE
@@ -1416,7 +1417,8 @@ window_overrides_eval() {
   lua=$(jq -r --argjson ng "$no_gaps" '
     def n(k): if (.[k] | type) == "number" then (.[k] | tostring) else null end;
     def b(k): if (.[k] | type) == "boolean" then (.[k] | tostring) else null end;
-    (if $ng then "" else
+    (if .windowRounding == null and n("windowRadius") != null then "float" else .windowRounding end) as $mode
+      | (if $ng then "" else
         ([ (n("windowGapsIn") | values | "gaps_in = " + .), (n("windowGapsOut") | values | "gaps_out = " + .),
            (n("windowBorder") | values | "border_size = " + .) ] | join(", ")) end) as $g
       | (if .windowLayout == "dwindle" or .windowLayout == "master" then "layout = \"" + .windowLayout + "\"" else "" end) as $l
@@ -1426,10 +1428,10 @@ window_overrides_eval() {
          ((if b("windowShadow") != null or n("windowShadowRange") != null then
             "shadow = { " + ([ (b("windowShadow") | values | "enabled = " + .), (n("windowShadowRange") | values | "range = " + .) ] | join(", ")) + " }"
            else null end) | values),
-         (if .windowRounding != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
+        (if $mode != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
        ] | map(select(. != null)) | join(", ")) as $deco
-      | ([ (if (.windowRounding == "float" or .windowRounding == "all") and n("windowRadius") != null
-            then "hl.window_rule({ match = " + (if .windowRounding == "all" then "{ class = \".*\" }" else "{ float = true }" end)
+      | ([ (if ($mode == "float" or $mode == "all") and n("windowRadius") != null
+            then "hl.window_rule({ match = " + (if $mode == "all" then "{ class = \".*\" }" else "{ float = true }" end)
                  + ", rounding = " + n("windowRadius") + " })"
             else null end) ]
          | map(select(. != null))) as $rules

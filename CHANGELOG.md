@@ -55,4 +55,4 @@
 - Reading mode: a failing brightnessctl (no backlight, or no session bus on a desktop) no longer stops reading mode from turning on; it comes on without the brightness part, and off puts back only a brightness that was saved.
 - Reading mode: changing the reading theme or brightness while the mode is on applies at once, instead of waiting for the next time the mode is turned on.
 - Window corners (Windows tab): the corner shape, radius and rounded-windows mode are restored after a reload or a shell restart even without the Hyprland hook, as the other window keys are.
-- Window corners: the hook applies only the corner keys windows.json has. A user who saved nothing keeps Hyprland's own corners instead of the shape 2.5 and radius 16 that the hook applied before.
+- Window corners: the hook applies only the corner keys windows.json has. A user who saved nothing keeps Hyprland's own corners instead of the shape 2.5 and radius 16 that the hook applied before. A saved radius with no rounded-windows mode still rounds floating windows, as before.

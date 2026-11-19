@@ -283,10 +283,13 @@ def window_overrides_lua():
             sh_parts.append("range = " + n("windowShadowRange"))
         deco.append("shadow = { " + ", ".join(sh_parts) + " }")
     # Window corners: the keys and rules of the Window corners block in hypr/customizer.lua. Only the keys
-    # windows.json has are applied (no defaults), and the hook's checks are mirrored: the power unless the
-    # mode is "off"; a rule only for "float" / "all" with a radius.
+    # windows.json has are applied (no defaults): the power unless the mode is "off"; a rule only for
+    # "float" / "all" with a radius. A radius with no mode means "float", as the hook has always read it;
+    # dropping that rule would silently change a saved radius.
     mode = d.get("windowRounding")
     power, radius = n("windowRoundingPower"), n("windowRadius")
+    if mode is None and radius is not None:
+        mode = "float"
     if power is not None and mode != "off":
         deco.append("rounding_power = " + power)
     rules = []

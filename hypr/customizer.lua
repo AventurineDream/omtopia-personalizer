@@ -138,7 +138,8 @@ end
 -- toggle, and tiled windows can stay square so the grid stays seamless (the bar's screen frame
 -- already rounds their outer corners). "float" = floating and popped windows, "all", "off".
 -- Only the keys windows.json has are applied, with no defaults: a user who saved nothing keeps
--- Hyprland's own corners. The power applies unless the mode is "off"; a rule needs a mode and a radius.
+-- Hyprland's own corners. The power applies unless the mode is "off". A rule needs a radius; a radius
+-- with no mode is "float", as it always was: a saved radius must not stop working.
 do
 	local f = io.open(home .. "/.config/omarchy/customizer/windows.json", "r")
 	local json = f and f:read("*a") or ""
@@ -147,6 +148,9 @@ do
 	end
 	local mode = json:match('"windowRounding"%s*:%s*"(%a+)"')
 	local radius = tonumber(json:match('"windowRadius"%s*:%s*([%d.]+)'))
+	if mode == nil and radius ~= nil then
+		mode = "float"
+	end
 	local power = tonumber(json:match('"windowRoundingPower"%s*:%s*([%d.]+)'))
 	if power ~= nil and mode ~= "off" then
 		hl.config({ decoration = { rounding_power = power } })
