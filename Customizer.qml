@@ -1295,18 +1295,18 @@ Item {
   function submitEdit(text) {
     var row = root.editingIndex >= 0 && root.editingIndex < displayModel.count ? displayModel.get(root.editingIndex) : null
     if (!row) return
-    if (InWindow.isSaveRow(root.category.key, row.value)) { root.submitSave(String(text).trim(), false); return }
+    if (InWindow.isSaveRow(root.category.key, row.value)) { root.submitSave(root.category.key, String(text).trim(), false); return }
     if (editor.running) return
     // A typed value waits for the apply in progress, like a mouse value (setTweakAt).
     if (root.applierBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true }; return }
     root.startEditorWrite(root.tweakKey(row), text, root.category.key, true)
   }
-  // Saves the current setup under `name` (apply <category> save --name <name>; --overwrite replaces a taken
-  // name). The save waits in the apply queue behind the applies and tweaks already asked for, so it captures
-  // them. The result comes back to onSaved.
-  function submitSave(name, overwrite) {
+  // Saves the setup of category `key` under `name` (apply <key> save --name <name>; --overwrite replaces a taken
+  // name). The save waits in the apply queue behind the writes asked for before it, so it captures them. The key is
+  // passed in, not read from the open tab, so the result is filed under the category the name was typed in. The
+  // result comes back to onSaved.
+  function submitSave(key, name, overwrite) {
     if (root.savePending) return
-    var key = root.category.key
     var flags = ["--name", name]
     if (overwrite) flags.push("--overwrite")
     root.savePending = true
@@ -1317,16 +1317,18 @@ Item {
     })
   }
   // Result of an in-window save. Saved: the prompt closes and the new row is selected (keepValue). Name taken
-  // (EXISTS, exit 3): the footer asks to overwrite. Anything else: the reason under the field, or the footer
-  // toast when the prompt is gone (the overlay may have closed).
+  // (EXISTS, exit 3) while its prompt is open: the footer asks to overwrite. Anything else, or a taken name after
+  // the prompt closed: the reason under the field, or the footer toast when the prompt is gone (the overlay may
+  // have closed).
   function onSaved(key, name, code, out, err) {
     var editing = root.isEditingSave(key)
-    if (code === 0) {
+    var outcome = InWindow.saveOutcome(code)
+    if (outcome === "saved") {
       if (editing) { root.cancelEdit(); root.keepValue = out }
       return
     }
-    if (code === 3) {
-      root.ask(root.tr("Overwrite %1?").replace("%1", name), root.tr("overwrite"), function() { root.submitSave(name, true) })
+    if (outcome === "taken" && editing) {
+      root.ask(root.tr("Overwrite %1?").replace("%1", name), root.tr("overwrite"), function() { root.submitSave(key, name, true) })
       return
     }
     var msg = String(err || "").trim() || root.tr("Not applied")
