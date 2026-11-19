@@ -3117,8 +3117,10 @@ Item {
                     { key: "quote", title: "Quote", on: false, anchor: "bottom-right", w: 320, h: 110 },
                     { key: "photo", title: "Photo", on: false, anchor: "left", w: 260, h: 210 }
                   ]
+                  // Значение строки может быть «ТАБЛИЦА:ключ» (clock24 в Widgets — WIDGET_TWEAKS:clock24, см. settings.command_key):
+                  // без снятия квалификатора «clock» не совпадёт с префиксом и подсветка часов пропадёт.
                   readonly property string focusKey: {
-                    var v = root.selectedRow ? String(root.selectedRow.value).replace(/^tweak:/, "") : ""
+                    var v = root.selectedRow ? String(root.selectedRow.value).replace(/^(tweak:|[A-Z_]*TWEAKS:)/, "") : ""
                     for (var i = 0; i < defs.length; i++) if (v.indexOf(defs[i].key) === 0) return defs[i].key
                     return v.indexOf("visualizer") === 0 ? "visualizer" : ""
                   }

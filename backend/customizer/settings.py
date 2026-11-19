@@ -100,18 +100,19 @@ def find(key: str):
 
     Ключ — голый («clock24») или «ТАБЛИЦА:ключ» («WIDGET_TWEAKS:clock24»). Голый ключ, объявленный в
     нескольких таблицах, резолвится в первую — как раньше. Квалифицированный ищется только в своей
-    таблице: иначе строка Widgets уехала бы в Lock Tweaks и писала бы lock-design.json. Нет ключа — (None, None).
+    таблице: иначе строка Widgets уехала бы в Lock Tweaks и писала бы lock-design.json. Пустой ключ
+    (в том числе «ТАБЛИЦА:» без имени) и заголовки раздела (ключ «») не совпадают ни с чем — (None, None).
     """
     table_id, sep, bare = key.partition(":")
-    if sep and table_id in tables():
+    if sep and bare and table_id in tables():
         tbl = tables()[table_id]
         for it in tbl.items:
-            if it.key == bare:
+            if it.key and it.key == bare:
                 return tbl, it
         return None, None
     for tbl in tables().values():
         for it in tbl.items:
-            if it.key == key:
+            if it.key and it.key == key:
                 return tbl, it
     return None, None
 
@@ -119,9 +120,11 @@ def find(key: str):
 def command_key(tbl: Table, it: Item) -> str:
     """Ключ строки: он же value в list / search-index и аргумент `tweak` из overlay.
 
-    Голый, если эта таблица — первая, где объявлен ключ; иначе «ТАБЛИЦА:ключ». Первая таблица
-    остаётся голой, потому что overlay читает значения соседних строк по голому ключу (LockPreview:
-    tweakValues.clock24) и старые вызовы `tweak clock24` должны попадать в ту же таблицу.
+    Голый, если эта таблица — первая в settings.json, где объявлен ключ; иначе «ТАБЛИЦА:ключ».
+    Предусловие: it — пункт с непустым ключом, не заголовок раздела (для заголовка — KeyError).
+    Первая таблица определяется порядком в settings.json: перестановка таблиц меняет, какая из них
+    остаётся голой. Голая первая нужна, потому что overlay читает значения по голому ключу (LockPreview:
+    tweakValues.clock24), а старые вызовы `tweak clock24` должны попадать в ту же таблицу.
     Ключи, объявленные в одной таблице, не меняются.
     """
     tables()

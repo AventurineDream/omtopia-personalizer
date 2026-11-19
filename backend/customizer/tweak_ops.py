@@ -413,7 +413,7 @@ def tweak(key, how):
     tbl, it = settings.find(key)
     if it is None:
         raise SystemExit(1)
-    key = it.key   # the file stores the bare key; the "TABLE:" qualifier only selects the table
+    key = it.key   # файл хранит голый ключ; «ТАБЛИЦА:» нужен только для выбора таблицы
     path = paths.expand(tbl.file)
     direction = -1 if how == "-" else 1
     if how == "reset":
@@ -492,7 +492,7 @@ def tweak_set(key, value):
     tbl, it = settings.find(key)
     if it is None:
         raise Fail(t("Unknown setting: %s", key))
-    key = it.key   # the file stores the bare key; the "TABLE:" qualifier only selects the table
+    key = it.key   # файл хранит голый ключ; «ТАБЛИЦА:» нужен только для выбора таблицы
     path = paths.expand(tbl.file)
     value = value.strip()
     kind = it.type
@@ -571,6 +571,7 @@ def run(args):
         return 2, "", str(e) + "\n"
     except SystemExit as e:
         return int(e.code or 0), "", ""   # как exit в bash: хвост для окон не выполняется
+    # Хуки смотрят на голое имя: при префиксе «ТАБЛИЦА:» проверка window/reading/owe молча промахнулась бы.
     _, it = settings.find(key)
     name = it.key if it is not None else key
     if name.startswith("window"):
