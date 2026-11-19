@@ -2406,7 +2406,8 @@ Item {
             t: root
             items: root.groupTabs
             currentIndex: root.groupCategories.indexOf(root.categoryIndex)
-            onPicked: function(i) { root.setCategory(root.groupCategories[i]) }
+            // A tab click selects the category and focuses its list (pane 1); otherwise the rail keeps focus and j/k would move sections.
+            onPicked: function(i) { root.setCategory(root.groupCategories[i]); root.pane = 1 }
           }
           Row {
             id: tabTools
