@@ -17,15 +17,15 @@ Rectangle {
   signal activated()
   signal hoverAt(point p)
   // Save rows (💾) in Customizer.qml: while editing, ⏎ on the row opens a name field in it, like SettingCard's
-  // i editor. Enter calls submit, Esc calls cancel, typing calls edited (clears the error); focusSeq hands the
-  // keyboard back to the field after a footer confirm.
+  // i editor. Enter calls submit, Esc calls cancel, typing calls edited(text) with the whole draft; focusSeq hands
+  // the keyboard back to the field after a footer confirm.
   property bool editing: false
-  property string editInitial: ""
+  property string editText: ""   // the draft: a field built again mid-edit starts from it
   property string editError: ""
   property int focusSeq: 0
   signal submit(string text)
   signal cancel()
-  signal edited()
+  signal edited(string text)
 
   implicitHeight: Math.max(Style.space(58), textCol.implicitHeight + Style.space(22))
   radius: t.rCard
@@ -33,13 +33,14 @@ Rectangle {
   border.width: selected ? (focused ? Style.space(2) : 1) : (t.dot ? 1 : 0)
   border.color: selected ? Util.alpha(t.primary, focused ? 0.9 : 0.4) : t.outline
   Behavior on color { ColorAnimation { duration: row.t.ms(120) } }
-  // The field takes the text and the keyboard when the row opens for editing (as SettingCard does).
-  onEditingChanged: if (editing) Qt.callLater(function() {
-    if (!row.editing) return
-    nameInput.text = row.editInitial
+  // The name field takes the draft and the keyboard as soon as it is shown (onVisibleChanged below): a key typed
+  // before a deferred focus reached the key catcher in Customizer.qml.
+  function beginEdit() {
+    nameInput.text = row.editText
     nameInput.selectAll()
     nameInput.forceActiveFocus()
-  })
+  }
+  Component.onCompleted: if (editing) beginEdit()
   onFocusSeqChanged: if (editing) nameInput.forceActiveFocus()
 
   Rectangle {
@@ -95,6 +96,7 @@ Rectangle {
     // Name field of a save row: Enter saves, Esc cancels; the error (or the hint) stays under it.
     Rectangle {
       visible: row.editing
+      onVisibleChanged: if (visible) row.beginEdit()
       width: parent.width
       height: visible ? nameInput.implicitHeight + Style.space(14) : 0
       radius: row.t.rSmall
@@ -112,7 +114,7 @@ Rectangle {
         font.pixelSize: Style.font.body
         selectByMouse: true
         clip: true
-        onTextEdited: row.edited()
+        onTextEdited: row.edited(text)
         Keys.onReturnPressed: row.submit(text)
         Keys.onEnterPressed: row.submit(text)
         Keys.onEscapePressed: row.cancel()

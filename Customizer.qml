@@ -191,9 +191,9 @@ Item {
   // оно накладывается на перечитанный список, чтобы переключатель не мигал назад.
   property var optimistic: ({})
   property var pendingSet: null      // { key, value, category, typed } — значение мышью или текстом, пока пишется предыдущее
-  // Ручной ввод значения (i): строка, которую правят, её начальный текст и ошибка проверки.
+  // Ручной ввод значения (i): строка, которую правят, её черновик и ошибка проверки.
   property int editingIndex: -1
-  property string editInitial: ""
+  property string editText: ""
   property string editError: ""
   // An in-window save is queued or running (a second ⏎ waits). editFocusSeq bumps to hand the keyboard back
   // to the name field after a footer confirm.
@@ -1276,10 +1276,10 @@ Item {
   function startEdit() {
     var row = root.selectedRow
     if (root.pane !== 1 || !row) return
-    if (InWindow.isSaveRow(root.category.key, row.value)) root.editInitial = InWindow.defaultSaveName(root.category.key)
+    if (InWindow.isSaveRow(root.category.key, row.value)) root.editText = InWindow.defaultSaveName(root.category.key)
     else if (root.isTweakRow(row)) {
       var parts = String(row.label).split(":  ")
-      root.editInitial = parts.length > 1 ? parts[parts.length - 1].trim() : ""
+      root.editText = parts.length > 1 ? parts[parts.length - 1].trim() : ""
     } else return
     root.editError = ""
     root.editingIndex = root.selectedIndex
@@ -1332,6 +1332,12 @@ Item {
     return root.editingIndex >= 0 && root.editingIndex < displayModel.count && root.category.key === key
       && InWindow.isSaveRow(key, displayModel.get(root.editingIndex).value)
   }
+
+  // A name or value field is open in the rows of the current tab; keyCatcher routes keys to it (InWindow.keyRoute).
+  function fieldOpen() {
+    return root.editingIndex >= 0 && root.pane === 1 && !root.homeOpen
+  }
+
   function cancelEdit() {
     root.editingIndex = -1
     root.editError = ""
@@ -2218,6 +2224,9 @@ Item {
           // Текст для поиска (t) не трогаем до проверки режима поиска — там нужна сама буква.
           var lk = (!t || t.charCodeAt(0) > 127) ? root.latinKey(event) : ""
           if (ctrl && /^[a-z]$/i.test(lk)) k = Qt.Key_A + (lk.toUpperCase().charCodeAt(0) - 65)
+          // A key that reaches the catcher while a name or value field is open came before the field took the keyboard:
+          // the field takes it now, and this key is dropped rather than read as an overlay command.
+          if (InWindow.keyRoute(root.fieldOpen(), root.confirm !== null) === "field") { root.editFocusSeq += 1; event.accepted = true; return }
           var pendingG = root.pendingG
           root.pendingG = false
 
@@ -3565,8 +3574,9 @@ Item {
                     selected: vrow.idx === root.selectedIndex
                     focused: root.pane === 1 && !root.filtering
                     editing: vrow.idx === root.editingIndex
-                    editInitial: root.editInitial
+                    editText: root.editText
                     editError: root.editError
+                    focusSeq: root.editFocusSeq
                     onSelectMe: root.clickSelect(vrow.idx)
                     onStep: function(dir) { root.clickSelect(vrow.idx); root.tweak(dir > 0 ? "+" : "-") }
                     onSetValue: function(v) { root.setTweakAt(vrow.idx, v) }
@@ -3575,7 +3585,7 @@ Item {
                     onSubmit: function(text) { root.submitEdit(text) }
                     onCancel: root.cancelEdit()
                     onStartEdit: { root.clickSelect(vrow.idx); root.startEdit() }
-                    onEdited: root.editError = ""
+                    onEdited: function(text) { root.editText = text; root.editError = "" }
                     onHoverAt: function(p) { root.hoverSelect(vrow.idx, p) }
                   }
                 }
@@ -3596,12 +3606,12 @@ Item {
                     focused: root.pane === 1 && !root.filtering
                     onActivated: { root.clickSelect(vrow.idx); root.activate() }
                     editing: vrow.idx === root.editingIndex
-                    editInitial: root.editInitial
+                    editText: root.editText
                     editError: root.editError
                     focusSeq: root.editFocusSeq
                     onSubmit: function(text) { root.submitEdit(text) }
                     onCancel: root.cancelEdit()
-                    onEdited: root.editError = ""
+                    onEdited: function(text) { root.editText = text; root.editError = "" }
                     onHoverAt: function(p) { root.hoverSelect(vrow.idx, p) }
                   }
                 }
