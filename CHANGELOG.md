@@ -25,5 +25,9 @@
 - "In use" follows a restore: a preset that compares nothing (such as DOT-MATRIX with "Apply theme" off) is no longer shown as in use after a restore, and "Restore previous setup" restores the preset that was in use when the snapshot was taken, or `custom`.
 - Windows tab shows the value Hyprland really uses when a key is not in windows.json (after «x» or «Reset window geometry»), read from the Hyprland Lua config chain, instead of the settings.json placeholder (gaps 2/4, rounding 10, …).
 - Transparency shows no preset in use on a fresh system instead of "subtle"; the Home card and list no longer mark a preset the compositor is not using.
+- Windows tab shows the value Hyprland uses when a key is not in windows.json (after «x» or «Reset window geometry»), read with `hyprctl -j getoption`, instead of the settings.json placeholder (gaps 2/4, rounding 10, …). A key the file sets shows "default: Hyprland config" and is marked as changed against the live value. A CSS gap whose sides differ (e.g. "5 10") falls back to the settings.json default.
+- «Reset window geometry» also turns the no-gaps toggle off, so the No gaps row and the gaps rows agree.
+- Transparency shows no preset in use on a fresh system instead of "subtle"; the Home card and list no longer mark a preset the compositor is not using. On a fresh system the first next/prev applies "subtle"; styles that name an opacity report "custom" there.
+- Presets saved on a fresh system no longer store an empty opacity; `opacity.sh restore` with a saved name that no longer exists keeps the live values instead of exiting 1.
 - Theme Switcher rows whose value equals the sentinel (0 / -1, "from the style / theme") show the default's words, not a bare number or a stray change mark.
 - Dock pinned rows resolve app names from desktop files in $XDG_DATA_HOME and $XDG_DATA_DIRS, not only the fixed directories.

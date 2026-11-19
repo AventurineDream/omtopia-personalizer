@@ -155,7 +155,8 @@ next) step 1 ;;
 prev) step -1 ;;
 set) apply "${2:?preset name}" ;;
 preview) preview "${2:?preset name}" ;;
-restore) if [[ -s $STATE ]]; then set_opacity "$(current)"; else restore_live; fi ;;
+# A saved name that no longer exists (renamed or removed preset) keeps the live values, not an exit 1.
+restore) if [[ -n $(current) ]]; then set_opacity "$(current)"; else restore_live; fi ;;
 current) current ;;
 list)
     cur="$(current)"

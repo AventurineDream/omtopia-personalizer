@@ -46,7 +46,7 @@ class Item:
         return ""
 
     def with_default(self, text: str) -> "Item":
-        """Copy with another default, given as the string Hyprland reports (see hypr_defaults.effective).
+        """Copy with another default, given as the string Hyprland reports (see hypr_defaults.live).
 
         Integral numbers become int so args and labels read like settings.json."""
         if self.type == "num":

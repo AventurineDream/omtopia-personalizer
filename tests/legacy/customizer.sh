@@ -786,52 +786,46 @@ tw_load() {
     'if type == "object" then to_entries[] | select(.value != null) | .key, "\u001f", (.value | tostring), "\u001e" else empty end' "$1" 2>/dev/null)
 }
 
-# Окна: значение Hyprland, которое видно, пока windows.json не задаёт ключ — зеркало hypr_defaults.py
-# (geometry-состояние пресета → цепочка конфига через hypr_chain.lua → встроенное значение). Без читаемого
-# конфига — $2 (значение из settings.json). Только для ключей вкладки «Окна».
-hypr_default() { # $1 = key, $2 = settings default -> prints the effective default
-  local key=$1 dflt=$2 opt builtin layer="" hs="${XDG_STATE_HOME:-$HOME/.local/state}/hypr" lua line v _n gi go bs r shd
+# Окна: значение Hyprland, которое видно, пока windows.json не задаёт ключ — зеркало hypr_defaults.live:
+# hyprctl -j getoption, одно значение или ничего (нет hyprctl, сбой, разные стороны CSS-отступа).
+# windowNoGaps — флаг-файл тумблера. $1 = ключ, $2 = вид (num|bool|enum) → значение или пусто.
+hypr_live() {
+  local key=$1 kind=$2 opt v=""
   case $key in
-  windowGapsIn) opt=general.gaps_in builtin=5 ;;
-  windowGapsOut) opt=general.gaps_out builtin=20 ;;
-  windowBorder) opt=general.border_size builtin=2 ;;
-  windowDecoRounding) opt=decoration.rounding builtin=0 ;;
-  windowShadow) opt=decoration.shadow.enabled builtin=true ;;
-  windowShadowRange) opt=decoration.shadow.range builtin=4 ;;
-  windowDim) opt=decoration.dim_inactive builtin=false ;;
-  windowDimStrength) opt=decoration.dim_strength builtin=0.5 ;;
-  windowLayout) opt=general.layout builtin=dwindle ;;
-  *) printf '%s' "$dflt"; return ;;
+  windowGapsIn) opt=general:gaps_in ;; windowGapsOut) opt=general:gaps_out ;; windowBorder) opt=general:border_size ;;
+  windowDecoRounding) opt=decoration:rounding ;; windowShadow) opt=decoration:shadow:enabled ;;
+  windowShadowRange) opt=decoration:shadow:range ;; windowDim) opt=decoration:dim_inactive ;;
+  windowDimStrength) opt=decoration:dim_strength ;; windowLayout) opt=general:layout ;;
+  windowNoGaps) [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && v=true || v=false ;;
+  *) return 0 ;;
   esac
-  if [[ ! -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua && -s $hs/geometry ]]; then
-    read -r _n gi go bs r shd <"$hs/geometry" || true
-    if [[ -n $shd ]]; then
-      case $key in
-      windowGapsIn) layer=$gi ;; windowGapsOut) layer=$go ;; windowBorder) layer=$bs ;; windowDecoRounding) layer=$r ;;
-      windowShadow) [[ $shd =~ ^-?[0-9]+$ ]] && { ((shd > 0)) && layer=true || layer=false; } ;;
-      esac
-    fi
-  fi
-  [[ -n $layer ]] && { printf '%s' "$layer"; return; }
-  lua=$(command -v lua5.4 || command -v lua) && [[ -f $HOME/.config/hypr/hyprland.lua ]] || { printf '%s' "$dflt"; return; }
-  line=$(OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} timeout 10 "$lua" "$CUSTOMIZER_DIR/backend/customizer/hypr_chain.lua" \
-    "$HOME/.config/hypr/hyprland.lua" "$opt" 2>/dev/null) || { printf '%s' "$dflt"; return; }
-  v=$(awk -F'\t' -v o="$opt" '$1 == o { print $2 }' <<<"$line")
-  printf '%s' "${v:-$builtin}"
+  [[ -n ${opt-} ]] && v=$(hyprctl -j getoption "$opt" 2>/dev/null | jq -r '
+    if has("bool") then (.bool | tostring)
+    elif has("int") then (.int | tostring)
+    elif has("float") then (.float | tostring)
+    elif ((.str // "") != "") then .str
+    elif has("css") then (.css | split(" ") | unique | if length == 1 then .[0] else empty end)
+    else empty end' 2>/dev/null)
+  case $kind in
+  num) [[ $v =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || v= ;;
+  bool) [[ $v == true || $v == false ]] || v= ;;
+  esac
+  printf '%s' "$v"
 }
 
-# Строка настройки окна с эффективным значением по умолчанию (как tweaks.effective_item), для num и bool.
-window_spec() { # $1 = spec line "key|kind|args|label" -> same line, default taken from hypr_default
-  local key kind args label lo hi st
+# Строка настройки окна: default = живое значение Hyprland, если оно известно (как tweaks.live_item).
+window_spec() { # $1 = spec line "key|kind|args|label" -> same line
+  local key kind args label lo hi st def live
   IFS='|' read -r key kind args label <<<"$1"
   case $key in window*) ;; *) printf '%s\n' "$1"; return ;; esac
+  live=$(hypr_live "$key" "$kind")
   case $kind in
-  num) read -r lo hi st _ <<<"$args"; args="$lo $hi $st $(hypr_default "$key" "${args##* }")" ;;
-  bool) args=$(hypr_default "$key" "$args") ;;
-  *) printf '%s\n' "$1"; return ;;
+  num) def=${args##* }; read -r lo hi st _ <<<"$args"; args="$lo $hi $st ${live:-$def}" ;;
+  bool) args=${live:-$args} ;;
   esac
   printf '%s|%s|%s|%s\n' "$key" "$kind" "$args" "$label"
 }
+
 
 # Строки Bar Tweaks / Lock Tweaks: $1 — имя массива параметров, $2 — файл настроек.
 # Без подоболочек на строку: переводы и подписи пишутся в переменные (T_OUT, printf -v).
@@ -864,14 +858,22 @@ list_tweaks() {
     file) def=""; T_OUT=hint t "⏎ — pick an image" ;;
     dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
-    [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == windowLayout ]] && def=$(hypr_default "$key" "$def")
+    W_LIVE="" W_PRESENT=""
+    if [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == window* ]]; then
+      W_LIVE=$(hypr_live "$key" "$kind")
+      [[ -n ${TWV[$key]+x} ]] && W_PRESENT=1
+      [[ -n $W_LIVE ]] && def=$W_LIVE
+    fi
     if [[ $key == transparent ]]; then v=$(jq -r '.bar.transparent // false' "$SHELL_JSON")
     else v=${TWV[$key]-$def}; fi
     mark=""
-    [[ $v != "$def" ]] && mark="●  "
+    # A key the file sets is compared with the live value; its default is named as the Hyprland config.
+    if [[ -n $W_PRESENT ]]; then [[ -z $W_LIVE || $v != "$W_LIVE" ]] && mark="●  "
+    else [[ $v != "$def" ]] && mark="●  "; fi
     long="" deflong=""
     T_OUT=long default_label "$key" "$v"
-    T_OUT=deflong default_label "$key" "$def"
+    if [[ -n $W_PRESENT ]]; then T_OUT=deflong t "Hyprland config"
+    else T_OUT=deflong default_label "$key" "$def"; fi
     if [[ $kind == dir ]]; then
       [[ -n $v ]] || T_OUT=long t "default (current wallpaper)"
       T_OUT=deflong t "default (current wallpaper)"

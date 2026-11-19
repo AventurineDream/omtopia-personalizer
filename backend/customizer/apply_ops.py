@@ -352,7 +352,9 @@ def snapshot(out, title="", note=""):
     doc["theme"] = theme
     if style_id:
         doc["style"] = style_id
-    doc.update({"wallpaper": wp, "anims": anim, "opacity": op, "blur": bl, "shader": shader, "hyprGeometry": geom})
+    doc.update({"wallpaper": wp, "anims": anim, "blur": bl, "shader": shader, "hyprGeometry": geom})
+    if op:  # no preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: ")
+        doc["opacity"] = op
     if win_geom:
         doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})
@@ -610,6 +612,8 @@ def geometry_reset():
         win = jsonio.read(WINDOW_CFG)
         if isinstance(win, dict):
             write(WINDOW_CFG, {k: v for k, v in win.items() if k not in WINDOW_GEOM_KEYS})
+    # The no-gaps row is part of this tab: reset returns it to the Hyprland config too, so it agrees with the gaps.
+    set_no_gaps("false")
     sh(["hyprctl", "reload"])
     out = preview_ops.restore()[1]
     notify("-t", "2000", "Windows", t("Window geometry: Hyprland config"))

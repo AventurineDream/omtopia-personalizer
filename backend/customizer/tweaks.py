@@ -15,12 +15,23 @@ def file_values(path) -> dict:
     return {k: jsonio.tostring(v) for k, v in jsonio.read_object(path).items() if v is not None}
 
 
-def effective_item(it: settings.Item) -> settings.Item:
-    """The item with the default that applies now: for Windows-tab keys, what Hyprland uses when windows.json lacks them.
+def live_item(it: settings.Item):
+    """(item, text): the item with Hyprland's live value as its default, and that value as text.
 
-    Other keys (and an unreadable Hyprland config) keep the settings.json default."""
-    v = hypr_defaults.effective(it.key)
-    return it if v is None else it.with_default(v)
+    Windows-tab keys only. When the live value is unknown or does not fit the item's type (e.g. "5 10" for a
+    number), the item keeps its settings.json default and the text is None."""
+    v = hypr_defaults.live(it.key)
+    if v is not None:
+        try:
+            return it.with_default(v), v
+        except ValueError:
+            pass
+    return it, None
+
+
+def effective_item(it: settings.Item) -> settings.Item:
+    """The item whose default applies now when its key is absent from the file (see live_item)."""
+    return live_item(it)[0]
 
 
 def default_label(key: str, value: str) -> str:
@@ -105,18 +116,26 @@ def list_tweaks(table_id: str) -> list:
         if it.is_section:
             out.append(f"{t(it.section)}\tsection:{it.section}\t\t0\t\theader")
             continue
-        it = effective_item(it)
+        it, live = live_item(it)
         default = it.default_value
+        # A Windows-tab key the file sets: its default is Hyprland's config, which this list cannot name as a
+        # number, so the label says so and a change is marked against the live value (any change when unknown).
+        present = hypr_defaults.is_window_key(it.key) and it.key in values
         if it.key == "transparent":
             bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
             tr = bar.get("transparent") if isinstance(bar, dict) else None
             value = jsonio.tostring(tr) if tr not in (None, False) else "false"
         else:
             value = it.canonical(values.get(it.key, default))
-        mark = "●  " if value != default else ""
-        deflong = default_label(it.key, default)
-        # A value equal to the default prints as the default's words, so a sentinel (-1 = "from the theme") never shows as a bare number.
-        long = deflong if value == default else default_label(it.key, value)
+        if present:
+            mark = "●  " if live is None or value != it.canonical(live) else ""
+            deflong = t("Hyprland config")
+            long = default_label(it.key, value)
+        else:
+            mark = "●  " if value != default else ""
+            deflong = default_label(it.key, default)
+            # A value equal to the default prints as the default's words, so a sentinel (-1 = "from the theme") never shows as a bare number.
+            long = deflong if value == default else default_label(it.key, value)
         if it.type == "dir":
             if not value:
                 long = t("default (current wallpaper)")
