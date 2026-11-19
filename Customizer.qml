@@ -1027,7 +1027,8 @@ Item {
   // count is read first; the answer runs --yes only while the same tab is still open.
   function askPrune() {
     var key = root.category.key
-    root.call([root.script, "apply", "theme-switcher", "prune", "--dry-run"], function(r) {
+    // serve.py reads the subcommand first: with the script path it answers with the usage line and no count.
+    root.call(["apply", "theme-switcher", "prune", "--dry-run"], function(r) {
       if (!root.opened || root.category.key !== key) return
       var count = r.code === 0 ? String(r.out || "").trim() : ""
       var text = root.tr("Delete the unused thumbnails?")

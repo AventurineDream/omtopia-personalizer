@@ -190,6 +190,14 @@ def main():
     check("prune --dry-run counts the thumbnails it would delete",
           code == 0 and out == "Can delete: 2 thumbnails, 0.0 GB; 0 stay")
     check("prune --dry-run deletes nothing", all(os.path.exists(p) for p in orphans))
+    # The overlay asks the count over serve.py, which takes the subcommand as the first element (no script path):
+    # a request in that form must return the same count as the CLI.
+    request = json.dumps({"id": 1, "cmd": ["apply", "theme-switcher", "prune", "--dry-run"]}) + "\n"
+    served = subprocess.run(["/usr/bin/python3", "-I", RUN, "serve"], env=env, capture_output=True, text=True,
+                            timeout=120, input=request)
+    reply = json.loads(served.stdout.strip() or "{}")
+    check("serve answers the prune --dry-run request with the count",
+          reply.get("id") == 1 and reply.get("code") == 0 and reply.get("out") == "Can delete: 2 thumbnails, 0.0 GB; 0 stay")
     code, out, err = run(env, "apply", "theme-switcher", "prune", "--yes")
     check("prune --yes deletes the thumbnails", code == 0 and not any(os.path.exists(p) for p in orphans))
 
