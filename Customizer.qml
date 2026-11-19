@@ -2906,6 +2906,7 @@ Item {
                       anchors.margins: Style.space(10)
                       style: pickerStage.style
                       config: root.activePicker
+                      emptyText: root.tr("No thumbnails yet — run “⚡ Cache thumbnails” to fill the carousel")
                       images: root.status["picker-previews"] ? String(root.status["picker-previews"]).split("|") : []
                     }
                   }

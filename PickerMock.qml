@@ -10,6 +10,8 @@ Item {
   property string style: "slices"
   property var config: ({})
   property var images: []          // пути превью тем; выбранная — посередине
+  // Подсказка, когда миниатюр нет (⚡ Cache thumbnails ещё не собрал): иначе карточка пустая и выглядит чёрной.
+  property string emptyText: ""
 
   readonly property var presets: ({
     "slices":    { expandedWidth: 768,  expandedHeight: 475, sliceWidth: 108, sliceHeight: 432, spacing: -30,  skew: 28, radius: 0,  tilt: 0 },
@@ -107,5 +109,16 @@ Item {
         }
       }
     }
+  }
+
+  Text {
+    visible: mock.images.length === 0
+    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: Style.space(24) }
+    horizontalAlignment: Text.AlignHCenter
+    wrapMode: Text.WordWrap
+    text: mock.emptyText
+    color: Color.foreground
+    opacity: 0.7
+    font.pixelSize: Style.font.body
   }
 }
