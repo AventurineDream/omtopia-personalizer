@@ -597,6 +597,11 @@ Item {
 
   function revertPreview() {
     previewTimer.stop()
+    // The card (bar mock, row text) reads previewText, the file of the row under the cursor. Once a live
+    // preview is undone that row is no longer applied, so the card shows the live state again. Cleared
+    // before the early return: a key pressed before previewTimer fired has nothing to undo, yet the card
+    // would still show the row.
+    if (root.category.live) root.previewText = ""
     var key = root.previewing
     if (!key) return
     root.previewing = ""
@@ -978,7 +983,11 @@ Item {
       ? displayModel.get(root.selectedIndex) : null
     root.selectedRow = row ? root.rowObject(row) : null
     var rowHasImage = root.category.image && row !== null && !root.isTweakRow(row)
-    previewFile.path = (row && !rowHasImage) ? row.preview : ""
+    var previewPath = (row && !rowHasImage) ? row.preview : ""
+    previewFile.path = previewPath
+    // A FileView does not reload for an unchanged path: re-read it, so the card text returns when the same row
+    // is selected again after revertPreview() cleared it.
+    if (previewPath) previewFile.reload()
     if (!row || rowHasImage || !row.preview) root.previewText = ""
     if (root.category.live && root.pane === 1 && row) previewTimer.restart()
     root.syncBarPreview()
