@@ -1616,8 +1616,11 @@ snapshot_preset() {
      + (if $style != "" then {style: $style} else {} end)
      + {
        wallpaper: $wallpaper,
-       anims: $anims,
-       opacity: $opacity,
+       anims: $anims
+     }
+     # Empty opacity = no preset in use (fresh system): leave the key out, as apply_ops.snapshot does.
+     + (if $opacity != "" then {opacity: $opacity} else {} end)
+     + {
        blur: $blur,
        shader: $shader,
        hyprGeometry: $hyprGeometry
