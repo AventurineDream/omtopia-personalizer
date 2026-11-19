@@ -261,12 +261,24 @@ def window_overrides_lua():
         if n("windowShadowRange") is not None:
             sh_parts.append("range = " + n("windowShadowRange"))
         deco.append("shadow = { " + ", ".join(sh_parts) + " }")
-    # Iolite nit (PR #16): windows.json без ключей геометрии — пустой eval
-    # не нужен; restore() уже пропускает None (см. `if lua:`).
-    if not g_parts and not deco:
+    # Window corners: the keys and rules of the Window corners block in hypr/customizer.lua. Only the keys
+    # windows.json has are applied (no defaults), and the hook's checks are mirrored: the power unless the
+    # mode is "off"; a rule only for "float" / "all" with a radius.
+    mode = d.get("windowRounding")
+    power, radius = n("windowRoundingPower"), n("windowRadius")
+    if power is not None and mode != "off":
+        deco.append("rounding_power = " + power)
+    rules = []
+    if radius is not None and mode in ("float", "all"):
+        match = "{ class = \".*\" }" if mode == "all" else "{ float = true }"
+        rules.append("hl.window_rule({ match = " + match + ", rounding = " + radius + " })")
+    # Iolite nit (PR #16): windows.json без ключей геометрии и углов — пустой eval не нужен;
+    # restore() уже пропускает None (см. `if lua:`).
+    if not g_parts and not deco and not rules:
         return None
-    return ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
-            "decoration = { " + ", ".join(deco) + " } })")
+    lua = ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
+           "decoration = { " + ", ".join(deco) + " } })") if g_parts or deco else ""
+    return " ".join(part for part in [lua, *rules] if part)
 
 
 def restore():

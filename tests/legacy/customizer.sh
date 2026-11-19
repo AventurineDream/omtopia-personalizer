@@ -1456,10 +1456,18 @@ window_overrides_eval() {
          (b("windowDim") | values | "dim_inactive = " + .), (n("windowDimStrength") | values | "dim_strength = " + .),
          ((if b("windowShadow") != null or n("windowShadowRange") != null then
             "shadow = { " + ([ (b("windowShadow") | values | "enabled = " + .), (n("windowShadowRange") | values | "range = " + .) ] | join(", ")) + " }"
-           else null end) | values)
+           else null end) | values),
+         (if .windowRounding != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
        ] | map(select(. != null)) | join(", ")) as $deco
-      | if $general == "" and $deco == "" then empty
-        else "hl.config({ general = { " + $general + " }, decoration = { " + $deco + " } })" end' "$WINDOW_CFG" 2>/dev/null) || return 0
+      | ([ (if (.windowRounding == "float" or .windowRounding == "all") and n("windowRadius") != null
+            then "hl.window_rule({ match = " + (if .windowRounding == "all" then "{ class = \".*\" }" else "{ float = true }" end)
+                 + ", rounding = " + n("windowRadius") + " })"
+            else null end) ]
+         | map(select(. != null))) as $rules
+      | ([ (if $general == "" and $deco == "" then null
+            else "hl.config({ general = { " + $general + " }, decoration = { " + $deco + " } })" end) ] + $rules
+         | map(select(. != null)) | join(" ")) as $out
+      | select($out != "") | $out' "$WINDOW_CFG" 2>/dev/null) || return 0
   [[ -n $lua ]] && hyprctl eval "$lua" >/dev/null 2>&1
   return 0
 }

@@ -34,3 +34,5 @@
 - Presets saved on a fresh system no longer store an empty opacity; `opacity.sh restore` with a saved name that no longer exists keeps the live values instead of exiting 1.
 - Theme Switcher rows whose value equals the sentinel (0 / -1, "from the style / theme") show the default's words, not a bare number or a stray change mark.
 - Dock pinned rows resolve app names from desktop files in $XDG_DATA_HOME and $XDG_DATA_DIRS, not only the fixed directories.
+- Window corners (Windows tab): the corner shape, radius and rounded-windows mode are restored after a reload or a shell restart even without the Hyprland hook, as the other window keys are.
+- Window corners: the hook applies only the corner keys windows.json has. A user who saved nothing keeps Hyprland's own corners instead of the shape 2.5 and radius 16 that the hook applied before.
