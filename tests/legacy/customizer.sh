@@ -800,7 +800,8 @@ hypr_live() {
   windowDecoRounding) opt=decoration:rounding ;; windowShadow) opt=decoration:shadow:enabled ;;
   windowShadowRange) opt=decoration:shadow:range ;; windowDim) opt=decoration:dim_inactive ;;
   windowDimStrength) opt=decoration:dim_strength ;; windowLayout) opt=general:layout ;;
-  windowRoundingPower) opt=decoration:rounding_power ;; windowRadius) opt=decoration:rounding ;;
+  windowRoundingPower) opt=decoration:rounding_power ;;
+  windowRadius) [[ $(jq -r '.windowRounding // empty' "$WINDOW_CFG" 2>/dev/null) =~ ^(float|all)$ ]] && return 0; opt=decoration:rounding ;;
   windowNoGaps) [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && v=true || v=false ;;
   *) return 0 ;;
   esac
@@ -1419,6 +1420,7 @@ window_overrides_eval() {
     def n(k): if (.[k] | type) == "number" then (.[k] | tostring) else null end;
     def b(k): if (.[k] | type) == "boolean" then (.[k] | tostring) else null end;
     (if .windowRounding == null and n("windowRadius") != null then "float" else .windowRounding end) as $mode
+      | (n("windowRadius") // "16") as $radius
       | (if $ng then "" else
         ([ (n("windowGapsIn") | values | "gaps_in = " + .), (n("windowGapsOut") | values | "gaps_out = " + .),
            (n("windowBorder") | values | "border_size = " + .) ] | join(", ")) end) as $g
@@ -1431,9 +1433,9 @@ window_overrides_eval() {
            else null end) | values),
         (if $mode != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
        ] | map(select(. != null)) | join(", ")) as $deco
-      | ([ (if ($mode == "float" or $mode == "all") and n("windowRadius") != null
+      | ([ (if ($mode == "float" or $mode == "all")
             then "if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + (if $mode == "all" then "{ class = \".*\" }" else "{ float = true }" end)
-                 + ", rounding = " + n("windowRadius") + " })"
+                 + ", rounding = " + $radius + " })"
             else null end) ]
          | map(select(. != null))) as $rules
       | ([ (if $general == "" and $deco == "" then null

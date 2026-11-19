@@ -293,10 +293,14 @@ def window_overrides_lua():
     if power is not None and mode != "off":
         deco.append("rounding_power = " + power)
     rules = []
-    if radius is not None and mode in ("float", "all"):
+    # A float/all mode with no radius takes 16, the settings default, as the hook always did. No mode and no radius
+    # means no rule: the window keeps Hyprland's global rounding.
+    if mode in ("float", "all"):
+        if radius is None:
+            radius = "16"
         match = "{ class = \".*\" }" if mode == "all" else "{ float = true }"
-    # hl.window_rule keeps every rule enabled, and a rule with the same name does not replace an earlier one (probed in
-    # a box). The handle lives in a global, so each restore disables the rule it registered before and never stacks.
+        # hl.window_rule keeps every rule enabled, and a rule with the same name does not replace an earlier one (probed
+        # in a box). The handle lives in a global, so each restore disables the rule it registered before and never stacks.
         rules.append("if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end "
                      "CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + match + ", rounding = " + radius + " })")
     # Iolite nit (PR #16): windows.json без ключей геометрии и углов — пустой eval не нужен;

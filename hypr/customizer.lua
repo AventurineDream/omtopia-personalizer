@@ -151,6 +151,9 @@ do
 	if mode == nil and radius ~= nil then
 		mode = "float"
 	end
+	if (mode == "float" or mode == "all") and radius == nil then
+		radius = 16
+	end
 	local power = tonumber(json:match('"windowRoundingPower"%s*:%s*([%d.]+)'))
 	if power ~= nil and mode ~= "off" then
 		hl.config({ decoration = { rounding_power = power } })

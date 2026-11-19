@@ -60,6 +60,9 @@ CASES = [
     ({"windowRounding": "all", "windowRadius": 8}, None, "all", "8"),
     ({"windowRounding": "all", "windowRadius": 8, "windowRoundingPower": 2.5}, "2.5", "all", "8"),
     ({"windowRounding": "off", "windowRadius": 8}, None, None, None),
+    ({"windowRounding": "float"}, None, "float", "16"),
+    ({"windowRounding": "all", "windowRoundingPower": 2.5}, "2.5", "all", "16"),
+    ({"windowRoundingPower": 2.5, "windowRounding": "float"}, "2.5", "float", "16"),
 ]
 
 

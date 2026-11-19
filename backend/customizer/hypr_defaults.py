@@ -8,10 +8,12 @@ CSS sides that differ) gives None, and callers keep the settings.json default.
 import json
 import subprocess
 
-from . import paths
+from . import jsonio, paths
 
 # The no-gaps row is a toggle file, not a Hyprland option: the file's presence is the state.
 NO_GAPS_FLAG = paths.STATE.parent / "omarchy/toggles/hypr/window-no-gaps.lua"
+# windows.json: the saved rounding mode decides whether windowRadius shows Hyprland's global rounding or the rule's 16.
+WINDOW_CFG = paths.CONFIG / "customizer/windows.json"
 
 # windows.json key -> Hyprland option it overrides (preview_ops.window_overrides_lua). windowRadius sets a window
 # rule: with no radius saved, or a mode other than float/all, no rule applies and a window keeps decoration:rounding.
@@ -96,15 +98,23 @@ def _value(obj: dict):
     return None
 
 
+def _rounded_mode_saved() -> bool:
+    """True when windows.json saves a float or all rounding mode: the window rule then takes the radius, 16 when unset."""
+    return jsonio.read_object(WINDOW_CFG).get("windowRounding") in ("float", "all")
+
+
 def live(key: str):
     """Hyprland's current value of a Windows-tab key as windows.json text ("5", "0.5", "true", "dwindle").
 
-    windowNoGaps reads the toggle file. Returns None for keys outside the tab and when the value is not
+    windowNoGaps reads the toggle file. windowRadius returns None while a float/all mode is saved: its rule takes the
+    settings default 16, not the global rounding. Returns None for keys outside the tab and when the value is not
     one value, so the caller shows the settings.json default instead.
     """
     if key not in OPTIONS:
         return None
     if key == "windowNoGaps":
         return "true" if NO_GAPS_FLAG.is_file() else "false"
+    if key == "windowRadius" and _rounded_mode_saved():
+        return None
     obj = _getoption(OPTIONS[key])
     return None if obj is None else _value(obj)

@@ -335,6 +335,13 @@ def main():
           and any("hl.window_rule({ match = { float = true }, rounding = 12 })" in c for c in evs))
     check("window corners: restore disables the rule it registered before",
           any("pcall(CUSTOMIZER_CORNER_RULE.set_enabled" in c for c in evs))
+    # Explicit float mode, no radius saved: the rule takes the settings default 16, not Hyprland's global rounding.
+    json.dump({"windowRounding": "float"}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: explicit float mode with no radius takes the settings default 16",
+          any("hl.window_rule({ match = { float = true }, rounding = 16 })" in c for c in evs))
     # 6) mode off: ни power, ни правила.
     json.dump({"windowRounding": "off", "windowRadius": 12, "windowRoundingPower": 3}, open(wincfg, "w"))
     n = len(calls(log))

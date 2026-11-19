@@ -215,6 +215,12 @@ def main():
     check("3 corner power set to 3 (live 2): marked, default named as the Hyprland config, shows 3",
           rp[0].startswith("●  ") and rp[5] == "default: Hyprland config" and rp[8] == "3")
     os.unlink(win_json)
+    # An explicit float mode with no radius gives the rule its settings default 16 (not the global rounding), so the row shows it.
+    write(win_json, json.dumps({"windowRounding": "float"}))
+    rad = row(env, "windows", "tweak:windowRadius")
+    check("3 float mode, radius absent: not marked, default 16 (the rule's radius), not live rounding",
+          not rad[0].startswith("●") and rad[8] == "16" and rad[5] == "default: 16")
+    os.unlink(win_json)
 
     # ── 4. windowNoGaps reads the flag; «Reset window geometry» keeps the toggle and the rows agree ──
     write(win_json, json.dumps({"windowNoGaps": True, "windowGapsOut": 12}))
