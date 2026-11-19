@@ -521,7 +521,8 @@ def apply_preset(path):
 
     Records the preset in use in ACTIVE_PRESET: the file's own stem for a preset, or the stem
     stored in the snapshot for a rollback (empty when none). Raises Exit(1) when the file is
-    missing or its theme is not installed (checked before anything is written).
+    missing, or when a rollback or an applied theme (presetTheme on) names a theme that is not
+    installed; that check runs before anything is written.
     """
     path = str(path)
     if not os.path.isfile(path):
