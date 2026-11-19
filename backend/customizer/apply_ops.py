@@ -586,6 +586,19 @@ def _typed_name(name):
     return _slug(name)
 
 
+def _typed_preset_name(name):
+    """A preset or style name typed in the overlay: latin letters, digits, spaces, - and _. Spaces become -
+    in the file name, as _slug does, so "My Test" is my-test. Anything else is refused with the reason, as
+    _typed_name refuses it for skins and layouts: a name with no latin letters used to fall back to a
+    timestamp, and "../" was cut out silently. Raises Exit with the reason otherwise."""
+    name = name.strip()
+    if not name:
+        raise Exit(1, t("Enter a name"))
+    if not re.fullmatch(r"[A-Za-z0-9 _-]+", name):
+        raise Exit(1, t("Use latin letters, digits, - and _ only"))
+    return name
+
+
 def save_user_preset(name=None, overwrite=False):
     """Save the current setup as a preset. name None: zenity asks for a name, a description and confirms
     an overwrite (CLI). Otherwise it is saved under name with no description, and a taken name stops with
@@ -600,10 +613,8 @@ def save_user_preset(name=None, overwrite=False):
             return ""
         note = _zenity(["--entry", f"--title={t('Save preset')}", f"--text={t('Description (optional):')}"]) or ""
     else:
-        raw = name.strip()
-        if not raw:
-            raise Exit(1, t("Enter a name"))
-        slug = _slug(raw) or "preset-" + _now("%Y%m%d-%H%M%S")
+        raw = _typed_preset_name(name)
+        slug = _slug(raw)
         path = state.USER_PRESETS / f"{slug}.json"
         _refuse_taken(path, t("Preset %s already exists", slug), overwrite)
         note = ""
@@ -721,10 +732,8 @@ def save_user_style(name=None, overwrite=False):
             return ""
         note = _zenity(["--entry", f"--title={t('Save style')}", f"--text={t('Description (optional):')}"]) or ""
     else:
-        raw = name.strip()
-        if not raw:
-            raise Exit(1, t("Enter a name"))
-        slug = _slug(raw) or "style-" + _now("%Y%m%d-%H%M%S")
+        raw = _typed_preset_name(name)
+        slug = _slug(raw)
         path = state.USER_STYLES / f"{slug}.json"
         _refuse_taken(path, t("Style %s already exists", slug), overwrite)
         note = ""
@@ -1314,20 +1323,34 @@ def apply(category, value, opts=None):
     return out
 
 
-def _flags(rest):
-    """Options after `apply <category> <value>`, the in-window forms: --name <name> saves without zenity,
-    --overwrite replaces a taken name, --yes skips the question the overlay has asked already."""
+# Options each in-window apply accepts (see _flags). An option outside the list exits 2, so a flag is never
+# dropped silently by a command that does not use it.
+APPLY_FLAGS = {
+    ("presets", "save"): ("--name", "--overwrite"),
+    ("styles", "save"): ("--name", "--overwrite"),
+    ("bar-skins", "save"): ("--name", "--overwrite"),
+    ("bar-layouts", "save"): ("--name", "--overwrite"),
+    ("theme-switcher", "prune"): ("--yes", "--dry-run"),
+}
+
+
+def _flags(rest, allowed):
+    """Options after `apply <category> <value>`: --name <name> saves without zenity, --overwrite replaces a
+    taken name, --yes skips the question the overlay has asked already, --dry-run only reports. An option
+    not in allowed exits 2 with its name."""
     opts = {}
     it = iter(rest)
     for a in it:
+        if a not in allowed:
+            raise Exit(2, t("Unknown option: %s", a))
         if a == "--name":
             opts["name"] = next(it, "")
         elif a == "--overwrite":
             opts["overwrite"] = True
         elif a == "--yes":
             opts["yes"] = True
-        else:
-            raise Exit(2, t("Unknown option: %s", a))
+        elif a == "--dry-run":
+            opts["dry_run"] = True
     return opts
 
 
@@ -1337,7 +1360,9 @@ def run(args):
     out = ""
     try:
         if cmd == "apply":
-            out = apply(args[1] if len(args) > 1 else "", args[2] if len(args) > 2 else "", _flags(args[3:]))
+            category = args[1] if len(args) > 1 else ""
+            value = args[2] if len(args) > 2 else ""
+            out = apply(category, value, _flags(args[3:], APPLY_FLAGS.get((category, value), ())))
         elif cmd == "thumbs":
             thumbs(args[1] if len(args) > 1 else "", args[2] if len(args) > 2 else "")
         elif cmd == "picker-cache":
