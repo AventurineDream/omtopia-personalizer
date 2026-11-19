@@ -31,11 +31,13 @@ stub() { # $1 = command name; the body comes from stdin
     { echo '#!/usr/bin/env bash'; cat; } >"$root/stubs/$1"
     chmod +x "$root/stubs/$1"
 }
-# The backlight is listed, but get and set fail when FAKE_BRIGHTNESS is not ok: a session without a bus.
+# The backlight is listed. FAKE_BRIGHTNESS=fail: get and set fail (a session without a bus).
+# FAKE_BRIGHTNESS=setfail: get works but set fails (the value can be read, not written).
 stub brightnessctl <<'EOF'
 echo "brightnessctl $*" >>"$FAKE_LOG"
 if [[ $1 == -l ]]; then echo "Device 'intel_backlight' of class 'backlight'"; exit 0; fi
-if [[ ${FAKE_BRIGHTNESS:-ok} != ok ]]; then echo "Can't connect to system bus" >&2; exit 1; fi
+if [[ ${FAKE_BRIGHTNESS:-ok} == fail ]]; then echo "Can't connect to system bus" >&2; exit 1; fi
+if [[ ${FAKE_BRIGHTNESS:-ok} == setfail && $* == *" set "* ]]; then echo "Can't connect to system bus" >&2; exit 1; fi
 case "$*" in
 *" get") cat "$FAKE_BRIGHT" ;;
 *" set "*) v="${*: -1}"; echo "${v%\%}" >"$FAKE_BRIGHT" ;;
@@ -85,6 +87,22 @@ rm_run fail off
 check "R1 off exits 0 when brightnessctl fails" [ "$code" -eq 0 ]
 check "R1 off turns the page off" [ ! -e "$STATE" ]
 check "R1 off calls no brightnessctl when nothing was saved" bash -c "! grep -q '^brightnessctl' '$LOG'"
+
+# 1b) brightnessctl reads the value but cannot set it: on remembers no brightness it did not change; off makes no set call.
+echo 40 >"$BRIGHT"
+rm -f "$STATE"
+: >"$LOG"
+rm_run setfail on
+check "R1b on exits 0 when brightnessctl set fails" [ "$code" -eq 0 ]
+check "R1b on turns the page on" [ -f "$STATE" ]
+check "R1b on tried to set the reading brightness" grep -q '^brightnessctl -q -c backlight set 35%$' "$LOG"
+check "R1b on remembers no brightness it did not change" bash -c "! grep -q '^brightness=' '$STATE'"
+check "R1b on leaves the raw brightness untouched" [ "$(cat "$BRIGHT")" = 40 ]
+: >"$LOG"
+rm_run setfail off
+check "R1b off exits 0" [ "$code" -eq 0 ]
+check "R1b off turns the page off" [ ! -e "$STATE" ]
+check "R1b off makes no brightnessctl set call" bash -c "! grep -q 'brightnessctl.* set ' '$LOG'"
 
 # 2) brightnessctl works: on remembers the raw value and sets the reading one; off puts the raw value back.
 echo 40 >"$BRIGHT"
