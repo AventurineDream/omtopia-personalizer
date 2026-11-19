@@ -14,7 +14,7 @@ def _search_index():
                 continue
             if tbl.category == "sounds" and it.key == "soundPack":
                 continue
-            out.append(f"{tbl.category}\t{tbl.value_prefix}{it.key}\t{i18n.t(it.label)}\t{i18n.t(section) if section else ''}")
+            out.append(f"{tbl.category}\t{tbl.value_prefix}{settings.command_key(tbl, it)}\t{i18n.t(it.label)}\t{i18n.t(section) if section else ''}")
     return out
 
 

@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- Widgets: the 24-hour clock row now changes the widgets config instead of the lock screen's `lock-design.json`. The key `clock24` is declared in both Lock Tweaks and Widgets; a key declared in more than one table is now listed and searched as `TABLE:key` (only from its second table on), and `customizer.sh tweak` resolves that form to its own table. The bare `clock24` still means the Lock Tweaks setting.
 - Keep Wallpaper FX random selection away from one-off actions such as model installation.
 - Format the Home-page date using the Customizer's selected language.
 - Bar Widgets: «Add to bar» works again. ⏎ and the button sent the wrong key for widget rows (the Customizer.qml regex matched `wset:` rows only), so an absent widget was never added.
