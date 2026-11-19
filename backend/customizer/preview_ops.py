@@ -295,7 +295,10 @@ def window_overrides_lua():
     rules = []
     if radius is not None and mode in ("float", "all"):
         match = "{ class = \".*\" }" if mode == "all" else "{ float = true }"
-        rules.append("hl.window_rule({ match = " + match + ", rounding = " + radius + " })")
+    # hl.window_rule keeps every rule enabled, and a rule with the same name does not replace an earlier one (probed in
+    # a box). The handle lives in a global, so each restore disables the rule it registered before and never stacks.
+        rules.append("if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end "
+                     "CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + match + ", rounding = " + radius + " })")
     # Iolite nit (PR #16): windows.json без ключей геометрии и углов — пустой eval не нужен;
     # restore() уже пропускает None (см. `if lua:`).
     if not g_parts and not deco and not rules:

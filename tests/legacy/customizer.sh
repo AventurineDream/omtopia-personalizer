@@ -866,6 +866,7 @@ list_tweaks() {
       printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
+    # The corner keys sit in WINDOW_TWEAKS, so both window tables take Hyprland's live value (window_spec skips other keys).
     [[ $1 == WINDOW_LAYOUT_TWEAKS || $1 == WINDOW_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
@@ -1431,7 +1432,7 @@ window_overrides_eval() {
         (if $mode != "off" then (n("windowRoundingPower") | values | "rounding_power = " + .) else null end)
        ] | map(select(. != null)) | join(", ")) as $deco
       | ([ (if ($mode == "float" or $mode == "all") and n("windowRadius") != null
-            then "hl.window_rule({ match = " + (if $mode == "all" then "{ class = \".*\" }" else "{ float = true }" end)
+            then "if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + (if $mode == "all" then "{ class = \".*\" }" else "{ float = true }" end)
                  + ", rounding = " + n("windowRadius") + " })"
             else null end) ]
          | map(select(. != null))) as $rules

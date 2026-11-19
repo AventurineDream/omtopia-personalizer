@@ -56,3 +56,5 @@
 - Reading mode: changing the reading theme or brightness while the mode is on applies at once, instead of waiting for the next time the mode is turned on.
 - Window corners (Windows tab): the corner shape, radius and rounded-windows mode are restored after a reload or a shell restart even without the Hyprland hook, as the other window keys are.
 - Window corners: the hook applies only the corner keys windows.json has. A user who saved nothing keeps Hyprland's own corners instead of the shape 2.5 and radius 16 that the hook applied before. A saved radius with no rounded-windows mode still rounds floating windows, as before.
+- Window corners: a restore replaces the corner rule it registered before instead of adding another enabled copy. hl.window_rule keeps earlier rules enabled, and a rule with the same name does not replace them (probed in a box), so the earlier rule is disabled through its handle first.
+- Window corners: the Windows tab shows Hyprland's own rounding power and rounding for the corner keys that windows.json does not set, instead of the settings.json placeholders (2.5 and 16).
