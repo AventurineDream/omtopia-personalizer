@@ -44,6 +44,13 @@ Rectangle {
     var parts = String(label).split(":  ")
     return parts.length > 1 ? parts[parts.length - 1].trim() : ""
   }
+  // Значение-сентинел («из темы», «из стиля») — слова из подписи, а не число −1.00 / 0.00.
+  readonly property string sentinelWords: {
+    if (changed || kind !== "num") return ""
+    var tail = String(label).split(":  ")
+    var w = tail.length > 1 ? tail[tail.length - 1].trim() : ""
+    return w !== "" && !isFinite(Number(w)) ? w : ""
+  }
   // Подсказка из заметки (последний абзац: «h/l — …») — показывается у выбранной карточки.
   readonly property string hint: {
     var paras = String(note).split("\n\n")
@@ -237,7 +244,8 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         width: Style.space(48)
         horizontalAlignment: Text.AlignRight
-        text: slider.format(slider.shown)
+        text: card.sentinelWords !== "" && !slider.dragging && Number(card.raw) === card.numArgs[3]
+          ? card.sentinelWords : slider.format(slider.shown)
         color: card.t.foreground
         font.family: card.t.fontFamily
         font.pixelSize: Style.font.body

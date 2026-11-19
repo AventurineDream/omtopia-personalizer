@@ -8,7 +8,7 @@ import os
 import re
 import subprocess
 
-from . import fsutil, jsonio, paths, settings
+from . import fsutil, jsonio, paths, settings, tweaks
 from .i18n import t
 
 WINDOW_CFG = paths.CONFIG / "customizer/windows.json"
@@ -413,6 +413,7 @@ def tweak(key, how):
     tbl, it = settings.find(key)
     if it is None:
         raise SystemExit(1)
+    it = tweaks.effective_item(it)
     key = it.key   # файл хранит голый ключ; «ТАБЛИЦА:» нужен только для выбора таблицы
     path = paths.expand(tbl.file)
     direction = -1 if how == "-" else 1
@@ -423,7 +424,7 @@ def tweak(key, how):
         return
     kind = it.type
     if kind == "enum":
-        nxt = cycle(value_of(path, key, it.values[0] if it.values else ""), direction, it.values)
+        nxt = cycle(value_of(path, key, it.default_value), direction, it.values)
         set_key(path, key, nxt)
     elif kind == "font":
         nxt = cycle(value_of(path, key, ""), direction, font_list())

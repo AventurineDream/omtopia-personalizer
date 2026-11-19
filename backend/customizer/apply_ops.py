@@ -352,7 +352,9 @@ def snapshot(out, title="", note=""):
     doc["theme"] = theme
     if style_id:
         doc["style"] = style_id
-    doc.update({"wallpaper": wp, "anims": anim, "opacity": op, "blur": bl, "shader": shader, "hyprGeometry": geom})
+    doc.update({"wallpaper": wp, "anims": anim, "blur": bl, "shader": shader, "hyprGeometry": geom})
+    if op:  # no preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: ")
+        doc["opacity"] = op
     if win_geom:
         doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})

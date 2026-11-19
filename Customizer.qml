@@ -1548,7 +1548,7 @@ Item {
   // setting, the saved preset for the other one.
   function stageOpacity() {
     var n = root.numbersOf(root.category.key === "opacity" && root.selectedRow ? root.selectedRow.note : root.status["opacity-values"])
-    return n.length >= 2 ? [n[0], n[1]] : [1, 0.9]
+    return n.length >= 2 ? [n[0], n[1]] : [1, 1] // no preset in use: the compositor's stock 1 / 1, not a preset's values
   }
 
   // Hyprland blur size × passes squeezed into MultiEffect's 0..1 range.
@@ -3042,8 +3042,19 @@ Item {
                     onLoaded: windowsStage.cfg = root.parseJson(text())
                     onLoadFailed: windowsStage.cfg = ({})
                   }
-                  function n(k, d) { var v = Number(cfg[k]); return cfg[k] === undefined || !isFinite(v) ? d : v }
-                  function b(k, d) { return cfg[k] === undefined ? d : cfg[k] === true }
+                  // A key windows.json does not set shows the value Hyprland uses: the tab row's raw field
+                  // (the backend's effective default). The d fallbacks only apply before the rows are loaded.
+                  function rowRaw(k) {
+                    for (var i = 0; i < root.items.length; i++) if (root.items[i].value === "tweak:" + k) return String(root.items[i].raw)
+                    return ""
+                  }
+                  function n(k, d) {
+                    var v = Number(cfg[k])
+                    if (cfg[k] !== undefined && isFinite(v)) return v
+                    var r = Number(rowRaw(k))
+                    return rowRaw(k) !== "" && isFinite(r) ? r : d
+                  }
+                  function b(k, d) { return cfg[k] !== undefined ? cfg[k] === true : rowRaw(k) !== "" ? rowRaw(k) === "true" : d }
                   readonly property bool noGaps: b("windowNoGaps", false)
                   readonly property real k: screenBox.width / 1440
                   readonly property real gin: noGaps ? 0 : n("windowGapsIn", 2) * k
@@ -3053,7 +3064,7 @@ Item {
                   readonly property bool shadow: b("windowShadow", true)
                   readonly property bool dim: b("windowDim", true)
                   readonly property real dimStrength: n("windowDimStrength", 0.1)
-                  readonly property bool master: String(cfg.windowLayout || "dwindle") === "master"
+                  readonly property bool master: String(cfg.windowLayout || rowRaw("windowLayout") || "dwindle") === "master"
 
                   ClippingRectangle {
                     id: screenBox

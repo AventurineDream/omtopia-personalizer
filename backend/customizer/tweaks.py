@@ -6,13 +6,35 @@
 import os
 import re
 
-from . import jsonio, paths, settings
+from . import hypr_defaults, jsonio, paths, settings
 from .i18n import t
 
 
 def file_values(path) -> dict:
     """Значения файла настроек строками (null — как будто ключа нет)."""
     return {k: jsonio.tostring(v) for k, v in jsonio.read_object(path).items() if v is not None}
+
+
+def live_item(it: settings.Item):
+    """(item, text): the item with Hyprland's live value as its default, and that value as text.
+
+    Windows-tab keys only. When the live value is unknown or does not fit the item's type (e.g. "5 10" for a
+    number), the item keeps its settings.json default and the text is None."""
+    v = hypr_defaults.live(it.key)
+    if v is not None:
+        try:
+            return it.with_default(v), v
+        except ValueError:
+            pass
+    return it, None
+
+
+def effective_item(it: settings.Item) -> settings.Item:
+    """The item whose default applies now when its key is absent from the file (see live_item).
+
+    One call is one read: the hyprctl timeout budget starts afresh (hypr_defaults.begin_read)."""
+    hypr_defaults.begin_read()
+    return live_item(it)[0]
 
 
 def default_label(key: str, value: str) -> str:
@@ -93,20 +115,31 @@ def list_tweaks(table_id: str) -> list:
     shape = values.get("shape", "full")
     compact = values.get("compact", "off")
     out = []
+    hypr_defaults.begin_read()  # one hyprctl timeout budget per list
     for it in tbl.items:
         if it.is_section:
             out.append(f"{t(it.section)}\tsection:{it.section}\t\t0\t\theader")
             continue
+        it = live_item(it)[0]
         default = it.default_value
+        # A key the file sets is marked whatever Hyprland reports: the user chose it. Its default is named as the
+        # Hyprland config, because this list cannot print a number for it.
+        present = hypr_defaults.is_window_key(it.key) and it.key in values
         if it.key == "transparent":
             bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
             tr = bar.get("transparent") if isinstance(bar, dict) else None
             value = jsonio.tostring(tr) if tr not in (None, False) else "false"
         else:
-            value = values.get(it.key, default)
-        mark = "●  " if value != default else ""
-        long = default_label(it.key, value)
-        deflong = default_label(it.key, default)
+            value = it.canonical(values.get(it.key, default))
+        if present:
+            mark = "●  "
+            deflong = t("Hyprland config")
+            long = default_label(it.key, value)
+        else:
+            mark = "●  " if value != default else ""
+            deflong = default_label(it.key, default)
+            # A value equal to the default prints as the default's words, so a sentinel (-1 = "from the theme") never shows as a bare number.
+            long = deflong if value == default else default_label(it.key, value)
         if it.type == "dir":
             if not value:
                 long = t("default (current wallpaper)")

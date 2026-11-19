@@ -586,6 +586,8 @@ tweak() {
   wset:*) widget_setting "${key#wset:}"; return ;;
   esac
   spec=$(tweak_spec "$key") || exit 1
+  window_spec "$spec"
+  spec=$SPEC_LINE
   TW_FILE=$(tweak_file "$key")
   IFS='|' read -r _ kind args _ <<<"$spec"
   [[ $how == - ]] && dir=-1
@@ -599,7 +601,8 @@ tweak() {
   case "$kind" in
   enum)
     read -ra list <<<"$args"
-    next=$(cycle "$(tweak_value "$key" "${list[0]}")" "$dir" "${list[@]}")
+    # windowLayout: window_spec has read the live layout into HYPR_LIVE; the cycle starts there (as tweak_ops.tweak).
+    next=$(cycle "$(tweak_value "$key" "${HYPR_LIVE:-${list[0]}}")" "$dir" "${list[@]}")
     skin_edit --arg k "$key" --arg v "$next" '.[$k] = $v'
     ;;
   font)
@@ -785,6 +788,63 @@ tw_load() {
     'if type == "object" then to_entries[] | select(.value != null) | .key, "\u001f", (.value | tostring), "\u001e" else empty end' "$1" 2>/dev/null)
 }
 
+# Окна: значение Hyprland, которое видно, пока windows.json не задаёт ключ — зеркало hypr_defaults.live:
+# hyprctl -j getoption, одно значение или ничего (нет hyprctl, сбой, разные стороны CSS-отступа).
+# windowNoGaps — флаг-файл тумблера. $1 = ключ, $2 = вид (num|bool|enum). The result goes to HYPR_LIVE (empty when
+# unknown). Not a subshell: a timeout must be remembered by the list that made the call. One timeout ends the
+# hyprctl queries for the rest of the list, as hypr_defaults does.
+hypr_live() {
+  local key=$1 kind=$2 opt v="" out rc
+  HYPR_LIVE=""
+  case $key in
+  windowGapsIn) opt=general:gaps_in ;; windowGapsOut) opt=general:gaps_out ;; windowBorder) opt=general:border_size ;;
+  windowDecoRounding) opt=decoration:rounding ;; windowShadow) opt=decoration:shadow:enabled ;;
+  windowShadowRange) opt=decoration:shadow:range ;; windowDim) opt=decoration:dim_inactive ;;
+  windowDimStrength) opt=decoration:dim_strength ;; windowLayout) opt=general:layout ;;
+  windowNoGaps) [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr/window-no-gaps.lua ]] && v=true || v=false ;;
+  *) return 0 ;;
+  esac
+  if [[ -n ${opt-} && -z ${HYPR_UNRESPONSIVE-} ]]; then
+    out=$(timeout 1 hyprctl -j getoption "$opt" 2>/dev/null); rc=$?
+    [[ $rc == 124 ]] && HYPR_UNRESPONSIVE=1
+    [[ $rc == 0 ]] && v=$(jq -r '
+    if has("bool") then (.bool | tostring)
+    elif has("int") then (.int | tostring)
+    elif has("float") then (.float | tostring)
+    elif ((.str // "") != "") then .str
+    elif has("css") then (.css | split(" ") | unique | if length == 1 then .[0] else empty end)
+    else empty end' <<<"$out" 2>/dev/null)
+  fi
+  case $kind in
+  num) v=$(num_canon "$v"); [[ $v =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || v= ;;
+  bool) [[ $v == true || $v == false ]] || v= ;;
+  esac
+  HYPR_LIVE=$v
+}
+
+# Number as settings.canonical prints it: 2.0 → 2, 0.50 → 0.5 (%.15g matches Python's repr for these values).
+# Anything that is not a plain decimal is returned unchanged.
+num_canon() {
+  awk -v x="$1" 'BEGIN { if (x ~ /^-?[0-9]+(\.[0-9]+)?$/) { y = x + 0; if (y == int(y)) printf "%d", y; else printf "%.15g", y } else printf "%s", x }'
+}
+
+# Settings line with Hyprland's live value as the default (as tweaks.live_item). The result goes to SPEC_LINE, not
+# to stdout: a subshell would lose HYPR_UNRESPONSIVE.
+window_spec() { # $1 = spec line "key|kind|args|label"
+  local key kind args label lo hi st def
+  IFS='|' read -r key kind args label <<<"$1"
+  SPEC_LINE=$1
+  HYPR_LIVE=""
+  case $key in window*) ;; *) return 0 ;; esac
+  hypr_live "$key" "$kind"
+  case $kind in
+  num) def=${args##* }; read -r lo hi st _ <<<"$args"; args="$lo $hi $st ${HYPR_LIVE:-$def}" ;;
+  bool) args=${HYPR_LIVE:-$args} ;;
+  esac
+  SPEC_LINE="$key|$kind|$args|$label"
+}
+
+
 # Строки Bar Tweaks / Lock Tweaks: $1 — имя массива параметров, $2 — файл настроек.
 # Без подоболочек на строку: переводы и подписи пишутся в переменные (T_OUT, printf -v).
 list_tweaks() {
@@ -792,6 +852,8 @@ list_tweaks() {
   TW_FILE=$2
   tw_load "$TW_FILE"
   local t key kind args label def v hint mark long deflong sub shape compact lo hi st
+  # One hyprctl timeout budget per list (hypr_defaults.begin_read).
+  HYPR_UNRESPONSIVE=
   local _sec _lab _dl _dd _sub _na _now _def _x _tr _pfx
   if [[ $1 == TWEAKS ]]; then
     shape=${TWV[shape]-full}
@@ -804,6 +866,7 @@ list_tweaks() {
       printf '%s\t%s\t\t0\t\theader\n' "$_sec" "section:${t#\#}"
       continue
     fi
+    [[ $1 == WINDOW_LAYOUT_TWEAKS ]] && { window_spec "$t"; t=$SPEC_LINE; }
     IFS='|' read -r key kind args label <<<"$t"
     case "$kind" in
     num) def=${args##* }; read -r lo hi st _ <<<"$args"; T_OUT=hint t "h/l or −/+ — step %s, range %s" "$st" "$lo … $hi" ;;
@@ -815,13 +878,24 @@ list_tweaks() {
     file) def=""; T_OUT=hint t "⏎ — pick an image" ;;
     dir) def=""; T_OUT=hint t "⏎ — pick a folder · h/l — back to default" ;;
     esac
+    W_LIVE="" W_PRESENT=""
+    if [[ $1 == WINDOW_LAYOUT_TWEAKS && $key == window* ]]; then
+      W_LIVE=$HYPR_LIVE   # set by window_spec for this row
+      [[ -n ${TWV[$key]+x} ]] && W_PRESENT=1
+      [[ -n $W_LIVE ]] && def=$W_LIVE
+    fi
     if [[ $key == transparent ]]; then v=$(jq -r '.bar.transparent // false' "$SHELL_JSON")
     else v=${TWV[$key]-$def}; fi
+    # Same as tweaks.list_tweaks: numbers compare and print in canonical form (2.0 → 2, 0.50 → 0.5).
+    if [[ $kind == num ]]; then v=$(num_canon "$v"); def=$(num_canon "$def"); fi
     mark=""
-    [[ $v != "$def" ]] && mark="●  "
+    # A key windows.json sets is always marked: the user chose it, whatever Hyprland reports.
+    if [[ -n $W_PRESENT ]]; then mark="●  "
+    else [[ $v != "$def" ]] && mark="●  "; fi
     long="" deflong=""
     T_OUT=long default_label "$key" "$v"
-    T_OUT=deflong default_label "$key" "$def"
+    if [[ -n $W_PRESENT ]]; then T_OUT=deflong t "Hyprland config"
+    else T_OUT=deflong default_label "$key" "$def"; fi
     if [[ $kind == dir ]]; then
       [[ -n $v ]] || T_OUT=long t "default (current wallpaper)"
       T_OUT=deflong t "default (current wallpaper)"
@@ -1542,8 +1616,11 @@ snapshot_preset() {
      + (if $style != "" then {style: $style} else {} end)
      + {
        wallpaper: $wallpaper,
-       anims: $anims,
-       opacity: $opacity,
+       anims: $anims
+     }
+     # Empty opacity = no preset in use (fresh system): leave the key out, as apply_ops.snapshot does.
+     + (if $opacity != "" then {opacity: $opacity} else {} end)
+     + {
        blur: $blur,
        shader: $shader,
        hyprGeometry: $hyprGeometry
