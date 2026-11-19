@@ -251,5 +251,21 @@ check "blur preview then set light: live blur becomes light" test "$(live_field 
 check "blur preview then set light: state file is light" test "$(cat "$r/state/hypr/blur")" = "light 3 2 0.10 0.010"
 check "blur preview then set light: snapshot cleared" test ! -e "$r/run/omarchy-customizer/blur-preview"
 
+# 14. rollback values: `live` reads the compositor, `set-live` re-applies exact values with no preset in use.
+r="$(setup "true 4 2 0.00 0.000 0.85 0.70" ok)"
+check "blur live: prints the five live fields" test "$(run_script blur.sh "$r" live)" = "true 4 2 0.00 0.000"
+echo "frosty 1 1 0.00 0.000" >"$r/state/hypr/blur"
+run_script blur.sh "$r" set-live "true 5 2 0.13 0.007"
+check "blur set-live: exits 0" test "$code" = "0"
+check "blur set-live: live blur becomes the exact values" test "$(live_field "$r" 1-5)" = "true 5 2 0.13 0.007"
+check "blur set-live: state file removed (no preset in use)" test ! -e "$r/state/hypr/blur"
+check "blur set-live: current is empty" test -z "$(run_script blur.sh "$r" current)"
+check "blur set-live: no snapshot left behind" test ! -e "$r/run/omarchy-customizer/blur-preview"
+run_script blur.sh "$r" set-live "true 4 2 0.00 0.000; os.exit()"
+check "blur set-live, garbage: exits non-zero" test "$code" != "0"
+check "blur set-live, garbage: live blur untouched" test "$(live_field "$r" 1-5)" = "true 5 2 0.13 0.007"
+run_script blur.sh "$r" set-live "false 4 2 0.00 0.000"
+check "blur set-live, off: live blur off" test "$(live_field "$r" 1)" = "false"
+
 echo "$fails failure(s)"
 exit "$fails"

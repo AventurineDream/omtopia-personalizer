@@ -52,14 +52,18 @@ printf '%s\\n' "hyprctl $*" >> "{log}"
 [ -f "{base}/hyprctl-fail" ] && exit 1
 [ -f "{base}/hyprctl-garbage" ] && {{ echo "not json"; exit 0; }}
 [ -f "{base}/hyprctl-hang" ] && exec sleep 30
-if [ "$1" = "-j" ] && [ "$2" = "getoption" ]; then
-  case "$3" in
+case "$1" in
+  getoption) opt="$2" ;;
+  -j) [ "$2" = getoption ] || exit 0; opt="$3" ;;
+  *) exit 0 ;;
+esac
+# blur.sh reads `getoption OPT -j`; the Windows tab reads `-j getoption OPT`. Both answer from opts/.
+case "$opt" in
   general:gaps_in|general:gaps_out)
-    [ -f "{flag}" ] && {{ printf '%s' '{{"option": "'"$3"'", "css": "0 0 0 0", "set": true}}'; exit 0; }} ;;
-  esac
-  [ -f "{base}/opts/$3.json" ] && exec cat "{base}/opts/$3.json"
-  exit 1
-fi
+    [ -f "{flag}" ] && {{ printf '%s' '{{"option": "'"$opt"'", "css": "0 0 0 0", "set": true}}'; exit 0; }} ;;
+esac
+[ -f "{base}/opts/$opt.json" ] && exec cat "{base}/opts/$opt.json"
+exit 1
 exit 0
 """, mode=0o755)
     write(os.path.join(stubs, "omarchy-hyprland-toggle"), f"""#!/bin/sh
@@ -304,12 +308,21 @@ def main():
     blur("next")
     check("5 blur next from a fresh system applies the default (medium) and marks it",
           blur("current") == (0, "medium") and [f[1] for f in rows(env, "blur") if f[3] == "1"] == ["medium"])
+    for opt, obj in (("decoration:blur:enabled", {"bool": True, "set": True}),
+                     ("decoration:blur:size", {"int": 5, "set": True}),
+                     ("decoration:blur:passes", {"int": 2, "set": True}),
+                     ("decoration:blur:vibrancy", {"float": 0.13, "set": True}),
+                     ("decoration:blur:noise", {"float": 0.007, "set": True})):
+        set_opt(base, opt, obj)
     write(os.path.join(state, "hypr/blur"), "frosty 1 1 0.00 0.000\n")
     before = call_count()
     rc, _ = blur("restore")
     check("5 stale saved blur name: restore exits 0", rc == 0)
-    check("5 stale saved blur name: restore applies no preset (no blur eval)",
-          not any("blur = {" in c for c in open(calls).read().splitlines()[before:]))
+    # Restore keeps the live values verbatim: any blur eval it sends carries them, never a preset's.
+    blur_evals = [c for c in open(calls).read().splitlines()[before:] if "blur = {" in c]
+    check("5 stale saved blur name: any blur eval re-sends the live values, no preset",
+          all("size = 5, passes = 2, vibrancy = 0.13, noise = 0.007" in c for c in blur_evals))
+    check("5 stale saved blur name: live blur values unchanged", blur("live") == (0, "true 5 2 0.13 0.007"))
 
     # ── 6. Theme Switcher: sentinel values print the default's words ──
     write(os.path.join(home, ".config/omarchy/image-picker.json"),

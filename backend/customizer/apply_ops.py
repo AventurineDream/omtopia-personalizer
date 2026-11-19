@@ -362,6 +362,12 @@ def snapshot(out, title="", note=""):
     for k, v in (("opacity", op), ("blur", bl)):
         if v:
             doc[k] = v
+    # Automatic rollback with no blur preset in use keeps the exact live values (not a preset name, which would
+    # mark that preset in use after the restore). A restore re-applies them with `blur.sh set-live`.
+    if not bl and os.path.realpath(out) == os.path.realpath(state.LAST_PRESET):
+        code, live = sh([str(state.BLUR), "live"], quiet=False)
+        if code == 0 and live.strip():
+            doc["blurLive"] = live.strip()
     if win_geom:
         doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})
@@ -492,8 +498,11 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
         if op:
             sh([str(state.OPACITY), "set", op])
         blr = jq_str(alt(d.get("blur"), ""))
+        blr_live = jq_str(alt(d.get("blurLive"), ""))
         if blr:
             sh([str(state.BLUR), "set", blr])
+        elif blr_live:
+            sh([str(state.BLUR), "set-live", blr_live])
     shader = jq_str(alt(d.get("shader"), "")) if on("Shader") else ""
     if shader == "off":
         sh([str(state.TOGGLE), "off"])

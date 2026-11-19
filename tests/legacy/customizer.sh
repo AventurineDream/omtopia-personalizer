@@ -1558,10 +1558,12 @@ snapshot_preset() {
   [[ $style_id == custom ]] && style_id=""
   # The rollback snapshot records the preset in use when it is taken, so a restore
   # reports that preset again instead of guessing from the live desktop (apply_preset).
-  local origin=""
+  local origin="" blur_live=""
   if [[ $(realpath -m "$out") == "$(realpath -m "$LAST_PRESET")" ]]; then
     origin=$(current_preset_stem)
     [[ $origin == custom ]] && origin=""
+    # Automatic rollback with no blur preset in use keeps the exact live values, not a preset name (see apply_ops.snapshot).
+    if [[ -z $bl ]]; then blur_live=$("$BLUR" live 2>/dev/null || true); fi
   fi
 
   mkdir -p "$(dirname "$out")"
@@ -1575,6 +1577,7 @@ snapshot_preset() {
     --arg anims "$anim" \
     --arg opacity "$op" \
     --arg blur "$bl" \
+    --arg blurLive "$blur_live" \
     --arg shader "$sh" \
     --argjson hyprGeometry "$geom_json" \
     --arg barSkin "$skin_name" \
@@ -1603,6 +1606,7 @@ snapshot_preset() {
      # Empty opacity / blur = no preset in use (fresh system): leave the key out, as apply_ops.snapshot does.
      + (if $opacity != "" then {opacity: $opacity} else {} end)
      + (if $blur != "" then {blur: $blur} else {} end)
+     + (if $blurLive != "" then {blurLive: $blurLive} else {} end)
      + {
        shader: $shader,
        hyprGeometry: $hyprGeometry
@@ -1788,7 +1792,7 @@ apply_form_sections() {
     fi
   fi
 
-  local anim afile op blr sh
+  local anim afile op blr blr_live sh
   if _form_on Anims && jq -e 'has("anims")' "$file" >/dev/null 2>&1; then
     anim=$(jq -r '.anims // ""' "$file")
     if [[ -z $anim ]]; then
@@ -1803,7 +1807,9 @@ apply_form_sections() {
     op=$(jq -r '.opacity // ""' "$file")
     [[ -n $op ]] && "$OPACITY" set "$op" >/dev/null 2>&1 || true
     blr=$(jq -r '.blur // ""' "$file")
-    [[ -n $blr ]] && "$BLUR" set "$blr" >/dev/null 2>&1 || true
+    blr_live=$(jq -r '.blurLive // ""' "$file")
+    if [[ -n $blr ]]; then "$BLUR" set "$blr" >/dev/null 2>&1 || true
+    elif [[ -n $blr_live ]]; then "$BLUR" set-live "$blr_live" >/dev/null 2>&1 || true; fi
   fi
   sh=""
   _form_on Shader && sh=$(jq -r '.shader // ""' "$file")
