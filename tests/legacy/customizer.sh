@@ -289,10 +289,10 @@ shell_edit() {
 
 # Применить раскладку бара из файла $1 в shell.json:
 # - вычищает поля note / note_* из объекта раскладки и из .bar;
-# - переносит виджеты только для стоковых раскладок ($2 == 1): новая раскладка меняет
+# - переносит виджеты при вливании стиля и для стоковых раскладок ($2 == 1): новая раскладка меняет
 #   только структуру/позицию, а набор виджетов и их настройки сохраняются
-#   (как merge_bar_layout в apply_ops.py); сохранённые раскладки, пресеты, снимки
-#   и бэкапы применяются дословно ($2 == 0), чтобы восстановление могло вернуть
+#   (как merge_bar_layout в apply_ops.py); сохранённые раскладки, снимки, бэкапы и собственная
+#   раскладка пресета применяются дословно ($2 == 0), чтобы восстановление могло вернуть
 #   виджеты, которых сейчас нет на баре;
 # - гарантирует, что плагины-клоны из cloneSourceRestores (например, kamradsmeshnyavy.menu,
 #   который раньше мог быть включён только через присутствие в bar.layout) остаются в .plugins,
@@ -306,16 +306,17 @@ shell_apply_layout() {
   [[ -f $SHELL_JSON ]] && cp "$SHELL_JSON" "$SHELL_JSON.bak"
   shell_edit --slurpfile p "$layout_file" --argjson carry "$carry" '
     def wid: if type == "object" then .id else . end;
-    def merge_layout($cur; $new; $anchor):
+    def merge_layout($cur; $new0; $anchor):
+      ($new0 | del(.tray)) as $new |
       (reduce ($cur | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[]) as $e ({};
          ($e | wid) as $id
          | if $id == null then .
            elif has($id) then .[$id] += [$e]
            else . + {($id): [$e]} end)) as $byid
-      | ([$new | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[] | wid | select(. != null)] | unique) as $lids
+      | ([$new | to_entries[] | select(.value | type == "array") | .value[] | wid | select(. != null)] | unique) as $lids
       | ([$lids[] | select(. as $lid | $byid | has($lid))] | map({(.): true}) | add // {}) as $placed
       | (reduce ($new | keys_unsorted[]) as $s ({};
-          if $s == "tray" or (($new[$s] | type) != "array") then .
+          if (($new[$s] | type) != "array") then .
           else reduce ($new[$s][] | wid | select(. != null)) as $id (.;
             if has($id) then . else . + {($id): $s} end)
           end)) as $first
@@ -323,8 +324,7 @@ shell_apply_layout() {
           $new + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)))
         else
           (reduce ($new | keys_unsorted[]) as $s ({}; . + {($s):
-              (if $s == "tray" then ($cur[$s] // $new[$s])
-               elif ($new[$s] | type) != "array" then $new[$s]
+              (if ($new[$s] | type) != "array" then $new[$s]
                else ((reduce ($new[$s][]) as $e ([[], {}];
                        ($e | wid) as $id
                        | if ($id != null) and ($byid | has($id)) and ((.[1] | has($id)) | not) and ($first[$id] == $s)
@@ -335,9 +335,9 @@ shell_apply_layout() {
                       else [] end))
                end)} )
             + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)
-                  | .value |= (if type == "array"
+                  | if .key == "tray" then . else (.value |= (if type == "array"
                                then map(select((wid) as $id | $id == null or (($placed | has($id)) | not)))
-                               else . end)))) as $m2
+                               else . end)) end))) as $m2
           | (if (($anchor | type == "string" and . != "") and ([$m2.center[]? | wid] | index($anchor)) != null)
                or ((($m2.centerBegin // []) | if type == "array" then . else [] end)
                    + (($m2.centerEnd // []) | if type == "array" then . else [] end) | length) == 0
@@ -1663,17 +1663,21 @@ apply_form_sections() {
         done
       fi
     fi
+    # A style (mode=merge, also a preset's style part) merges into the bar: the widget set stays
+    # the user's (see the Python apply_form_sections). A preset's own layout and any restore apply verbatim.
+    local carry=0
+    if ! $is_backup && [[ $mode == merge ]]; then carry=1; fi
     if jq -e '.barLayoutData != null and (.barLayoutData | type == "object")' "$file" >/dev/null 2>&1; then
       local ltmp="$RUN_DIR/preset-layout.tmp"
       jq '.barLayoutData' "$file" >"$ltmp"
-      shell_apply_layout "$ltmp"
+      shell_apply_layout "$ltmp" "$carry"
     else
       bl=$(jq -r '.barLayout // ""' "$file")
       if [[ -n $bl ]]; then
         for lfile in "$USER_LAYOUTS/$bl.json" "$BAR_DIR/layouts/$bl.json"; do
           [[ -f $lfile ]] || continue
-          # стоковая раскладка — с переносом виджетов, сохранённая — дословно
-          if [[ $lfile == "$BAR_DIR"/layouts/* ]]; then shell_apply_layout "$lfile" 1; else shell_apply_layout "$lfile" 0; fi
+          # стоковая раскладка переносит виджеты (и при вливании стиля любая), сохранённая — дословно
+          if ! $is_backup && { [[ $mode == merge ]] || [[ $lfile == "$BAR_DIR"/layouts/* ]]; }; then shell_apply_layout "$lfile" 1; else shell_apply_layout "$lfile" 0; fi
           break
         done
       fi
