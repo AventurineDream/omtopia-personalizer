@@ -520,6 +520,9 @@ Item {
     root.helpOpen = false
     root.lastPointer = null
     root.opened = true
+    // A bar skin preview the shell never restored (it restarted mid-preview) is undone here. With no preview the
+    // restore does nothing.
+    Quickshell.execDetached([root.script, "bar-skins-restore"])
     root.pane = 0
     // payload {"category": "<ключ>"} — открыть сразу на вкладке (например windows, widgets, themes).
     var payload = root.parseJson(payloadJson)
