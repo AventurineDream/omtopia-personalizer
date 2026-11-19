@@ -84,7 +84,7 @@ bash ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh           
 ### Необязательные программы
 
 - `libvips` — быстрые миниатюры тем и обоев (пакет `libvips`)
-- `zenity` — диалоги выбора цвета, текста и файла в твиках
+- `zenity` — диалоги выбора цвета, текста и файла в твиках. Сохранение и удаление своих пресетов, стилей, скинов и раскладок его не требуют; без него цвет и текст правятся прямо в строке, а действия, которым он нужен, сообщают об этом
 - плагин `kamradsmeshnyavy.widgets` — категория **Виджеты** на Рабочем столе (часы, сейчас играет, визуализатор cava, кольца системы)
 - `lutgen` — Recolor (виден, только когда есть и lutgen, и zenity)
 - `omarchy-wallpaper-theme` в `PATH` + `matugen` — строки «🎨 Тема из обоев» в **Теме**: тема `dynamic` в стиле Material You из текущих обоев ([скрипт](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
@@ -94,7 +94,7 @@ bash ~/.config/omarchy/plugins/kamradsmeshnyavy.customizer/install.sh           
 Omarchy 4 (Quattro) с его оболочкой. Проверено на Omarchy 4.0.6 и Quickshell 0.3.2.
 
 - `python3` и `jq` (оба есть в Omarchy).
-- Необязательно: `libvips` (миниатюры), `zenity` (диалоги цвета, текста, файлов), `lutgen` (Recolor), `matugen` (тема из обоев), `ffmpeg` и `pipewire` (`pw-play`) — звуки, `uv` — сборка шрифтов Dotify. Функция без своей программы просто скрывается.
+- Необязательно: `libvips` (миниатюры), `zenity` (диалоги цвета, текста, файлов), `lutgen` (Recolor), `matugen` (тема из обоев), `ffmpeg` и `pipewire` (`pw-play`) — звуки, `uv` — сборка шрифтов Dotify. Функция без своей программы просто скрывается, кроме действий с zenity: они остаются на месте и сообщают, что нужен zenity.
 - Плагины-компаньоны — по желанию, см. таблицу выше.
 
 ## Удаление

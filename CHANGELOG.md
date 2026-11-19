@@ -11,3 +11,5 @@
 
 - Keep Wallpaper FX random selection away from one-off actions such as model installation.
 - Format the Home-page date using the Customizer's selected language.
+- Save and delete your own presets, styles, bar skins and bar layouts without zenity: ⏎ on the 💾 row opens the name field in the row, and `D` asks in the footer. Home's "Save preset" opens the same field, and thumbnail clean-up asks in the footer too.
+- Without zenity, the actions that need it stop with a "Needs zenity (sudo pacman -S zenity)" notice and keep the Customizer open; colour and text tweaks are typed in place instead.
