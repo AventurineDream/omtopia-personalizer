@@ -200,6 +200,8 @@ def _delete(path, own_dir, title, ask, done, refuse, name, strict=True, extra_ok
 
 
 def skin_delete(path, yes=False):
+    """Move one of the user's own bar skins to the trash. yes: the overlay has asked already, so zenity is skipped
+    and the message comes back in stdout. Returns (exit code, message); a file outside the user folder is refused."""
     name = os.path.basename(str(path))[:-5] if str(path).endswith(".json") else os.path.basename(str(path))
     return _delete(path, state.USER_SKINS, ("Bar Skin", t("Delete the bar skin")),
                    t("Delete your skin %s? The file goes to the trash.", name), t("Deleted %s", name),
@@ -207,6 +209,8 @@ def skin_delete(path, yes=False):
 
 
 def layout_delete(path, yes=False):
+    """Move one of the user's own bar layouts to the trash. yes: the overlay has asked already, so zenity is skipped
+    and the message comes back in stdout. Returns (exit code, message); a file outside the user folder is refused."""
     name = os.path.basename(str(path))[:-5] if str(path).endswith(".json") else os.path.basename(str(path))
     return _delete(path, state.USER_LAYOUTS, ("Bar Layout", t("Delete the bar layout")),
                    t("Delete your layout %s? The file goes to the trash.", name), t("Deleted %s", name),
@@ -214,6 +218,8 @@ def layout_delete(path, yes=False):
 
 
 def preset_delete(path, yes=False):
+    """Move one of the user's own presets to the trash. yes: the overlay has asked already, so zenity is skipped
+    and the message comes back in stdout. Returns (exit code, message); a file outside the user folder is refused."""
     ok_name = os.path.basename(str(path)) != "my-settings.json"
     valid = os.path.isfile(str(path)) and ok_name
     name = state.preset_name(path) if valid else ""
@@ -223,6 +229,8 @@ def preset_delete(path, yes=False):
 
 
 def style_delete(path, yes=False):
+    """Move one of the user's own styles to the trash. yes: the overlay has asked already, so zenity is skipped
+    and the message comes back in stdout. Returns (exit code, message); a file outside the user folder is refused."""
     name = state.preset_name(path) if os.path.isfile(str(path)) else ""
     return _delete(path, state.USER_STYLES, ("Styles", t("Delete style")),
                    t("Delete your style %s? The file goes to the trash.", name), t("Deleted %s", name),
@@ -319,6 +327,8 @@ def restore():
 # ── Диспетчер ──
 
 def run(args):
+    """Runs one preview, restore or delete command and returns (exit code, stdout). The delete commands put the
+    message the overlay shows in stdout (see _result). Returns None for a name no branch handles."""
     cmd, a = args[0], args[1:] + ["", ""]
     yes = "--yes" in args
     if cmd == "opacity-preview":

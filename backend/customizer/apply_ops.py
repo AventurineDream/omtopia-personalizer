@@ -1105,8 +1105,8 @@ def dock_apply(value):
 
 def apply(category, value, opts=None):
     """Run `apply <category> <value>` and return its stdout: the path a save wrote ("" when zenity was
-    cancelled), or the count a prune --dry-run reports. opts: the in-window flags from _flags (name,
-    overwrite, yes, dry_run); empty for the CLI forms that ask zenity."""
+    cancelled), or the count a prune --dry-run reports. opts: the in-window flags from _flags (name, overwrite, yes,
+    dry_run); empty for every CLI form."""
     opts = opts or {}
     out = ""
     if category == "presets":
