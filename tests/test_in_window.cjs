@@ -68,7 +68,7 @@ test('a footer question takes the key first, then an open field, then the overla
   assert.equal(inWindow.keyRoute(false, false), 'overlay');
 });
 
-test('a tab switch or Home clears the footer question and the notice, and nothing else', () => {
+test('clearTransient drops the footer question and the notice and leaves the open field alone', () => {
   const o = { confirm: { text: 'Overwrite Zen?', yesLabel: 'overwrite', yes: () => {} }, notice: 'a notice', editingIndex: 4 };
   inWindow.clearTransient(o);
   assert.equal(o.confirm, null);
@@ -83,12 +83,16 @@ test('a save result: 0 saved, 3 taken (the overlay asks to overwrite), any other
   assert.equal(inWindow.saveOutcome(2), 'failed');
 });
 
-test('queued writes run in the order they were asked for', () => {
-  assert.equal(inWindow.nextLane(-1, -1), 'none');
-  assert.equal(inWindow.nextLane(5, -1), 'apply');
-  assert.equal(inWindow.nextLane(-1, 2), 'tweak');
-  assert.equal(inWindow.nextLane(3, 4), 'apply', 'a save asked before a tweak step runs first');
-  assert.equal(inWindow.nextLane(7, 4), 'tweak', 'a tweak step asked before a save runs first');
+test('queued writes run in the order they were asked for, a value waiting in pendingSet included', () => {
+  assert.equal(inWindow.nextLane(-1, -1, -1), 'none');
+  assert.equal(inWindow.nextLane(5, -1, -1), 'apply');
+  assert.equal(inWindow.nextLane(-1, 2, -1), 'tweak');
+  assert.equal(inWindow.nextLane(-1, -1, 6), 'pending');
+  assert.equal(inWindow.nextLane(3, 4, 9), 'apply', 'a save asked before a tweak step and a value runs first');
+  assert.equal(inWindow.nextLane(7, 4, 9), 'tweak', 'a tweak step asked before a save and a value runs first');
+  assert.equal(inWindow.nextLane(7, 8, 5), 'pending', 'a value asked before a save and a tweak step runs first');
+  assert.equal(inWindow.nextLane(6, -1, 3), 'pending', 'a value asked before a save runs first, so the save captures it');
+  assert.equal(inWindow.nextLane(2, -1, 3), 'apply', 'a save asked before a value runs first');
 });
 
 // ── Backend: the real run.py in a temp HOME; the stubs log to one file ──

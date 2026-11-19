@@ -136,8 +136,10 @@ Item {
     if (root.opened && idx < 0) root.setCategory(0, true)
   }
   function isAvailable(key) { return root.available === null || root.available.indexOf(key) !== -1 }
-  // zenity backs the text, colour, folder and file pickers, the pin list and the qylock list. Until the list of
-  // programs arrives (available === null) it is assumed present, so nothing is refused on a guess.
+  // zenity backs the tweak pickers (text, colour, folder, file), the wallpaper and Dotify pickers, the pin list, the
+  // qylock list and the bare CLI save prompts. Without it those are refused, or colour and text rows are typed in place
+  // (see activate). Until the list of programs arrives (available === null) it is assumed present, so nothing is refused
+  // on a guess.
   readonly property bool hasZenity: root.available === null || root.available.indexOf("has:zenity") !== -1
   readonly property var categories: allCategories.filter(function(c) { return root.isAvailable(c.key) }).map(root.localized)
   readonly property var groups: allGroups.filter(function(g) {
@@ -190,7 +192,9 @@ Item {
   // Значение (raw), показанное до ответа customizer.sh: value строки -> raw. Пока шаги идут,
   // оно накладывается на перечитанный список, чтобы переключатель не мигал назад.
   property var optimistic: ({})
-  property var pendingSet: null      // { key, value, category, typed } — значение мышью или текстом, пока пишется предыдущее
+  // { key, value, category, typed, seq } — значение мышью или текстом, пока пишется предыдущее. seq — его место в
+  // очереди (InWindow.nextLane). Одно место: новое значение заменяет ждущее, прежнее отбрасывается.
+  property var pendingSet: null
   // Ручной ввод значения (i): строка, которую правят, её черновик и ошибка проверки.
   property int editingIndex: -1
   property string editText: ""
@@ -524,8 +528,9 @@ Item {
     root.lastPointer = null
     root.opened = true
     // A bar skin preview the shell never restored (it restarted mid-preview) is undone here. With no preview the
-    // restore does nothing.
-    Quickshell.execDetached([root.script, "bar-skins-restore"])
+    // restore does nothing. It waits while an apply runs or is queued: that apply writes the skin and removes the
+    // backup itself, so a restore now would copy the old backup over it. The next open runs it.
+    if (!root.applierBusy()) Quickshell.execDetached([root.script, "bar-skins-restore"])
     root.pane = 0
     // payload {"category": "<ключ>"} — открыть сразу на вкладке (например windows, widgets, themes).
     var payload = root.parseJson(payloadJson)
@@ -610,6 +615,9 @@ Item {
     root.editError = ""
     root.keepValue = ""
     InWindow.clearTransient(root)
+    // A name prompt asked on the old tab (Home's Save preset while its list loads) dies with the tab. jumpTo sets
+    // pendingEdit again after this call when its request is new.
+    root.pendingEdit = false
     root.filtering = false
     root.filterText = ""
     root.selectedIndex = 0
@@ -617,7 +625,6 @@ Item {
     if (root.cache[key]) {
       root.items = root.cache[key]
       root.loading = false
-      if (root.pendingEdit && key === root.category.key) { root.pendingEdit = false; Qt.callLater(root.startEdit) }
       // A step still in flight shows over the cached row, as loadRows does for a fresh list.
       if (root.stepsInFlight()) {
         for (var ci = 0; ci < root.items.length; ci++)
@@ -1208,8 +1215,8 @@ Item {
     if (!root.isTweakRow(row)) return
     root.clickSelect(index)
     if (row.kind === "num" || row.kind === "enum" || row.kind === "bool") root.setRowRaw(index, String(value))
-    // The writes ahead of this one hold it too: it starts when they have all exited (drainWrites).
-    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(value), category: root.category.key, typed: false }; return }
+    // The writes asked before this one run first; this value starts after them, in the order it was asked (drainWrites).
+    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(value), category: root.category.key, typed: false, seq: root.nextWriteSeq() }; return }
     root.startEditorWrite(root.tweakKey(row), value, root.category.key, false)
   }
 
@@ -1299,7 +1306,7 @@ Item {
     if (InWindow.isSaveRow(root.category.key, row.value)) { root.submitSave(root.category.key, String(text).trim(), false); return }
     if (editor.running) return
     // A typed value waits for the writes in progress, like a mouse value (setTweakAt).
-    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true }; return }
+    if (root.writesBusy()) { root.pendingSet = { key: root.tweakKey(row), value: String(text), category: root.category.key, typed: true, seq: root.nextWriteSeq() }; return }
     root.startEditorWrite(root.tweakKey(row), text, root.category.key, true)
   }
   // Saves the setup of category `key` under `name` (apply <key> save --name <name>; --overwrite replaces a taken
@@ -1319,8 +1326,8 @@ Item {
   }
   // Result of an in-window save. Saved: the prompt closes and the new row is selected (keepValue). Name taken
   // (EXISTS, exit 3) while its prompt is open: the footer asks to overwrite. Anything else, or a taken name after
-  // the prompt closed: the reason under the field, or the footer toast when the prompt is gone (the overlay may
-  // have closed).
+  // the prompt closed: the reason under the field while the prompt is open; with the prompt gone, a footer toast while
+  // the overlay is open and a critical notification otherwise.
   function onSaved(key, name, code, out, err) {
     var editing = root.isEditingSave(key)
     var outcome = InWindow.saveOutcome(code)
@@ -1502,8 +1509,8 @@ Item {
   // started, while a running apply survives it (see applier).
   property var applyQueue: []
 
-  // Each queued write takes the next number when it is asked for, so applies and tweak steps run in the order they
-  // were asked (InWindow.nextLane): a save then captures the tweak steps asked before it.
+  // Each queued write takes the next number when it is asked for, so applies, tweak steps and a waiting value run in
+  // the order they were asked (InWindow.nextLane): a save then captures the tweak steps and the value asked before it.
   property int writeSeq: 0
   function nextWriteSeq() {
     root.writeSeq += 1
@@ -1528,15 +1535,16 @@ Item {
   // The done callback of the apply the applier runs (null: none); see enqueueApply and applier.
   property var applierDone: null
 
-  // Starts the next write once no write is running: the first asked of a queued apply and the queued tweak steps
-  // (InWindow.nextLane), else the last mouse or typed value (pendingSet). Called wherever a lane may have freed up.
+  // Starts the next write once no write is running: whichever is asked first of a queued apply, the first queued tweak
+  // step and the value waiting in pendingSet (InWindow.nextLane). Called wherever a lane may have freed up.
   function drainWrites() {
     if (applier.running || tweaker.running || editor.running) return
     var lane = InWindow.nextLane(root.applyQueue.length > 0 ? root.applyQueue[0].seq : -1,
-                                 root.tweakQueue.length > 0 ? root.tweakQueue[0].seq : -1)
+                                 root.tweakQueue.length > 0 ? root.tweakQueue[0].seq : -1,
+                                 root.pendingSet !== null ? root.pendingSet.seq : -1)
     if (lane === "apply") root.startNextApply()
     else if (lane === "tweak") root.startNextTweak()
-    else if (root.pendingSet !== null) root.startPendingSet()
+    else if (lane === "pending") root.startPendingSet()
   }
 
   // Bar Skin / Bar Layout / Presets: удалить свой пресет (★) — с подтверждением в customizer.sh.
@@ -2245,8 +2253,9 @@ Item {
           // Текст для поиска (t) не трогаем до проверки режима поиска — там нужна сама буква.
           var lk = (!t || t.charCodeAt(0) > 127) ? root.latinKey(event) : ""
           if (ctrl && /^[a-z]$/i.test(lk)) k = Qt.Key_A + (lk.toUpperCase().charCodeAt(0) - 65)
-          // A key that reaches the catcher while a name or value field is open came before the field took the keyboard:
-          // the field takes it now, and this key is dropped rather than read as an overlay command.
+          // A key that reaches the catcher while a name or value field is open came before the field took the keyboard.
+          // The field takes focus now and this key is dropped by design: keys typed in that gap are lost, because
+          // re-sending a key into the TextInput would need synthetic key events, and the gap is a few frames.
           if (InWindow.keyRoute(root.fieldOpen(), root.confirm !== null) === "field") { root.editFocusSeq += 1; event.accepted = true; return }
           var pendingG = root.pendingG
           root.pendingG = false

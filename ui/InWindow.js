@@ -102,16 +102,22 @@ function keyRoute(editing, confirm) {
   return "overlay"
 }
 
-/** Which queued write starts next. Applies and tweak steps share one order, the order they were asked for: a
- * save waits for the tweak steps asked before it, and tweak steps asked after it wait for the save.
+/** Which queued write starts next. Applies, tweak steps and a value waiting in pendingSet share one order, the order
+ * they were asked for, by sequence number: a save waits for the values asked before it, and values asked after it
+ * wait for the save.
  *
  * @param applySeq sequence number of the first queued apply, or -1 when none is queued.
  * @param tweakSeq sequence number of the first queued tweak step, or -1 when none is queued.
- * @returns "apply" or "tweak" for the write asked first, "none" when both queues are empty.
+ * @param pendingSeq sequence number of the value waiting in pendingSet, or -1 when none waits.
+ * @returns "apply", "tweak" or "pending" for the write asked first, "none" when all three are empty.
  */
-function nextLane(applySeq, tweakSeq) {
-  if (applySeq < 0 && tweakSeq < 0) return "none"
-  if (tweakSeq < 0) return "apply"
-  if (applySeq < 0) return "tweak"
-  return applySeq < tweakSeq ? "apply" : "tweak"
+function nextLane(applySeq, tweakSeq, pendingSeq) {
+  var lane = "none"
+  var seq = -1
+  var lanes = [["apply", applySeq], ["tweak", tweakSeq], ["pending", pendingSeq]]
+  for (var i = 0; i < lanes.length; i++) {
+    var s = lanes[i][1]
+    if (s >= 0 && (seq < 0 || s < seq)) { lane = lanes[i][0]; seq = s }
+  }
+  return lane
 }
