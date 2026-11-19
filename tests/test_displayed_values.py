@@ -280,14 +280,13 @@ def main():
     fresh_sh = status_fields(legacy(env, "status")[1])
     check("5 fresh system: bash status names no transparency or blur preset",
           fresh_sh.get("opacity") == "" and fresh_sh.get("blur") == "")
-    # The name comes from the zenity stub (--entry → freshblur); `apply presets save` takes no positional name.
     saved_path = os.path.join(home, ".config/omarchy/customizer/presets/freshblur.json")
-    backend(env, "apply", "presets", "save")
+    backend(env, "apply", "presets", "save", "--name", "freshblur")
     saved = load_json(saved_path)
     check("5 fresh snapshot (Python): stores neither opacity nor blur",
           bool(saved) and "opacity" not in saved and "blur" not in saved)
-    os.unlink(saved_path)  # the bash save does not overwrite a file (zenity question)
-    legacy(env, "apply", "presets", "save")
+    os.unlink(saved_path)  # a taken name stops the save (EXISTS / zenity question), so the file is removed first
+    legacy(env, "apply", "presets", "save")  # the bash mirror still asks zenity for the name (the stub answers freshblur)
     saved_sh = load_json(saved_path)
     check("5 fresh snapshot (bash): stores neither opacity nor blur",
           bool(saved_sh) and "opacity" not in saved_sh and "blur" not in saved_sh)
