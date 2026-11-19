@@ -959,7 +959,7 @@ Item {
       return
     }
     // Виджеты бара: ⏎ убирает с бара / возвращает (h/l двигают), параметр виджета — переключает.
-    if (root.isTweakRow(root.selectedRow) && /^wset?:/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
+    if (root.isTweakRow(root.selectedRow) && /^(w|wset):/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
     else if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
     else root.run(root.selectedRow.value)
   }

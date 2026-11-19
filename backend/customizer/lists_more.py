@@ -519,6 +519,20 @@ def bar_widgets():
             seen.add(wid)
             out.append(f"● {label(wid)}\ttweak:w:{wid}\t\t0\t{t('On the bar · %s', wid)}{NL}{NL}"
                        f"{t('h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar')}\t{wid}\tmove\t\t\t{label(wid)}")
+    # Tray drawer entries are listed apart: the shell already counts them as on the bar, so a second
+    # entry would be a duplicate. The row moves the existing entry (with its settings) onto the bar.
+    drawer, dseen = [], set()
+    for e in layout.get("tray") or []:
+        wid = jsonio.tostring(_entry_id(e)) if _entry_id(e) is not None else ""
+        if wid and wid not in seen and wid not in dseen:
+            dseen.add(wid)
+            drawer.append(wid)
+    if drawer:
+        out.append(f"{t('In the tray drawer')}\tsection:tray\t\t0\t\theader")
+        for wid in drawer:
+            out.append(f"○ {label(wid)}\ttweak:w:{wid}\t\t0\t{t('In the tray drawer · %s', wid)}{NL}{NL}"
+                       f"{t('⏎ — move onto the bar (end of the right section, settings kept)')}\t{wid}\tadd\t\t\t{label(wid)}")
+        seen.update(drawer)
     out.append(f"{t('Not on the bar')}\tsection:off\t\t0\t\theader")
     hidden = jsonio.read(BAR_HIDDEN)
     cand = sorted(hidden.keys()) if isinstance(hidden, dict) else []

@@ -1198,6 +1198,21 @@ list_bar_widgets() {
         "$(widget_label "$id")"
     done < <(jq -r --arg s "$sec" '.bar.layout[$s] // [] | .[] | if type == "object" then .id else . end' "$SHELL_JSON")
   done
+  # Трей-ящик: отдельная секция, кнопка переносит запись на бар (зеркало backend/customizer/lists_more.py).
+  local -a drawer=()
+  while read -r id; do
+    [[ -n $id && -z ${seen[$id]:-} ]] || continue
+    seen[$id]=1
+    drawer+=("$id")
+  done < <(jq -r '.bar.layout.tray // [] | .[] | if type == "object" then .id else . end' "$SHELL_JSON")
+  if ((${#drawer[@]})); then
+    printf '%s\t%s\t\t0\t\theader\n' "$(t "In the tray drawer")" "section:tray"
+    for id in "${drawer[@]}"; do
+      printf '%s\t%s\t\t0\t%s\t%s\tadd\t\t\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
+        "$(t "In the tray drawer · %s" "$id")"'\n\n'"$(t "⏎ — move onto the bar (end of the right section, settings kept)")" "$id" \
+        "$(widget_label "$id")"
+    done
+  fi
   # Не на баре: убранные (с запомненным местом) и установленные виджеты-плагины. Стоковый
   # виджет, у которого есть свой клон, не предлагаем — его включение сняло бы клон.
   printf '%s\t%s\t\t0\t\theader\n' "$(t "Not on the bar")" "section:off"
