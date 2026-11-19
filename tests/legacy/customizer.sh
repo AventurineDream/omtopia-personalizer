@@ -2133,7 +2133,7 @@ list() {
   bar-layouts)
     local f cur
     cur=$(current_layout)
-    printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save the current one as a preset…")" "save" \
+    printf '%s\t%s\t\t0\t%s\n' "$(t "💾 Save the current one as a layout…")" "save" \
       "$(t "Save the layout from shell.json as your own in %s — it shows up here with a ★." "${USER_LAYOUTS/#$HOME/\~}")"
     for f in "$USER_LAYOUTS"/*.json; do
       [[ -f $f ]] || continue
