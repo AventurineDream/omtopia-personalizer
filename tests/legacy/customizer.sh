@@ -306,16 +306,17 @@ shell_apply_layout() {
   [[ -f $SHELL_JSON ]] && cp "$SHELL_JSON" "$SHELL_JSON.bak"
   shell_edit --slurpfile p "$layout_file" --argjson carry "$carry" '
     def wid: if type == "object" then .id else . end;
-    def merge_layout($cur; $new; $anchor):
+    def merge_layout($cur; $new0; $anchor):
+      ($new0 | del(.tray)) as $new |
       (reduce ($cur | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[]) as $e ({};
          ($e | wid) as $id
          | if $id == null then .
            elif has($id) then .[$id] += [$e]
            else . + {($id): [$e]} end)) as $byid
-      | ([$new | to_entries[] | select(.key != "tray" and (.value | type == "array")) | .value[] | wid | select(. != null)] | unique) as $lids
+      | ([$new | to_entries[] | select(.value | type == "array") | .value[] | wid | select(. != null)] | unique) as $lids
       | ([$lids[] | select(. as $lid | $byid | has($lid))] | map({(.): true}) | add // {}) as $placed
       | (reduce ($new | keys_unsorted[]) as $s ({};
-          if $s == "tray" or (($new[$s] | type) != "array") then .
+          if (($new[$s] | type) != "array") then .
           else reduce ($new[$s][] | wid | select(. != null)) as $id (.;
             if has($id) then . else . + {($id): $s} end)
           end)) as $first
@@ -323,8 +324,7 @@ shell_apply_layout() {
           $new + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)))
         else
           (reduce ($new | keys_unsorted[]) as $s ({}; . + {($s):
-              (if $s == "tray" then ($cur[$s] // $new[$s])
-               elif ($new[$s] | type) != "array" then $new[$s]
+              (if ($new[$s] | type) != "array" then $new[$s]
                else ((reduce ($new[$s][]) as $e ([[], {}];
                        ($e | wid) as $id
                        | if ($id != null) and ($byid | has($id)) and ((.[1] | has($id)) | not) and ($first[$id] == $s)
@@ -335,9 +335,9 @@ shell_apply_layout() {
                       else [] end))
                end)} )
             + ($cur | with_entries(select(.key as $k | ($new | has($k)) | not)
-                  | .value |= (if type == "array"
+                  | if .key == "tray" then . else (.value |= (if type == "array"
                                then map(select((wid) as $id | $id == null or (($placed | has($id)) | not)))
-                               else . end)))) as $m2
+                               else . end)) end))) as $m2
           | (if (($anchor | type == "string" and . != "") and ([$m2.center[]? | wid] | index($anchor)) != null)
                or ((($m2.centerBegin // []) | if type == "array" then . else [] end)
                    + (($m2.centerEnd // []) | if type == "array" then . else [] end) | length) == 0

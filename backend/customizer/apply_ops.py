@@ -118,8 +118,9 @@ def merge_bar_layout(current, new, anchor=None):
     виджет не пропадает и не добавляется, а его настройки (pattern/minutes, format,
     lists/vaultPath и т.д.) сохраняются как есть. Виджет, названный в новой раскладке,
     встаёт в её секцию (все его экземпляры — сразу за первым); не названный —
-    остаётся в своей. Секции, которых нет в новой раскладке (centerBegin, centerEnd,
-    tray), сохраняются без изменений, кроме виджетов, уже перенесённых в другую
+    остаётся в своей. Трей из новой раскладки не берётся никогда: его список — текущий (или
+    его нет). Остальные секции, которых нет в новой раскладке (centerBegin, centerEnd),
+    сохраняются без изменений, кроме виджетов, уже перенесённых в другую
     секцию (они не дублируются). Если у новой раскладки нет рабочего якоря центра
     (`anchor` пуст или его нет в center), записи из centerBegin/centerEnd переезжают
     в center (begin — в начало, end — в конец): без якоря эти секции бар не рисует,
@@ -130,8 +131,10 @@ def merge_bar_layout(current, new, anchor=None):
     """
     if not isinstance(current, dict) or not isinstance(new, dict):
         return new
-    # `tray` — не секция бара, а содержимое всплывающего меню трея: она сохраняется
-    # как есть и не участвует в переносе (иначе виджет из трея продублировался бы на бар).
+    # `tray` — не секция бара, а содержимое всплывающего меню трея. Из новой раскладки его
+    # убираем: список трея меняет только пользователь. Текущий трей сохраняется как есть и не
+    # участвует в переносе (иначе виджет из трея продублировался бы на бар).
+    new = {k: v for k, v in new.items() if k != "tray"}
     by_id = {}
     for section in current:
         if section == "tray":
@@ -145,8 +148,6 @@ def merge_bar_layout(current, new, anchor=None):
                 by_id.setdefault(wid, []).append(entry)
     new_ids = set()
     for section in new:
-        if section == "tray":
-            continue
         entries = new.get(section)
         if not isinstance(entries, list):
             continue
@@ -165,9 +166,6 @@ def merge_bar_layout(current, new, anchor=None):
         merged = {}
         placed = set()
         for section, entries in new.items():
-            if section == "tray":
-                merged[section] = current.get(section, entries)
-                continue
             if not isinstance(entries, list):
                 merged[section] = entries
                 continue

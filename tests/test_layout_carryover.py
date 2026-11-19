@@ -14,9 +14,9 @@ with inline settings, a tray drawer, empty centerBegin/centerEnd) and asserts:
 The same apply is then run through the legacy bash reference and the resulting
 shell.json must be byte-identical to the Python one (parity, no allowlist).
 
-Carryover applies ONLY to stock layouts (BAR_DIR/layouts). Saved layouts,
-presets, snapshots and backups apply verbatim, so a restore can bring back
-widgets that are not currently on the bar:
+Carryover applies to stock layouts (BAR_DIR/layouts) and to a style's bar layout (a style apply,
+mode merge); the tray is never carried. Saved layouts, a preset's own layout, snapshots and
+backups apply verbatim, so a restore can bring back widgets that are not currently on the bar:
   - snapshot restore: last-preset.json (is_backup) with a barLayoutData that
     holds a widget missing from the current bar -> the widget comes back, the
     layout is exactly the saved one, Python == bash byte-identical;
