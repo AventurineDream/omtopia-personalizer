@@ -170,50 +170,63 @@ def wall_delete(path):
 
 # ── Удаление своих скинов, раскладок, пресетов, стилей (в корзину, с подтверждением) ──
 
-def _delete(path, own_dir, title, ask, done, refuse, name, strict=True, extra_ok=True):
+def _result(code, msg, title, notify_user):
+    """Result of a delete: the overlay shows msg from stdout. The CLI path has no overlay, so it notifies."""
+    if notify_user:
+        sh(["notify-send", "-u", "critical", title, msg] if code else ["notify-send", "-t", "3000", title, msg])
+    return code, msg
+
+
+def _delete(path, own_dir, title, ask, done, refuse, name, strict=True, extra_ok=True, yes=False):
+    """Move one of the user's own files to the trash. yes: the overlay has asked in its own window already,
+    so zenity is skipped and the message comes back in stdout. Without it (CLI) zenity asks, and a missing
+    zenity fails with its message instead of cancelling silently."""
     path = str(path)
     ok = (os.path.isfile(path) and path.endswith(".json") and extra_ok
           and os.path.dirname(os.path.realpath(path)) == os.path.realpath(own_dir)
           and (os.path.isdir(own_dir) or not strict))
     if not ok:
-        sh(["notify-send", "-u", "critical", title[0], refuse])
-        return 1, ""
-    if sh(["zenity", "--question", f"--title={title[1]}", f"--text={ask}"])[0] != 0:
-        return 0, ""
+        return _result(1, refuse, title[0], notify_user=not yes)
+    if not yes:
+        try:
+            answer = fsutil.zenity(["--question", f"--title={title[1]}", f"--text={ask}"])
+        except fsutil.NotInstalled as e:
+            return _result(1, str(e), title[0], notify_user=True)
+        if answer is None:
+            return 0, ""
     code = sh(["gio", "trash", path])[0]
-    if code == 0:
-        code = sh(["notify-send", "-t", "3000", title[0], done])[0]
-    return code, ""
+    msg = done if code == 0 else t("Could not move %s to the trash", name)
+    return _result(code, msg, title[0], notify_user=not yes)
 
 
-def skin_delete(path):
+def skin_delete(path, yes=False):
     name = os.path.basename(str(path))[:-5] if str(path).endswith(".json") else os.path.basename(str(path))
     return _delete(path, state.USER_SKINS, ("Bar Skin", t("Delete the bar skin")),
                    t("Delete your skin %s? The file goes to the trash.", name), t("Deleted %s", name),
-                   t("Only your own skins (★) can be deleted"), name)
+                   t("Only your own skins (★) can be deleted"), name, yes=yes)
 
 
-def layout_delete(path):
+def layout_delete(path, yes=False):
     name = os.path.basename(str(path))[:-5] if str(path).endswith(".json") else os.path.basename(str(path))
     return _delete(path, state.USER_LAYOUTS, ("Bar Layout", t("Delete the bar layout")),
                    t("Delete your layout %s? The file goes to the trash.", name), t("Deleted %s", name),
-                   t("Only your own layouts (★) can be deleted"), name)
+                   t("Only your own layouts (★) can be deleted"), name, yes=yes)
 
 
-def preset_delete(path):
+def preset_delete(path, yes=False):
     ok_name = os.path.basename(str(path)) != "my-settings.json"
     valid = os.path.isfile(str(path)) and ok_name
     name = state.preset_name(path) if valid else ""
     return _delete(path, state.USER_PRESETS, ("Presets", t("Delete preset")),
                    t("Delete your preset %s? The file goes to the trash.", name), t("Deleted %s", name),
-                   t("Only your own presets (★) can be deleted"), name, extra_ok=ok_name)
+                   t("Only your own presets (★) can be deleted"), name, extra_ok=ok_name, yes=yes)
 
 
-def style_delete(path):
+def style_delete(path, yes=False):
     name = state.preset_name(path) if os.path.isfile(str(path)) else ""
     return _delete(path, state.USER_STYLES, ("Styles", t("Delete style")),
                    t("Delete your style %s? The file goes to the trash.", name), t("Deleted %s", name),
-                   t("Only your own styles (★) can be deleted"), name, strict=False)
+                   t("Only your own styles (★) can be deleted"), name, strict=False, yes=yes)
 
 
 # ── restore: вернуть сохранённое после `hyprctl reload` ──
@@ -307,6 +320,7 @@ def restore():
 
 def run(args):
     cmd, a = args[0], args[1:] + ["", ""]
+    yes = "--yes" in args
     if cmd == "opacity-preview":
         return sh([str(state.OPACITY), "preview", a[0]], quiet=False)
     if cmd == "opacity-restore":
@@ -343,13 +357,13 @@ def run(args):
     if cmd == "wall-delete":
         return wall_delete(a[0])
     if cmd == "skin-delete":
-        return skin_delete(a[0])
+        return skin_delete(a[0], yes)
     if cmd == "layout-delete":
-        return layout_delete(a[0])
+        return layout_delete(a[0], yes)
     if cmd == "preset-delete":
-        return preset_delete(a[0])
+        return preset_delete(a[0], yes)
     if cmd == "style-delete":
-        return style_delete(a[0])
+        return style_delete(a[0], yes)
     if cmd == "restore":
         return restore()
     return None
