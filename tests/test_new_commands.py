@@ -8,6 +8,7 @@
 как при выключенном шейдере). Живой стол не трогается."""
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -32,7 +33,10 @@ def sandbox():
         f.write(f'#!/bin/sh\nprintf "%s\\n" "hyprctl $*" >> "{log}"\n'
                 'case "$*" in *"getoption decoration:screen_shader"*) printf \'{"str": "[[EMPTY]]"}\\n\';; esac\n')
     os.chmod(os.path.join(stubs, "hyprctl"), 0o755)
-    env = dict(os.environ, HOME=home, PATH=stubs + ":" + os.environ["PATH"])
+    # Свой XDG_RUNTIME_DIR: backend пишет omarchy-customizer/*.tmp, иначе — в живой /run/user/<uid>.
+    run_dir = os.path.join(base, "run")
+    os.makedirs(run_dir)
+    env = dict(os.environ, HOME=home, XDG_RUNTIME_DIR=run_dir, PATH=stubs + ":" + os.environ["PATH"])
     env.pop("XDG_CONFIG_HOME", None)
     return base, home, log, env
 
@@ -322,8 +326,16 @@ def main():
     check("issue #15: restore with no geometry keys emits no hl.config eval",
           not any(c.startswith("hyprctl eval hl.config") for c in calls(log)[n:]))
 
-    print(f"{'OK' if not fails else 'FAIL'}; песочница: {base}")
-    return 1 if fails else 0
+    if fails:
+        print(f"FAIL; песочница сохранена: {base}")
+        return 1
+    # Песочницы под $XDG_RUNTIME_DIR (tmpfs) копятся, если не удалять зелёные прогоны.
+    try:
+        shutil.rmtree(base)
+    except OSError as e:
+        print(f"не удалось удалить песочницу {base}: {e}")
+    print("OK")
+    return 0
 
 
 if __name__ == "__main__":
