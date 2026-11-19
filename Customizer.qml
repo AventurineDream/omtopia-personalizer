@@ -519,6 +519,9 @@ Item {
     statusProc.running = true
     availableProc.running = false
     availableProc.running = true
+    // The overlay is keepLoaded: a lang change in customizer.json is picked up here, not at shell start.
+    langProc.running = false
+    langProc.running = true
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -1709,9 +1712,16 @@ Item {
     stdout: StdioCollector {
       onStreamFinished: {
         var lang = text.trim()
-        root.uiLanguage = lang === "ru" ? "ru" : "en"
-        if (lang && lang !== "en") i18nFile.path = root.pluginDir + "/i18n/" + lang + ".json"
-        else root.i18n = ({})
+        var next = lang === "ru" ? "ru" : "en"
+        // Search labels are translated by the backend: drop them so the next search refetches.
+        if (next !== root.uiLanguage) root.searchIndex = []
+        root.uiLanguage = next
+        if (lang && lang !== "en") {
+          var path = root.pluginDir + "/i18n/" + lang + ".json"
+          // A FileView does not reload when its path is unchanged (ru → en → ru keeps the empty table).
+          if (i18nFile.path === path) i18nFile.reload()
+          else i18nFile.path = path
+        } else root.i18n = ({})
       }
     }
   }
