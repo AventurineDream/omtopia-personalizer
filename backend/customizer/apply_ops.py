@@ -1104,8 +1104,9 @@ def dock_apply(value):
 
 
 def apply(category, value, opts=None):
-    """Run `apply <category> <value>` and return its stdout. opts: the in-window flags from _flags (name,
-    overwrite, yes); empty for the CLI forms that ask zenity."""
+    """Run `apply <category> <value>` and return its stdout: the path a save wrote ("" when zenity was
+    cancelled), or the count a prune --dry-run reports. opts: the in-window flags from _flags (name,
+    overwrite, yes, dry_run); empty for the CLI forms that ask zenity."""
     opts = opts or {}
     out = ""
     if category == "presets":
@@ -1242,6 +1243,9 @@ def apply(category, value, opts=None):
         elif value == "cache":
             picker_cache()
         elif value == "prune":
+            # --dry-run only reports (the overlay's question shows the count); nothing is deleted.
+            if opts.get("dry_run"):
+                return picker_prune(True)
             # The overlay asks in its own window and passes --yes; the CLI keeps the zenity question.
             if not opts.get("yes"):
                 info = picker_prune(True)
