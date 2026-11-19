@@ -390,13 +390,8 @@ def font_profile_step(how):
 
 # ── tweak / tweak set ──
 
-def _zenity(args) -> str:
-    """Ответ zenity; отмена — None."""
-    try:
-        p = subprocess.run(["zenity", *args], capture_output=True, text=True)
-    except OSError:
-        return None
-    return p.stdout.rstrip("\n") if p.returncode == 0 else None
+# Dialog answer, or None when cancelled; raises fsutil.NotInstalled without zenity (see fsutil.zenity).
+_zenity = fsutil.zenity
 
 
 def tweak(key, how):
@@ -563,6 +558,8 @@ def run(args):
             tweak(key, args[2] if len(args) > 2 else "+")
     except Fail as e:
         return 2, "", str(e) + "\n"
+    except fsutil.NotInstalled as e:
+        return 1, "", str(e) + "\n"
     except SystemExit as e:
         return int(e.code or 0), "", ""   # как exit в bash: хвост для окон не выполняется
     if key.startswith("window"):

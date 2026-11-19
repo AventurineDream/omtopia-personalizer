@@ -42,10 +42,15 @@ NOTE_RE = re.compile(r"^note(_[a-z]+)?$")
 
 
 class Exit(Exception):
-    """exit N посреди команды (как в bash)."""
+    """exit N посреди команды (как в bash); msg — сообщение для оверлея (stderr)."""
 
-    def __init__(self, code):
+    def __init__(self, code, msg=""):
         self.code = code
+        self.msg = msg
+
+
+# Exit code of a save into a taken name without --overwrite: the overlay asks "Overwrite?" and retries.
+EXISTS = 3
 
 
 def spawn(args):
@@ -559,24 +564,65 @@ def _slug(raw):
     return re.sub(r"[^a-z0-9_-]", "", s)
 
 
-def _zenity(args):
-    code, out = sh(["zenity", *args], quiet=False)
-    return out.rstrip("\n") if code == 0 else None
+# Dialog answer, or None when cancelled; raises fsutil.NotInstalled without zenity (see fsutil.zenity).
+_zenity = fsutil.zenity
 
 
-def save_user_preset():
-    raw = _zenity(["--entry", f"--title={t('Save preset')}", f"--text={t('Preset name:')}", "--entry-text=My Preset"])
-    if raw is None:
-        return
-    slug = _slug(raw) or "preset-" + _now("%Y%m%d-%H%M%S")
-    path = state.USER_PRESETS / f"{slug}.json"
-    if path.exists() and _zenity(["--question", f"--title={t('Save preset')}", f"--text={t('Preset %s already exists. Overwrite?', slug)}"]) is None:
-        return
-    note = _zenity(["--entry", f"--title={t('Save preset')}", f"--text={t('Description (optional):')}"]) or ""
+def _refuse_taken(path, message, overwrite):
+    """A save into a taken name stops with EXISTS unless overwrite was asked for: the overlay shows
+    message in its "Overwrite?" prompt and retries with --overwrite."""
+    if path.exists() and not overwrite:
+        raise Exit(EXISTS, message)
+
+
+def _typed_name(name):
+    """A skin or layout name typed in the overlay: latin letters, digits, - and _ only, since it becomes
+    the file name. Normalised like _slug does for zenity names. Raises Exit with the reason otherwise."""
+    name = name.strip()
+    if not name:
+        raise Exit(1, t("Enter a name"))
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+        raise Exit(1, t("Use latin letters, digits, - and _ only"))
+    return _slug(name)
+
+
+def _typed_preset_name(name):
+    """A preset or style name typed in the overlay: latin letters, digits, spaces, - and _. Spaces become -
+    in the file name, as _slug does, so "My Test" is my-test. Anything else is refused with the reason, as
+    _typed_name refuses it for skins and layouts: a name with no latin letters used to fall back to a
+    timestamp, and "../" was cut out silently. Raises Exit with the reason otherwise."""
+    name = name.strip()
+    if not name:
+        raise Exit(1, t("Enter a name"))
+    if not re.fullmatch(r"[A-Za-z0-9 _-]+", name):
+        raise Exit(1, t("Use latin letters, digits, - and _ only"))
+    return name
+
+
+def save_user_preset(name=None, overwrite=False):
+    """Save the current setup as a preset. name None: zenity asks for a name, a description and confirms
+    an overwrite (CLI). Otherwise it is saved under name with no description, and a taken name stops with
+    EXISTS unless overwrite. Returns the written path, "" when zenity was cancelled."""
+    if name is None:
+        raw = _zenity(["--entry", f"--title={t('Save preset')}", f"--text={t('Preset name:')}", "--entry-text=My Preset"])
+        if raw is None:
+            return ""
+        slug = _slug(raw) or "preset-" + _now("%Y%m%d-%H%M%S")
+        path = state.USER_PRESETS / f"{slug}.json"
+        if path.exists() and _zenity(["--question", f"--title={t('Save preset')}", f"--text={t('Preset %s already exists. Overwrite?', slug)}"]) is None:
+            return ""
+        note = _zenity(["--entry", f"--title={t('Save preset')}", f"--text={t('Description (optional):')}"]) or ""
+    else:
+        raw = _typed_preset_name(name)
+        slug = _slug(raw)
+        path = state.USER_PRESETS / f"{slug}.json"
+        _refuse_taken(path, t("Preset %s already exists", slug), overwrite)
+        note = ""
     os.makedirs(state.USER_PRESETS, exist_ok=True)
     snapshot(path, raw, note)
     state.ACTIVE_PRESET.write_text(slug + "\n")
     notify("-t", "3000", "Presets", t("Saved %s", raw))
+    return str(path)
 
 
 def geometry_reset():
@@ -673,15 +719,24 @@ STYLE_CONTENT_NESTED = [("widgets", "clock"), ("widgets", "media"), ("widgets", 
                         ("glyph", "glyphCharger"), ("glyph", "glyphCriticalRed"), ("osd", "osdShowValue"), ("look", "id")]
 
 
-def save_user_style():
-    raw = _zenity(["--entry", f"--title={t('Save style')}", f"--text={t('Style name:')}", "--entry-text=My Style"])
-    if raw is None:
-        return
-    slug = _slug(raw) or "style-" + _now("%Y%m%d-%H%M%S")
-    path = state.USER_STYLES / f"{slug}.json"
-    if path.exists() and _zenity(["--question", f"--title={t('Save style')}", f"--text={t('Style %s already exists. Overwrite?', slug)}"]) is None:
-        return
-    note = _zenity(["--entry", f"--title={t('Save style')}", f"--text={t('Description (optional):')}"]) or ""
+def save_user_style(name=None, overwrite=False):
+    """Save the current setup as a style: the content keys are dropped, only look and fonts stay.
+    name / overwrite as in save_user_preset. Returns the written path, "" when zenity was cancelled."""
+    if name is None:
+        raw = _zenity(["--entry", f"--title={t('Save style')}", f"--text={t('Style name:')}", "--entry-text=My Style"])
+        if raw is None:
+            return ""
+        slug = _slug(raw) or "style-" + _now("%Y%m%d-%H%M%S")
+        path = state.USER_STYLES / f"{slug}.json"
+        if path.exists() and _zenity(["--question", f"--title={t('Save style')}", f"--text={t('Style %s already exists. Overwrite?', slug)}"]) is None:
+            return ""
+        note = _zenity(["--entry", f"--title={t('Save style')}", f"--text={t('Description (optional):')}"]) or ""
+    else:
+        raw = _typed_preset_name(name)
+        slug = _slug(raw)
+        path = state.USER_STYLES / f"{slug}.json"
+        _refuse_taken(path, t("Style %s already exists", slug), overwrite)
+        note = ""
     fonts = fsutil.run(["omarchy-font-profile"]) if fsutil.which("omarchy-font-profile") else ""
     tmp = paths.RUN / "style-snapshot.json"
     snapshot(tmp, raw, note)
@@ -697,49 +752,69 @@ def save_user_style():
     write(path, d)
     state.ACTIVE_STYLE.write_text(slug + "\n")
     notify("-t", "3000", "Styles", t("Saved %s", raw))
+    return str(path)
 
 
 # ── Бар ──
 
-def save_user_skin():
-    name = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Skin name (latin letters, digits, - and _):')}",
-                    "--entry-text=my-skin"])
+def save_user_skin(name=None, overwrite=False):
+    """Save the bar's skin as it was before any preview (the backup), or the live skin when none runs. name /
+    overwrite as in save_user_preset; a typed name is checked by _typed_name. The save then ends the preview:
+    the bar is put back as it was and the backup removed (preview_ops.bar_skin_restore). Returns the written
+    path, "" when zenity was cancelled."""
     if name is None:
-        return
-    name = _slug(name)
-    if not name:
-        notify("-u", "critical", "Bar Skin", t("Empty skin name"))
-        raise Exit(1)
-    path = state.USER_SKINS / f"{name}.json"
-    if path.exists() and _zenity(["--question", f"--title={t('Save the bar skin')}", f"--text={t('Skin %s already exists. Overwrite?', name)}"]) is None:
-        return
-    note = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Description (optional):')}"]) or ""
+        name = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Skin name (latin letters, digits, - and _):')}",
+                        "--entry-text=my-skin"])
+        if name is None:
+            return ""
+        name = _slug(name)
+        if not name:
+            notify("-u", "critical", "Bar Skin", t("Empty skin name"))
+            raise Exit(1)
+        path = state.USER_SKINS / f"{name}.json"
+        if path.exists() and _zenity(["--question", f"--title={t('Save the bar skin')}", f"--text={t('Skin %s already exists. Overwrite?', name)}"]) is None:
+            return ""
+        note = _zenity(["--entry", f"--title={t('Save the bar skin')}", f"--text={t('Description (optional):')}"]) or ""
+    else:
+        name = _typed_name(name)
+        path = state.USER_SKINS / f"{name}.json"
+        _refuse_taken(path, t("Skin %s already exists", name), overwrite)
+        note = ""
     os.makedirs(state.USER_SKINS, exist_ok=True)
     src = jsonio.read(SKIN_BACKUP) if fsutil.nonempty(SKIN_BACKUP) else jsonio.read(paths.BAR_SKIN)
     src = {k: v for k, v in (src or {}).items() if not NOTE_RE.match(k)}
     write(path, ({"note": note} if note else {}) | src)
-    if SKIN_BACKUP.is_file():
-        shutil.copyfile(SKIN_BACKUP, paths.BAR_SKIN)
+    # The save is a commit: the bar goes back to what it was before any preview, and the backup is gone.
+    preview_ops.bar_skin_restore()
     notify("-t", "3000", "Bar Skin", t("Saved %s", name))
+    return str(path)
 
 
-def save_user_layout():
-    name = _zenity(["--entry", f"--title={t('Save the bar layout')}", f"--text={t('Layout name (latin letters, digits, - and _):')}",
-                    "--entry-text=my-layout"])
+def save_user_layout(name=None, overwrite=False):
+    """Save the bar's position and layout as a bar layout. name / overwrite as in save_user_skin.
+    Returns the written path, "" when zenity was cancelled."""
     if name is None:
-        return
-    name = _slug(name)
-    if not name:
-        notify("-u", "critical", "Bar Layout", t("Empty layout name"))
-        raise Exit(1)
-    path = state.USER_LAYOUTS / f"{name}.json"
-    if path.exists() and _zenity(["--question", f"--title={t('Save the bar layout')}", f"--text={t('Layout %s already exists. Overwrite?', name)}"]) is None:
-        return
+        name = _zenity(["--entry", f"--title={t('Save the bar layout')}", f"--text={t('Layout name (latin letters, digits, - and _):')}",
+                        "--entry-text=my-layout"])
+        if name is None:
+            return ""
+        name = _slug(name)
+        if not name:
+            notify("-u", "critical", "Bar Layout", t("Empty layout name"))
+            raise Exit(1)
+        path = state.USER_LAYOUTS / f"{name}.json"
+        if path.exists() and _zenity(["--question", f"--title={t('Save the bar layout')}", f"--text={t('Layout %s already exists. Overwrite?', name)}"]) is None:
+            return ""
+    else:
+        name = _typed_name(name)
+        path = state.USER_LAYOUTS / f"{name}.json"
+        _refuse_taken(path, t("Layout %s already exists", name), overwrite)
     os.makedirs(state.USER_LAYOUTS, exist_ok=True)
     bar = jsonio.read_object(paths.SHELL_JSON).get("bar") or {}
     write(path, {"note": t("Saved %s", _now("%F")), "position": bar.get("position"),
                  "centerAnchor": bar.get("centerAnchor"), "layout": bar.get("layout")})
     notify("-t", "3000", "Bar Layout", t("Saved: %s", name))
+    return str(path)
 
 
 # ── Обои: Recolor и Dotify ──
@@ -1028,11 +1103,15 @@ def dock_apply(value):
     return ""
 
 
-def apply(category, value):
+def apply(category, value, opts=None):
+    """Run `apply <category> <value>` and return its stdout: the path a save wrote ("" when zenity was
+    cancelled), or the count a prune --dry-run reports. opts: the in-window flags from _flags (name, overwrite, yes,
+    dry_run); empty for every CLI form."""
+    opts = opts or {}
     out = ""
     if category == "presets":
         if value == "save":
-            save_user_preset()
+            return save_user_preset(opts.get("name"), opts.get("overwrite", False))
         elif value.startswith("tweak:window"):
             tweak_pick(value)
             sh(["hyprctl", "reload"])
@@ -1064,7 +1143,7 @@ def apply(category, value):
             tweak_pick(value)
     elif category == "styles":
         if value == "save":
-            save_user_style()
+            return save_user_style(opts.get("name"), opts.get("overwrite", False))
         elif value.startswith("tweak:"):
             tweak_pick(value)
         else:
@@ -1112,16 +1191,14 @@ def apply(category, value):
         notify("-t", "2000", "Animations", t("Loaded: %s", base[:-4] if base.endswith(".lua") else base))
     elif category == "bar-layouts":
         if value == "save":
-            save_user_layout()
-            raise Exit(0)
+            return save_user_layout(opts.get("name"), opts.get("overwrite", False))
         # стоковая раскладка — с переносом виджетов, сохранённая — дословно
         shell_apply_layout(jsonio.read(value), carry_widgets=_is_stock_layout(value))
         base = os.path.basename(value)
         notify("-t", "2000", "Bar Layout", t("Applied %s", base[:-5] if base.endswith(".json") else base))
     elif category == "bar-skins":
         if value == "save":
-            save_user_skin()
-            raise Exit(0)
+            return save_user_skin(opts.get("name"), opts.get("overwrite", False))
         preview_ops.bar_skin_preview(value)
         # Выбор — это commit, а не превью: backup удалён, чтобы следующий
         # снимок взял актуальный скин, а restore не вернулся к старому.
@@ -1166,9 +1243,14 @@ def apply(category, value):
         elif value == "cache":
             picker_cache()
         elif value == "prune":
-            info = picker_prune(True)
-            if _zenity(["--question", f"--title={t('Thumbnail cache')}", f"--text={info}\\n\\n{t('Delete?')}"]) is None:
-                raise Exit(0)
+            # --dry-run only reports (the overlay's question shows the count); nothing is deleted.
+            if opts.get("dry_run"):
+                return picker_prune(True)
+            # The overlay asks in its own window and passes --yes; the CLI keeps the zenity question.
+            if not opts.get("yes"):
+                info = picker_prune(True)
+                if _zenity(["--question", f"--title={t('Thumbnail cache')}", f"--text={info}\\n\\n{t('Delete?')}"]) is None:
+                    raise Exit(0)
             notify("-t", "4000", "Theme Switcher", picker_prune(False))
         elif value.startswith("style:"):
             tweak_ops.set_key(state.PICKER_CFG, "style", value[6:])
@@ -1245,20 +1327,57 @@ def apply(category, value):
     return out
 
 
+# Options each in-window apply accepts (see _flags). An option outside the list exits 2, so a flag is never
+# dropped silently by a command that does not use it.
+APPLY_FLAGS = {
+    ("presets", "save"): ("--name", "--overwrite"),
+    ("styles", "save"): ("--name", "--overwrite"),
+    ("bar-skins", "save"): ("--name", "--overwrite"),
+    ("bar-layouts", "save"): ("--name", "--overwrite"),
+    ("theme-switcher", "prune"): ("--yes", "--dry-run"),
+}
+
+
+def _flags(rest, allowed):
+    """Options after `apply <category> <value>`: --name <name> saves without zenity, --overwrite replaces a
+    taken name, --yes skips the question the overlay has asked already, --dry-run only reports. An option
+    not in allowed exits 2 with its name."""
+    opts = {}
+    it = iter(rest)
+    for a in it:
+        if a not in allowed:
+            raise Exit(2, t("Unknown option: %s", a))
+        if a == "--name":
+            opts["name"] = next(it, "")
+        elif a == "--overwrite":
+            opts["overwrite"] = True
+        elif a == "--yes":
+            opts["yes"] = True
+        elif a == "--dry-run":
+            opts["dry_run"] = True
+    return opts
+
+
 def run(args):
+    """`apply`, thumbs, picker-cache, lock-thumbs → (exit code, stdout, stderr)."""
     cmd = args[0]
+    out = ""
     try:
         if cmd == "apply":
-            return 0, apply(args[1] if len(args) > 1 else "", args[2] if len(args) > 2 else "")
-        if cmd == "thumbs":
+            category = args[1] if len(args) > 1 else ""
+            value = args[2] if len(args) > 2 else ""
+            out = apply(category, value, _flags(args[3:], APPLY_FLAGS.get((category, value), ())))
+        elif cmd == "thumbs":
             thumbs(args[1] if len(args) > 1 else "", args[2] if len(args) > 2 else "")
         elif cmd == "picker-cache":
             picker_cache()
         elif cmd == "lock-thumbs":
             lock_thumbs(len(args) > 1 and args[1] == "missing")
     except Exit as e:
-        return e.code, ""
-    return 0, ""
+        return e.code, "", (e.msg + "\n" if e.msg else "")
+    except fsutil.NotInstalled as e:
+        return 1, "", str(e) + "\n"
+    return 0, out, ""
 
 
 COMMANDS = {"apply", "thumbs", "picker-cache", "lock-thumbs"}

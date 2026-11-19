@@ -432,7 +432,7 @@ def shaders():
 
 def bar_layouts():
     cur = state.current_layout()
-    out = [f"{t('💾 Save the current one as a preset…')}\tsave\t\t0\t"
+    out = [f"{t('💾 Save the current one as a layout…')}\tsave\t\t0\t"
            + t("Save the layout from shell.json as your own in %s — it shows up here with a ★.", paths.tilde(state.USER_LAYOUTS))]
     for f in fsutil.glob_sorted(state.USER_LAYOUTS, ".json"):
         stem = os.path.basename(f)[:-5]
@@ -444,18 +444,10 @@ def bar_layouts():
 
 
 def bar_skins():
-    # Снимок того, что на баре сейчас: превью перезаписывают его до bar-skins-restore.
-    # Не перезаписывать, если превью уже идёт (backup отличается от текущего скина).
-    os.makedirs(paths.RUN, exist_ok=True)
+    # The 💾 row's path names the snapshot a preview keeps. A preview takes it (preview_ops.bar_skin_preview)
+    # when it starts; listing does not. A snapshot taken here outlived its tab: the 💾 row's preview then
+    # copied that stale bar over the live skin, so a Bar Tweaks colour set since was lost.
     backup = paths.RUN / "bar-skin.json"
-    if fsutil.nonempty(paths.BAR_SKIN):
-        fsutil.snapshot_once(backup, paths.BAR_SKIN.read_bytes())
-    else:
-        fsutil.snapshot_once(backup, b"{}\n")
-    bar = jsonio.read_object(paths.SHELL_JSON).get("bar")
-    tr = bar.get("transparent") if isinstance(bar, dict) else None
-    fsutil.snapshot_once(paths.RUN / "bar-transparent",
-                         ((jsonio.tostring(tr) if tr not in (None, False) else "false") + "\n").encode())
     cur = state.current_skin()
     out = [f"{t('💾 Save the current skin…')}\tsave\t{backup}\t0\t"
            + t("Save what is on the bar now as your own skin in %s — it shows up here with a ★.", paths.tilde(state.USER_SKINS))]

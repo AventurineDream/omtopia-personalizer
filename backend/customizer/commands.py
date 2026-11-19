@@ -31,8 +31,7 @@ def run(args):
     os.makedirs(paths.STATE, exist_ok=True)
     cmd = args[0] if args else ""
     if cmd in apply_ops.COMMANDS and len(args) >= 2 or cmd == "picker-cache":
-        code, out = apply_ops.run(args)
-        return code, out, ""
+        return apply_ops.run(args)
     if cmd in preview_ops.COMMANDS:
         code, out = preview_ops.run(args)
         return code, out, ""

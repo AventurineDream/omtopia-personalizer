@@ -216,3 +216,31 @@ test('the stay-open table matches the surfaces apply_ops.apply() opens for every
     `surfaces=${JSON.stringify(r.surfaces)}, calls=${JSON.stringify(r.calls)}`);
   assert.deepEqual(wrong, []);
 });
+
+// Applies whose bare form opens zenity. The probe's surface marks name the zenity helpers and the bare
+// save helpers (the probe replaces them with recorders, so each one is a surface).
+const ZENITY_SURFACES = ['_zenity', '_pick_dir', '_pick_images',
+  'save_user_preset', 'save_user_style', 'save_user_skin', 'save_user_layout'];
+
+test('needsZenity names exactly the applies whose surface is zenity', () => {
+  const probe = probeResults();
+  const wrong = probe.results
+    // Colour, text, file and folder tweak rows depend on the row's kind: Customizer.qml checks those itself.
+    .filter((r) => !String(r.value).startsWith('tweak:'))
+    .filter((r) => flow.needsZenity(r.category, r.value)
+      !== (r.surfaces || []).some((s) => ZENITY_SURFACES.includes(s)))
+    .map((r) => `${r.category} ${JSON.stringify(r.value)}: needsZenity=${flow.needsZenity(r.category, r.value)}, ` +
+      `surfaces=${JSON.stringify(r.surfaces)}`);
+  assert.deepEqual(wrong, []);
+});
+
+test('needsZenity covers every CLI form that opens zenity, and no in-window or plain form', () => {
+  const ZENITY = [['presets', 'save'], ['styles', 'save'], ['bar-skins', 'save'], ['bar-layouts', 'save'],
+    ['walls', 'pick-dir'], ['walls', 'pick-files'], ['dotify', 'pick-dir'], ['dotify', 'pick-files'],
+    ['dock', 'pin-pick'], ['lock', 'sddm-fetch'], ['theme-switcher', 'prune']];
+  for (const [category, value] of ZENITY) assert.equal(flow.needsZenity(category, value), true, `${category} ${value}`);
+  assert.equal(flow.needsZenity('presets', '/home/u/.config/omarchy/customizer/presets/work.json'), false);
+  assert.equal(flow.needsZenity('walls', '/home/u/Pictures/Walls/dune.png'), false);
+  assert.equal(flow.needsZenity('theme-switcher', 'cache'), false);
+  assert.equal(flow.needsZenity('bar-skins', '/home/u/.config/omarchy/bar-skins/night.json'), false);
+});
