@@ -50,3 +50,4 @@
 - Without zenity, the actions that need it stop with a "Needs zenity (sudo pacman -S zenity)" notice and keep the Customizer open; colour and text tweaks are typed in place instead.
 - ⏎ on the Photos folder row opens the folder picker; it used to reset the folder to the default.
 - Bar Skin: leaving the skin list with `h` puts the live skin back on the bar, and the preview card (bar mock and skin text) now shows the live skin too instead of the skin that was hovered. Re-entering the list on the same row brings its text back.
+- Bar Skin: leaving the skin list with `h` puts the live skin back on the bar, and the preview card (bar mock and skin text) now shows the live skin too instead of the skin that was hovered. Re-entering the list on the same row brings its text back. Animations keep the curves of the hovered row on its card after `h`, as before.

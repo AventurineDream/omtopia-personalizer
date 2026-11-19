@@ -14,6 +14,7 @@ import "ui/RandomCandidates.js" as RandomCandidates
 import "ui/RandomPickFlow.js" as RandomPickFlow
 import "ui/ApplyFlow.js" as ApplyFlow
 import "ui/InWindow.js" as InWindow
+import "ui/PreviewCard.js" as PreviewCard
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -157,6 +158,7 @@ Item {
   property int pane: 0               // 0 = categories, 1 = items
   property string filterText: ""
   property int selectedIndex: 0
+  property int displayRevision: 0    // bumped by rebuild() after displayModel changes; see randomAvailable()
   property bool loading: false
   property var cache: ({})           // category key -> rows, dropped on every open
   property var items: []             // rows of the current category, unfiltered
@@ -597,11 +599,11 @@ Item {
 
   function revertPreview() {
     previewTimer.stop()
-    // The card (bar mock, row text) reads previewText, the file of the row under the cursor. Once a live
-    // preview is undone that row is no longer applied, so the card shows the live state again. Cleared
-    // before the early return: a key pressed before previewTimer fired has nothing to undo, yet the card
-    // would still show the row.
-    if (root.category.live) root.previewText = ""
+    // The card (bar mock, row text) reads previewText, the file of the row under the cursor. Bar Skin drops it:
+    // once `h` undoes that skin the card shows the live skin again. Animations keep it, since the scene draws
+    // the hovered row's curves from it. Cleared before the early return: a key pressed before previewTimer
+    // fired has nothing to undo, yet the card would still show the row.
+    root.previewText = PreviewCard.revertPreviewText(root.category.key, root.previewText)
     var key = root.previewing
     if (!key) return
     root.previewing = ""
@@ -768,6 +770,7 @@ Item {
     root.buildView(!same)
     if (!same) Qt.callLater(root.ensureVisible)
     root.refreshTweakValues()
+    root.displayRevision++
     root.selectionChanged()
   }
   function refreshTweakValues() {
@@ -984,10 +987,11 @@ Item {
     root.selectedRow = row ? root.rowObject(row) : null
     var rowHasImage = root.category.image && row !== null && !root.isTweakRow(row)
     var previewPath = (row && !rowHasImage) ? row.preview : ""
+    // Re-read the file when the card text was cleared (revertPreview on Bar Skin), so it returns when the same
+    // row is selected again: a FileView does not reload for an unchanged path. The decision is in PreviewCard.js.
+    var samePath = previewFile.path === previewPath
     previewFile.path = previewPath
-    // A FileView does not reload for an unchanged path: re-read it, so the card text returns when the same row
-    // is selected again after revertPreview() cleared it.
-    if (previewPath) previewFile.reload()
+    if (PreviewCard.shouldReloadPreview(samePath, previewPath, root.previewText)) previewFile.reload()
     if (!row || rowHasImage || !row.preview) root.previewText = ""
     if (root.category.live && root.pane === 1 && row) previewTimer.restart()
     root.syncBarPreview()
@@ -1210,8 +1214,11 @@ Item {
   function isWidgetKey(key) { return /^w:/.test(key) }
 
   function clickSelect(index) {
+    // From the rail (pane 0) a click re-enters the list even on the highlighted row: revertPreview() cleared
+    // its card text, and only selectionChanged() re-reads the file.
+    var refresh = PreviewCard.clickNeedsRefresh(root.pane, root.selectedIndex, index)
     root.pane = 1
-    if (root.selectedIndex === index) return
+    if (!refresh) return
     root.selectedIndex = index
     root.selectionChanged()
   }
@@ -1479,8 +1486,7 @@ Item {
   // Random choices exclude row actions; Wallpaper FX allows only actual transition values.
   // The decision itself lives in RandomPickFlow so the headless test drives the same code.
   function randomPick() {
-    if (root.category.key === "walls" || root.category.key === "dotify" || root.category.key === "presets" || root.category.key === "styles" || root.category.key === "fonts" || root.category.key === "sounds" || root.category.key === "glyph") return
-    if (root.category.tweak) return
+    if (!root.randomAvailable(root.displayRevision)) return
     if (root.pane === 0) { root.pane = 1 }
     var rows = []
     for (var i = 0; i < displayModel.count; i++) rows.push(displayModel.get(i))
@@ -1491,6 +1497,15 @@ Item {
     if (v !== undefined) itemList.positionViewAtIndex(v, ListView.Center)
     root.selectionChanged()
     root.run(pick.value)
+  }
+
+  // Whether `r` acts here now: the Surprise me button, the footer's r hint and randomPick() all ask this,
+  // with the same category refusal and row rule (RandomPickFlow.randomAvailable). `revision` is
+  // displayRevision, passed only so the bindings that call this re-run after each rebuild().
+  function randomAvailable(revision) {
+    var rows = []
+    for (var i = 0; i < displayModel.count; i++) rows.push(displayModel.get(i))
+    return RandomPickFlow.randomAvailable(RandomCandidates.isCandidate, root.category.key, root.category.tweak === true, rows, root.selectedIndex)
   }
 
   // Apply <value> in the current category. Every apply goes through `applier` (enqueueApply), one at
@@ -1720,7 +1735,8 @@ Item {
   }
 
   // What the preview stage shows: the row under the cursor for its own
-  // setting, the saved preset for the other one.
+  // setting, the saved preset for the other one (for blur with no preset in
+  // use, status reports the live blur instead).
   function stageOpacity() {
     var n = root.numbersOf(root.category.key === "opacity" && root.selectedRow ? root.selectedRow.note : root.status["opacity-values"])
     return n.length >= 2 ? [n[0], n[1]] : [1, 1] // no preset in use: the compositor's stock 1 / 1, not a preset's values
@@ -1741,9 +1757,9 @@ Item {
       var g = [["h j k l", "move"], ["⏎", "apply"]]
       if (root.category.key !== "theme-walls") g.push(["Tab", "next tab"])
       g.push(["/", "search"])
+      if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
+      if (root.randomAvailable(root.displayRevision)) g.push(["r", "random"])
       if (root.category.key === "lock") g.push(["p", "preview live"], ["T", "refresh previews"])
-      else if (root.category.key === "walls" || root.category.key === "dotify") g.push(["o O", "pick"])
-      else g.push(["r", "random"])
       if (root.category.key === "themes" || root.category.key === "theme-walls") g.push(["f", "favorite"])
       if (root.isOwnWall(root.selectedRow)) g.push(["D", "to trash"])
       g.push(["v", "preview"], ["z", "full size"], ["n", "description"], ["?", "keys"])
@@ -1769,13 +1785,22 @@ Item {
       if (root.category.key === "dotify") return [["j k", "move"], ["⏎", "dotify"], ["o O", "pick"], ["/", "search"], ["h", "back"], ["?", "keys"]]
       var ph = [["j k", "move"], ["⏎", "apply"], ["p", root.category.fx ? "play on desktop" : root.category.key === "glyph" ? "test sweep" : "open"], ["/", "search"], ["h", "back"]]
       if (root.category.key === "launcher") ph.push(["v", "preview"], ["z", "full size"])
+      if (root.randomAvailable(root.displayRevision)) ph.push(["r", "random"])
       ph.push(["?", "keys"])
       return ph
     }
-    if (root.category.key === "lock") return [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"], ["?", "keys"]]
-    if (root.category.key === "sounds" && !root.isTweakRow(root.selectedRow)) return [["j k", "move"], ["⏎", "use"], ["p", "listen"], ["/", "search"], ["h", "back"], ["?", "keys"]]
+    if (root.category.key === "lock") {
+      var lh = [["j k", "move"], ["⏎", "apply"], ["p", "preview live"], ["T", "refresh previews"], ["/", "search"], ["h", "back"]]
+      if (root.randomAvailable(root.displayRevision)) lh.push(["r", "random"])
+      return lh.concat([["?", "keys"]])
+    }
+    if (root.category.key === "sounds" && !root.isTweakRow(root.selectedRow)) {
+      var sh = [["j k", "move"], ["⏎", "use"], ["p", "listen"], ["/", "search"], ["h", "back"]]
+      if (root.randomAvailable(root.displayRevision)) sh.push(["r", "random"])
+      return sh.concat([["?", "keys"]])
+    }
     var h = [["j k", "move"], ["⏎", "apply"], ["/", "search"], ["h", "back"]]
-    if (root.category.key !== "walls" && !root.category.presetStage) h.push(["r", "random"])
+    if (root.randomAvailable(root.displayRevision)) h.push(["r", "random"])
     else if (root.category.key === "walls") h.push(["o O", "pick"])
     if (root.isUserPreset(root.selectedRow))
       h.push(["D", root.category.key === "presets" ? "delete preset" : root.category.key === "styles" ? "delete style" : (root.category.key === "bar-skins" ? "delete skin" : "delete layout")])
@@ -2605,7 +2630,7 @@ Item {
             anchors.verticalCenter: tabs.verticalCenter
             spacing: Style.space(8)
             Rectangle {
-              visible: root.category.key !== "walls" && root.category.key !== "dotify" && !root.category.presetStage && root.category.key !== "glyph" && !root.category.tweak
+              visible: root.randomAvailable(root.displayRevision)
               height: Style.space(34)
               width: randomRow.implicitWidth + Style.space(24)
               radius: root.dot ? Style.space(3) : height / 2
