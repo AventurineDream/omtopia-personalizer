@@ -12,6 +12,7 @@ import "ui"
 import "previews" as Previews
 import "ui/RandomCandidates.js" as RandomCandidates
 import "ui/RandomPickFlow.js" as RandomPickFlow
+import "ui/ApplyFlow.js" as ApplyFlow
 
 // Quickshell port of scripts/bin/omarchy-customizer (the old fzf menu on
 // SUPER+SHIFT+T), laid out like a Material 3 settings app: navigation rail
@@ -1315,15 +1316,31 @@ Item {
     root.run(pick.value)
   }
 
-  // Apply <value> in the current category. The overlay closes first: it holds
-  // exclusive keyboard focus on the overlay layer, so a zenity picker opened by
-  // customizer.sh would otherwise sit underneath it.
+  // Apply <value> in the current category. Most applies keep the overlay open: they run through
+  // `applier`, one at a time, and the list and Home status refresh when each one exits. An apply
+  // that opens a surface the user has to answer or see (a zenity dialog, a terminal, a lock
+  // preview, the launcher) still closes the overlay first: the overlay holds exclusive keyboard
+  // focus on its layer and would sit on top of that surface. ApplyFlow.keepsOpen decides which.
   function run(value) {
     var key = root.category.key
     // Apply owns the previewed setting from here, so no revert on close.
     if (root.previewing === key) { previewTimer.stop(); root.previewing = "" }
-    root.dismiss()
-    Quickshell.execDetached(RandomPickFlow.applyCommand(root.script, key, value))
+    if (!ApplyFlow.keepsOpen(key, value)) {
+      root.dismiss()
+      Quickshell.execDetached(RandomPickFlow.applyCommand(root.script, key, value))
+      return
+    }
+    root.applyQueue = root.applyQueue.concat([RandomPickFlow.applyCommand(root.script, key, value)])
+    root.startNextApply()
+  }
+  // Stay-open applies run FIFO: each starts after the previous one exits, and none is dropped,
+  // because applies in different categories are independent settings.
+  property var applyQueue: []
+  function startNextApply() {
+    if (applier.running || root.applyQueue.length === 0) return
+    applier.command = ["setsid", "-f", "-w"].concat(root.applyQueue[0])
+    root.applyQueue = root.applyQueue.slice(1)
+    applier.running = true
   }
 
   // Bar Skin / Bar Layout / Presets: удалить свой пресет (★) — с подтверждением в customizer.sh.
@@ -1699,6 +1716,27 @@ Item {
     host: root
     command: [root.script, "status"]
     onExited: root.loadStatus(out)
+  }
+
+  // One stay-open apply at a time (see run). setsid -f forks the apply into its own session, so
+  // it survives a shell reload or the overlay closing; -w keeps this process alive until the apply
+  // exits, which is how its exit code and stderr reach onExited.
+  Process {
+    id: applier
+    stderr: StdioCollector { id: applierErr }
+    onExited: function(code) {
+      if (code !== 0) root.showToast(applierErr.text.trim() || root.tr("Not applied"))
+      if (root.opened) {
+        // An apply can change the "current" marker in several categories (a preset or style sets
+        // many at once), so every cached list may be stale; clearing the whole cache is the simple,
+        // correct choice.
+        root.cache = ({})
+        root.reloadCategory()
+        statusProc.running = false
+        statusProc.running = true
+      }
+      Qt.callLater(root.startNextApply)
+    }
   }
 
   FileView {
