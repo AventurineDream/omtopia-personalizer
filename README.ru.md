@@ -106,7 +106,9 @@ omarchy restart shell
 
 Если ставили через `install.sh` — удалите и строку Super+Shift+T, которую он добавил в `~/.config/hypr/bindings.lua`, и ссылку `~/.local/share/fonts/dotmatrix`.
 
-Настройки остаются в `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/`, `~/.config/omarchy/style.json`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader}` — удалите их вручную, если не нужны.
+Настройки остаются в `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/` (пресеты, стили, анимации, шейдеры, настройки окон и режима чтения, избранное), `~/.config/omarchy/style.json`, `~/.config/omarchy/bar-skins/` и `~/.config/omarchy/bar-layouts/` (ваши сохранённые скины и раскладки), `~/.config/owe/config.toml`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader,screen-shader-last,geometry,reading-mode,reading-mode.last,reading-page.frag}` и файлы `*-notify-id` рядом с ними — удалите их вручную, если не нужны. Миниатюры лежат в `~/.cache/omarchy-customizer/`, SDDM-темы, скачанные на вкладке «Блокировка», — в `~/.local/share/omarchy-lock-themes/`.
+
+Файлы оболочки Omarchy, которые Customizer тоже пишет, — `shell.json` (и его `.bak`), `bar-skin.json`, `widgets.json`, `osd.json`, `notify-style.json`, `dotify.json`, `dotmatrix.json`, `lock-design.json`, `extensions/menu-skin.json`, `glyph.json`, `sounds.json`, `wallpaper-transition.json`, `image-picker.json` в `~/.config/omarchy/` — после удаления сохраняют значения вашего последнего изменения. Оболочка продолжает их читать, поэтому не удаляйте их, если не хотите сбросить эти части Omarchy.
 
 ## Клавиши
 

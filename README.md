@@ -106,7 +106,9 @@ omarchy restart shell
 
 If you used `install.sh`, also delete the Super+Shift+T line it added to `~/.config/hypr/bindings.lua` and the `~/.local/share/fonts/dotmatrix` link.
 
-Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/`, `~/.config/omarchy/style.json`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader}` — delete them by hand if you don't need them.
+Your settings stay in `~/.config/omarchy/customizer.json`, `~/.config/omarchy/customizer/` (presets, styles, animations, shaders, window and reading-mode settings, favourites), `~/.config/omarchy/style.json`, `~/.config/omarchy/bar-skins/` and `~/.config/omarchy/bar-layouts/` (your saved skins and layouts), `~/.config/owe/config.toml`, `~/.local/state/omarchy-customizer/`, `~/.local/state/hypr/{opacity,blur,screen-shader,screen-shader-last,geometry,reading-mode,reading-mode.last,reading-page.frag}` and the `*-notify-id` files next to them — delete them by hand if you don't need them. Thumbnails are in `~/.cache/omarchy-customizer/`; SDDM themes downloaded from the Lock tab are in `~/.local/share/omarchy-lock-themes/`.
+
+The Omarchy shell files the Customizer also writes — `shell.json` (and its `.bak`), `bar-skin.json`, `widgets.json`, `osd.json`, `notify-style.json`, `dotify.json`, `dotmatrix.json`, `lock-design.json`, `extensions/menu-skin.json`, `glyph.json`, `sounds.json`, `wallpaper-transition.json`, `image-picker.json` in `~/.config/omarchy/` — keep the values of your last change after the removal. The shell still reads them, so do not delete them unless you want to reset those parts of Omarchy.
 
 ## Keys
 
