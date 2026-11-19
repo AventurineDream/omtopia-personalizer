@@ -62,24 +62,24 @@
       ],
       "right": [
         {
-          "id": "kamradsmeshnyavy.tray",
+          "id": "omarchy.tray",
           "pinned": [],
           "hidden": []
         },
         {
-          "id": "kamradsmeshnyavy.agents"
+          "id": "omarchy.agents"
         },
         {
-          "id": "kamradsmeshnyavy.monitor"
+          "id": "omarchy.monitor"
         },
         {
-          "id": "kamradsmeshnyavy.network"
+          "id": "omarchy.network"
         },
         {
-          "id": "kamradsmeshnyavy.bluetooth"
+          "id": "omarchy.bluetooth"
         },
         {
-          "id": "kamradsmeshnyavy.audio"
+          "id": "omarchy.audio"
         },
         {
           "id": "battery-gauge",
