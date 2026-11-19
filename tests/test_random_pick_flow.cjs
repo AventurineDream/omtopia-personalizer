@@ -118,8 +118,8 @@ test('filter helpers keep section headers above visible rows only', () => {
 test('Customizer.qml wires the production pick and dispatch through the shared flow', () => {
   const qml = fs.readFileSync(path.join(PLUGIN, 'Customizer.qml'), 'utf8');
   assert.ok(qml.includes('RandomPickFlow.decideRandomPick('), 'randomPick uses decideRandomPick');
-  assert.ok(qml.includes('Quickshell.execDetached(RandomPickFlow.applyCommand('),
-    'apply dispatch builds the tested command');
+  assert.ok(qml.includes('RandomPickFlow.applyCommand(root.script, key, value)'),
+    'enqueueApply builds the tested command');
 });
 
 test('the backend writes its runtime directory inside the sandbox', () => {

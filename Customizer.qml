@@ -620,7 +620,13 @@ Item {
       thumbsProc.command = [root.script, "thumbs", key, key === "theme-walls" ? root.wallPath : ""]
       thumbsProc.running = true
     }
-    if (key !== root.category.key) return
+    if (key !== root.category.key) {
+      // A reload asked for while this lister ran is still owed, and the rows just read may predate
+      // that apply: drop every cached list (this write came after the applier's clear) and reload the
+      // open tab instead.
+      if (root.reloadQueued) { root.reloadQueued = false; root.cache = ({}); root.reloadCategory() }
+      return
+    }
     if (root.stepsInFlight()) {
       for (var oi = 0; oi < rows.length; oi++)
         if (root.optimistic[rows[oi].value] !== undefined) rows[oi].raw = root.optimistic[rows[oi].value]
@@ -956,7 +962,7 @@ Item {
       return
     }
     if (root.category.key === "glyph" && /^test:/.test(root.selectedRow.value)) {
-      Quickshell.execDetached([root.script, "apply", "glyph", root.selectedRow.value])
+      root.enqueueApply("glyph", root.selectedRow.value)
       return
     }
     // Виджеты бара: ⏎ убирает с бара / возвращает (h/l двигают), параметр виджета — переключает.
@@ -1137,7 +1143,8 @@ Item {
     if (!root.isTweakRow(row)) return
     root.clickSelect(index)
     if (row.kind === "num" || row.kind === "enum" || row.kind === "bool") root.setRowRaw(index, String(value))
-    if (editor.running) { root.pendingSet = { index: index, value: String(value) }; return }
+    // The applier in progress holds writes too: the value starts when it exits (drainWrites).
+    if (editor.running || root.applierBusy()) { root.pendingSet = { index: index, value: String(value) }; return }
     editor.key = root.tweakKey(row)
     editor.command = [root.script, "tweak", editor.key, "set", String(value)]
     editor.running = true
@@ -1204,10 +1211,8 @@ Item {
     var key = root.tweakKey(root.selectedRow)
     var next = root.predictStep(displayModel.get(root.selectedIndex), dir)
     if (next !== null) root.setRowRaw(root.selectedIndex, next)
-    if (tweaker.running) { root.tweakQueue = root.tweakQueue.concat([{ key: key, dir: dir }]); return }
-    tweaker.key = key
-    tweaker.command = [root.script, "tweak", key, dir]
-    tweaker.running = true
+    root.tweakQueue = root.tweakQueue.concat([{ key: key, dir: dir }])
+    root.startNextTweak()
   }
 
   // i: поле ввода прямо в строке. Проверяет customizer.sh (tweak <key> set <value>):
@@ -1223,6 +1228,8 @@ Item {
   function submitEdit(text) {
     var row = root.editingIndex >= 0 && root.editingIndex < displayModel.count ? displayModel.get(root.editingIndex) : null
     if (!row || editor.running) return
+    // A typed value waits for the apply in progress, like a mouse value (setTweakAt).
+    if (root.applierBusy()) { root.pendingSet = { index: root.editingIndex, value: String(text) }; return }
     editor.key = root.tweakKey(row)
     editor.command = [root.script, "tweak", editor.key, "set", String(text)]
     editor.running = true
@@ -1234,20 +1241,32 @@ Item {
   }
 
   function tweakDone() {
-    if (root.tweakQueue.length > 0) {
-      var q = root.tweakQueue
-      var step = q[0]
-      root.tweakQueue = q.slice(1)
-      tweaker.key = step.key
-      tweaker.command = [root.script, "tweak", step.key, step.dir]
-      tweaker.running = true
-      return
-    }
+    if (root.tweakQueue.length > 0) { Qt.callLater(root.drainWrites); return }
     root.reloadCategory()
+  }
+  // Next queued tweak step, once no apply is queued or running and the tweaker is idle.
+  function startNextTweak() {
+    if (tweaker.running || root.applierBusy() || root.tweakQueue.length === 0) return
+    var step = root.tweakQueue[0]
+    root.tweakQueue = root.tweakQueue.slice(1)
+    tweaker.key = step.key
+    tweaker.command = [root.script, "tweak", step.key, step.dir]
+    tweaker.running = true
+  }
+  // Starts the value a mouse or typed edit left waiting (pendingSet). False when there is none or its
+  // row is gone; the caller then runs its exit handling as before.
+  function startPendingSet() {
+    var ps = root.pendingSet
+    root.pendingSet = null
+    if (ps.index >= displayModel.count) return false
+    editor.key = root.tweakKey(displayModel.get(ps.index))
+    editor.command = [root.script, "tweak", editor.key, "set", ps.value]
+    editor.running = true
+    return true
   }
   // Шаги или запись ещё идут — перечитанный список не должен перебить показанное значение.
   function stepsInFlight() {
-    return tweaker.running || root.tweakQueue.length > 0 || editor.running || root.pendingSet !== null
+    return tweaker.running || root.tweakQueue.length > 0 || editor.running || root.pendingSet !== null || root.applierBusy()
   }
 
   function reloadCategory() {
@@ -1316,31 +1335,56 @@ Item {
     root.run(pick.value)
   }
 
-  // Apply <value> in the current category. Most applies keep the overlay open: they run through
-  // `applier`, one at a time, and the list and Home status refresh when each one exits. An apply
-  // that opens a surface the user has to answer or see (a zenity dialog, a terminal, a lock
-  // preview, the launcher) still closes the overlay first: the overlay holds exclusive keyboard
-  // focus on its layer and would sit on top of that surface. ApplyFlow.keepsOpen decides which.
+  // Apply <value> in the current category. Every apply goes through `applier` (enqueueApply), one at
+  // a time, in the order it was asked for. An apply that opens a surface the user has to answer or see
+  // (a zenity dialog, a terminal, a lock preview, the launcher) or that changes the loaded plugins
+  // closes the overlay first: the overlay holds exclusive keyboard focus on its layer and would sit on
+  // top of that surface. The apply is still queued, so it runs after the close. ApplyFlow.keepsOpen
+  // decides which applies close.
   function run(value) {
     var key = root.category.key
+    // Stop the debounced live preview even when the overlay stays open, so a pending preview cannot
+    // start for a row the user moved to after pressing Enter.
+    previewTimer.stop()
     // Apply owns the previewed setting from here, so no revert on close.
-    if (root.previewing === key) { previewTimer.stop(); root.previewing = "" }
-    if (!ApplyFlow.keepsOpen(key, value)) {
-      root.dismiss()
-      Quickshell.execDetached(RandomPickFlow.applyCommand(root.script, key, value))
-      return
-    }
-    root.applyQueue = root.applyQueue.concat([RandomPickFlow.applyCommand(root.script, key, value)])
-    root.startNextApply()
+    if (root.previewing === key) root.previewing = ""
+    if (!ApplyFlow.keepsOpen(key, value)) root.dismiss()
+    root.enqueueApply(key, value)
   }
-  // Stay-open applies run FIFO: each starts after the previous one exits, and none is dropped,
-  // because applies in different categories are independent settings.
+
+  // Queues `customizer.sh apply <key> <value>` behind the applies already waiting. Used by run() and by
+  // the test actions (glyph, sounds listen), which keep the overlay open.
+  function enqueueApply(key, value) {
+    root.applyQueue = root.applyQueue.concat([RandomPickFlow.applyCommand(root.script, key, value)])
+    root.drainWrites()
+  }
+
+  // Queued applies, FIFO. They live only in this shell: a shell reload drops the ones not yet started,
+  // while a running apply survives it (see applier).
   property var applyQueue: []
+
+  // An apply is queued or running: tweaks and typed values wait for it (see drainWrites).
+  function applierBusy() {
+    return applier.running || root.applyQueue.length > 0
+  }
+
+  // Starts the next queued apply once no tweak or typed value is being written: a stay-open apply may
+  // rewrite the same JSON files (apply_form_sections) that a tweak step reads and writes.
   function startNextApply() {
-    if (applier.running || root.applyQueue.length === 0) return
+    if (applier.running || root.applyQueue.length === 0 || tweaker.running || editor.running) return
     applier.command = ["setsid", "-f", "-w"].concat(root.applyQueue[0])
     root.applyQueue = root.applyQueue.slice(1)
     applier.running = true
+  }
+
+  // Starts whichever waiting write can run now, in this order: a queued apply, the queued tweak steps,
+  // then the last mouse or typed value. Called wherever a lane may have freed up. Writes never overlap
+  // an apply: while one is queued or running, tweaks and values wait behind it.
+  function drainWrites() {
+    root.startNextApply()
+    if (root.applierBusy()) return
+    root.startNextTweak()
+    if (!editor.running && root.pendingSet !== null) root.startPendingSet()
   }
 
   // Bar Skin / Bar Layout / Presets: удалить свой пресет (★) — с подтверждением в customizer.sh.
@@ -1426,7 +1470,7 @@ Item {
   function listenSound() {
     var v = root.selectedRow ? String(root.selectedRow.value) : ""
     if (v.indexOf("pack:") === 0) Quickshell.execDetached([root.script, "sound-preview", v.slice(5), "notify"])
-    else if (v.indexOf("test:") === 0) Quickshell.execDetached([root.script, "apply", "sounds", v])
+    else if (v.indexOf("test:") === 0) root.enqueueApply("sounds", v)
   }
 
   // Launcher: p — открыть лаунчер; на строке скина — с этим скином (только на этот раз, без сохранения).
@@ -1718,14 +1762,23 @@ Item {
     onExited: root.loadStatus(out)
   }
 
-  // One stay-open apply at a time (see run). setsid -f forks the apply into its own session, so
-  // it survives a shell reload or the overlay closing; -w keeps this process alive until the apply
-  // exits, which is how its exit code and stderr reach onExited.
+  // One apply at a time (see drainWrites). `setsid -f -w` runs the apply in its own session, so it
+  // survives the overlay closing and a shell reload. -f forks the apply away from this Process, so
+  // killing the wrapper (a shell reload) leaves the apply running; -w makes the wrapper exit with the
+  // apply's own status, which is how the exit code and stderr reach onExited.
+  // Known limit: an apply killed from outside (not by a shell reload) exits here with 143 (SIGTERM) or
+  // the raw signal number and is shown as "Not applied", even if the apply itself succeeded.
   Process {
     id: applier
     stderr: StdioCollector { id: applierErr }
     onExited: function(code) {
-      if (code !== 0) root.showToast(applierErr.text.trim() || root.tr("Not applied"))
+      if (code !== 0) {
+        var msg = applierErr.text.trim() || root.tr("Not applied")
+        // The footer is visible only while the overlay is open; a failure after the close goes to a
+        // critical notification, as apply_ops.py does for its own failures.
+        if (root.opened) root.showToast(msg)
+        else Quickshell.execDetached(["notify-send", "-u", "critical", "Customizer", msg])
+      }
       if (root.opened) {
         // An apply can change the "current" marker in several categories (a preset or style sets
         // many at once), so every cached list may be stale; clearing the whole cache is the simple,
@@ -1735,7 +1788,7 @@ Item {
         statusProc.running = false
         statusProc.running = true
       }
-      Qt.callLater(root.startNextApply)
+      Qt.callLater(root.drainWrites)
     }
   }
 
@@ -1769,16 +1822,9 @@ Item {
     host: root
     property string key: ""
     onExited: function(code) {
-      if (root.pendingSet !== null) {
-        var ps = root.pendingSet
-        root.pendingSet = null
-        if (ps.index < displayModel.count) {
-          editor.key = root.tweakKey(displayModel.get(ps.index))
-          editor.command = [root.script, "tweak", editor.key, "set", ps.value]
-          editor.running = true
-          return
-        }
-      }
+      // A value waiting in pendingSet starts first, unless an apply holds the writes now (then it starts
+      // when the applier exits). Its exit code is ignored, as before.
+      if (root.pendingSet !== null && !root.applierBusy() && root.startPendingSet()) return
       if (code === 0) {
         if (root.editingIndex >= 0) root.cancelEdit()
         root.reloadCategory()
@@ -1787,6 +1833,7 @@ Item {
         if (root.editingIndex >= 0) root.editError = msg
         else root.showToast(msg)
       }
+      Qt.callLater(root.drainWrites)
     }
   }
 
@@ -2394,6 +2441,7 @@ Item {
               elide: Text.ElideRight
               textFormat: Text.PlainText
               text: root.toast ? "⚠ " + root.toast
+                : root.applierBusy() ? root.tr("Applying…")
                 : !root.homeOpen && displayModel.count ? (root.selectedIndex + 1) + " / " + displayModel.count : ""
               color: root.toast ? Color.urgent : root.muted
               font.family: root.fontFamily

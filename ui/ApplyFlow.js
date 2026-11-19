@@ -1,27 +1,32 @@
 /** @file Stay-open decision for applies: which `customizer.sh apply <category> <value>` calls keep
  * the overlay open.
  *
- * An apply that opens a surface the user has to answer or see (a zenity dialog, a terminal, a
- * lock preview, the launcher, the picker) or changes which shell plugins are loaded closes the
- * overlay, as it always did. Every other apply keeps it open and the overlay refreshes its list.
+ * An apply that opens a surface the user has to answer or see (a zenity dialog, a terminal, a lock
+ * preview, the launcher, a picker) or changes which shell plugins are loaded closes the overlay
+ * first, as it always did. Every apply the table classifies as open keeps the overlay open and the
+ * overlay refreshes its list; anything the table does not classify closes it.
  *
  * Shared between Customizer.qml and tests/test_apply_flow.cjs. Pure functions only: nothing here
- * spawns a process. A value this table does not classify closes the overlay (fail toward closing).
+ * spawns a process. tests/apply_surface_probe.py checks this table against the apply_ops.apply()
+ * branches, so a branch that opens a surface cannot be listed as open here unnoticed.
  */
 .pragma library
 .import "RandomCandidates.js" as RandomCandidates
 
-// Wallpaper FX one-off actions that keep the overlay open: owe-toggle (owe pause/resume),
-// outline-warm (queues cut-outs in the background), outline-status (no effect).
-// outline-install (opens a terminal) and enable-plugin (changes the loaded plugins) are left out.
+/** One-off Wallpaper FX actions that keep the overlay open: owe-toggle (pause or resume the live
+ * wallpaper), outline-warm (queues cut-outs in the background), outline-status (no effect).
+ * outline-install (opens a terminal) and enable-plugin (changes the loaded plugins) are not listed.
+ */
 var FX_OPEN_ACTIONS = ["owe-toggle", "outline-warm", "outline-status"]
 
-// Per category: the rule for apply_ops.apply(category, value). Each entry names the apply_ops
-// branch it maps to; the rule decides what happens to the values in that branch.
-//   only / onlyPrefix  allowlist: the value must be listed or start with a prefix; all else closes.
-//   close / closePrefix  denylist: listed values close; every other value keeps the overlay open.
-//   transition  wallpaper-fx only: a transition value (isTransition) also keeps the overlay open.
-// A category missing here closes for every value (bar-widgets has no apply_ops branch).
+/** Per-category stay-open rules, keyed by the category key Customizer.qml passes to run().
+ *
+ * Each entry names the apply_ops.apply() branch it maps to. Fields, all optional:
+ *   only / onlyPrefix  allowlist: the value must be listed or start with a prefix; every other value closes.
+ *   close / closePrefix  denylist: a listed value or a prefix match closes; every other value keeps the overlay open.
+ *   transition  wallpaper-fx only: a transition value (isTransition) keeps the overlay open.
+ * A category with no entry closes for every value (bar-widgets has no apply_ops branch).
+ */
 var RULES = {
   // presets → apply(): "save" → save_user_preset (zenity entry and question); "tweak:" → tweak_pick,
   // which can open a zenity color or text picker; a preset path → apply_preset; geometry-reset → geometry_reset.
@@ -33,6 +38,10 @@ var RULES = {
   // styles → save → save_user_style (zenity); tweak: → tweak_pick; a style path → apply_style.
   styles: { close: ["save"], closePrefix: ["tweak:"] },
   // themes → dynamic: runs omarchy-wallpaper-theme (matugen); any other value → omarchy theme set.
+  // Theme, preset and style applies keep the overlay open on purpose: they run omarchy-theme-set,
+  // which may play its background intro beneath the overlay (omarchy-theme-set prepares an intro
+  // unless ~/.local/state/omarchy/toggles/background-intros-off exists, then waits for it). The overlay
+  // stays up as the user asked for, and the intro is accepted as a visible effect under it.
   themes: {},
   // theme-walls → omarchy theme bg set <path>.
   "theme-walls": {},
@@ -65,6 +74,7 @@ var RULES = {
   "theme-switcher": { close: ["prune"], closePrefix: ["tweak:"] },
   // lock → sddm-login-glyph / sddm-login / sddm-fetch-all open a terminal; sddm-fetch → zenity list;
   // regen-thumbs / missing-thumbs show the lock preview over the screen; any other value is a lock design.
+  // sddm-login opens a terminal only when the current lock is an sddm theme; it closes regardless.
   lock: {
     close: ["sddm-login-glyph", "sddm-login", "sddm-fetch-all", "sddm-fetch", "regen-thumbs", "missing-thumbs"],
   },
@@ -81,14 +91,25 @@ var RULES = {
   windows: { only: ["geometry-reset"] },
 }
 
-// True when a value sets a Wallpaper FX transition. RandomCandidates lists only the transitions
-// the random pick may choose; "none" (No animation) is a transition too, but it is excluded from
-// random picks, so it is named here.
+/** Whether `value` sets a Wallpaper FX transition, the values that keep the overlay open.
+ *
+ * RandomCandidates lists only the transitions the random pick may choose. "none" (No animation) is a
+ * transition too but is not random-eligible, so it is named here.
+ *
+ * @param value row value of the wallpaper-fx category, e.g. "fade" or "none".
+ * @returns true for a transition value, false for anything else (including actions).
+ */
 function isTransition(value) {
   return value === "none" || RandomCandidates.WALLPAPER_FX_TRANSITIONS[value] === true
 }
 
-// True when the value matches one of the exact names or starts with one of the prefixes.
+/** Whether `value` equals one of `exact` or starts with one of `prefixes`.
+ *
+ * @param exact array of exact values, or undefined.
+ * @param prefixes array of prefixes, or undefined.
+ * @param value the row value to test.
+ * @returns true on a match; false when neither list matches (or both are undefined).
+ */
 function matches(exact, prefixes, value) {
   if (exact && exact.indexOf(value) !== -1) return true
   for (var i = 0; prefixes && i < prefixes.length; i++) if (value.indexOf(prefixes[i]) === 0) return true
@@ -98,9 +119,9 @@ function matches(exact, prefixes, value) {
 /** Whether applying `value` in `categoryKey` keeps the overlay open.
  *
  * @param categoryKey customizer.sh category key (Customizer.qml category.key), e.g. "anims".
- * @param value the row value passed to `customizer.sh apply`; empty or unknown → false.
+ * @param value the row value passed to `customizer.sh apply`; empty, null or undefined → false.
  * @returns true when the apply opens no surface the user must answer or see, so the overlay can stay
- *   open while it runs; false when the overlay must close first (or the apply is unclassified).
+ *   open while it runs; false when the overlay must close first, or the apply is not classified.
  */
 function keepsOpen(categoryKey, value) {
   var rule = Object.prototype.hasOwnProperty.call(RULES, categoryKey) ? RULES[categoryKey] : null
