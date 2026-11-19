@@ -432,7 +432,7 @@ def shaders():
 
 def bar_layouts():
     cur = state.current_layout()
-    out = [f"{t('💾 Save the current one as a preset…')}\tsave\t\t0\t"
+    out = [f"{t('💾 Save the current one as a layout…')}\tsave\t\t0\t"
            + t("Save the layout from shell.json as your own in %s — it shows up here with a ★.", paths.tilde(state.USER_LAYOUTS))]
     for f in fsutil.glob_sorted(state.USER_LAYOUTS, ".json"):
         stem = os.path.basename(f)[:-5]
