@@ -1002,11 +1002,8 @@ Item {
     }
     // A 💾 row opens the name prompt; the save itself runs in the overlay (submitSave), not in zenity.
     if (InWindow.isSaveRow(root.category.key, root.selectedRow.value)) { root.startEdit(); return }
-    // Thumbnail clean-up asks in the footer, then runs with --yes, so the apply itself asks nothing.
-    if (root.category.key === "theme-switcher" && String(root.selectedRow.value) === "prune") {
-      root.ask(root.tr("Delete the unused thumbnails?"), root.tr("delete"), function() { root.enqueueApply("theme-switcher", "prune", ["--yes"]) })
-      return
-    }
+    // Thumbnail clean-up asks in the footer with the count --dry-run reports, then runs with --yes.
+    if (root.category.key === "theme-switcher" && String(root.selectedRow.value) === "prune") { root.askPrune(); return }
     // Colour and text rows edit in place without zenity; file and folder rows say why nothing opened.
     if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) !== -1 && !root.hasZenity) {
       if (root.selectedRow.kind === "text" || root.selectedRow.kind === "color") root.startEdit()
@@ -1017,6 +1014,19 @@ Item {
     if (root.isTweakRow(root.selectedRow) && /^wset?:/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
     else if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
     else root.run(root.selectedRow.value)
+  }
+
+  // Asks the thumbnail clean-up in the footer, with the count `apply theme-switcher prune --dry-run` reports. The
+  // count is read first; the answer runs --yes only while the same tab is still open.
+  function askPrune() {
+    var key = root.category.key
+    root.call([root.script, "apply", "theme-switcher", "prune", "--dry-run"], function(r) {
+      if (!root.opened || root.category.key !== key) return
+      var count = r.code === 0 ? String(r.out || "").trim() : ""
+      var text = root.tr("Delete the unused thumbnails?")
+      root.ask(count !== "" ? text + " " + count : text, root.tr("delete"),
+               function() { root.enqueueApply("theme-switcher", "prune", ["--yes"]) })
+    })
   }
 
   // Физическая клавиша → символ US-раскладки (xkb keycode = evdev + 8, его отдаёт nativeScanCode
