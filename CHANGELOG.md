@@ -15,6 +15,7 @@
 - `install.sh` adds this fork (`AventurineDream/omtopia-personalizer`) rather than the upstream `KamradSmeshnyavy/omarchy-customizer`.
 - `install.sh` prints its usage and exits 2 on an unknown flag, a missing `--with` list or an unknown companion, instead of stopping at one line.
 - Without a terminal to ask on, `install.sh` says it installs the Customizer alone, instead of printing `/dev/tty` errors and skipping the companions silently.
+- `install.sh --with` no longer expands a `*` in the list against the files of the current directory (it is rejected as an unknown companion), and accepts blanks around names such as `bar, lock`.
 - Keep Wallpaper FX random selection away from one-off actions such as model installation.
 - Format the Home-page date using the Customizer's selected language.
 - Bar Widgets: «Add to bar» works again. ⏎ and the button sent the wrong key for widget rows (the Customizer.qml regex matched `wset:` rows only), so an absent widget was never added.

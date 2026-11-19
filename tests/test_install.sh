@@ -103,6 +103,15 @@ reset; install --with bar,nope
 check "--with unknown companion: exit 2 and named" test "$code" = "2"
 check "--with unknown companion: message names it" has "unknown companion: nope"
 check "--with unknown companion: nothing added" test "$(added)" = "0"
+# A glob in the list is a name to reject, not a pattern for the files in the current directory.
+mkdir -p "$root/globdir" && touch "$root/globdir/bar" "$root/globdir/lock"
+pushd "$root/globdir" >/dev/null
+reset; install --with '*'
+popd >/dev/null
+check "--with '*' from a directory with files: exit 2" test "$code" = "2"
+check "--with '*': message names the glob, not a file" has "unknown companion: *"
+reset; install --with 'bar, lock'
+check "--with 'bar, lock': blanks trimmed, three plugins" test "$(added)" = "3"
 reset; install -h
 check "-h: exit 0" test "$code" = "0"
 check "-h: usage printed" has "usage:"

@@ -52,11 +52,18 @@ while (($#)); do
   shift
 done
 
+# Split without globbing: a "*" in the list must reach the unknown-companion check, not the file names
+# in the current directory. Blanks around names are trimmed, so "bar, lock" works.
+wanted=()
 if [[ $mode == with ]]; then
-  [[ -n ${with//[, ]/} ]] || { usage >&2; echo "--with needs a list, e.g. --with bar,lock" >&2; exit 2; }
-  for k in ${with//,/ }; do
+  IFS=, read -ra names <<<"$with"
+  for k in "${names[@]}"; do
+    k=${k//[[:space:]]/}
+    [[ -n $k ]] || continue
     [[ " bar lock fx picker launcher " == *" $k "* ]] || { usage >&2; echo "unknown companion: $k" >&2; exit 2; }
+    wanted+=("$k")
   done
+  ((${#wanted[@]})) || { usage >&2; echo "--with needs a list, e.g. --with bar,lock" >&2; exit 2; }
 fi
 
 command -v omarchy >/dev/null || { echo "Omarchy not found: this installs Omarchy shell plugins." >&2; exit 1; }
@@ -99,7 +106,7 @@ for c in "${COMPANIONS[@]}"; do
   IFS='|' read -r key repo id what <<<"$c"
   case $mode in
   all) add "$BASE/$repo" "$id" ;;
-  with) [[ ",$with," == *",$key,"* ]] && add "$BASE/$repo" "$id" ;;
+  with) [[ " ${wanted[*]} " == *" $key "* ]] && add "$BASE/$repo" "$id" ;;
   ask) ask "Also install $repo — $what?" && add "$BASE/$repo" "$id" ;;
   none) ;;
   esac
