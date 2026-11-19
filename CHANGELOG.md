@@ -51,3 +51,5 @@
 - ⏎ on the Photos folder row opens the folder picker; it used to reset the folder to the default.
 - Bar Skin: leaving the skin list with `h` puts the live skin back on the bar, and the preview card (bar mock and skin text) now shows the live skin too instead of the skin that was hovered. Re-entering the list on the same row brings its text back.
 - Bar Skin: leaving the skin list with `h` puts the live skin back on the bar, and the preview card (bar mock and skin text) now shows the live skin too instead of the skin that was hovered. Re-entering the list on the same row brings its text back. Animations keep the curves of the hovered row on its card after `h`, as before.
+- Reading mode: a failing brightnessctl (no backlight, or no session bus on a desktop) no longer stops reading mode from turning on; it comes on without the brightness part, and off puts back only a brightness that was saved.
+- Reading mode: changing the reading theme or brightness while the mode is on applies at once, instead of waiting for the next time the mode is turned on.

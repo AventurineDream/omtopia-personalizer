@@ -6,7 +6,7 @@
 # Turning it off reloads Hyprland: hypr/customizer.lua re-applies the saved style, windows tab and
 # screen shader, so nothing has to be remembered and restored by hand (only brightness and theme).
 #
-#   reading-mode.sh [toggle|on|off|status|restore|look]
+#   reading-mode.sh [toggle|on|off|status|restore|look|live]
 #
 # Settings — Customizer → Windows → Shader → Reading mode, file ~/.config/omarchy/customizer/reading-mode.json:
 #   readingPage        auto | paper | invert — how a dark theme becomes a page: auto inverts brightness in
@@ -102,23 +102,54 @@ apply_look() {
 
 has_backlight() { brightnessctl -l -c backlight 2>/dev/null | grep -q backlight; }
 
+# Keeps "<key>=<value>" in the state file, replacing an earlier line for the same key. off puts back what the
+# page replaced, so a key is written only when the page first changes that setting.
+remember() {
+    { grep -v "^$1=" "$STATE" || true; echo "$1=$2"; } >"$STATE.tmp" && mv -f "$STATE.tmp" "$STATE"
+}
+
+# Sets the reading brightness. The raw value it replaces is remembered (brightness=) only if the set went
+# through: without a backlight or a session bus (brightnessctl fails there) nothing changes and nothing is
+# remembered, so off has nothing to put back and does not try.
+set_brightness() {
+    local b prev
+    b="$(cfg readingBrightness 40)"
+    [[ $b =~ ^[0-9]+$ ]] && ((b > 0)) && has_backlight || return 0
+    if grep -q '^brightness=' "$STATE"; then
+        brightnessctl -q -c backlight set "${b}%" 2>/dev/null || true
+        return 0
+    fi
+    prev="$(brightnessctl -c backlight get 2>/dev/null)" && [[ $prev =~ ^[0-9]+$ ]] || return 0
+    brightnessctl -q -c backlight set "${b}%" 2>/dev/null || return 0
+    remember brightness "$prev"
+}
+
+# Switches to the reading theme. The theme in use is remembered (theme=) once, so off switches back to it.
+# An empty readingTheme keeps the current theme.
+set_theme() {
+    local theme cur
+    theme="$(cfg readingTheme "")"
+    [[ -n $theme ]] || return 0
+    cur="$(omarchy-theme-current 2>/dev/null || true)"
+    [[ -n $cur && $cur != "$theme" ]] || return 0
+    grep -q '^theme=' "$STATE" || remember theme "$cur"
+    omarchy-theme-set "$theme" >/dev/null 2>&1 || true
+}
+
+# Brightness and theme of a session that is already reading, applied at once when readingBrightness or
+# readingTheme changes. Deliberately not part of restore: a theme switch reloads Hyprland, and restore runs
+# after every reload, so the theme would be switched again on each reload.
+live() {
+    [[ -f $STATE ]] || return 0
+    set_brightness
+    set_theme
+}
+
 on() {
     [[ -f $STATE ]] && { apply_look; return; }
-    local saved="" b theme cur
-    b="$(cfg readingBrightness 40)"
-    if [[ $b =~ ^[0-9]+$ ]] && ((b > 0)) && has_backlight; then
-        saved+="brightness=$(brightnessctl -c backlight get)"$'\n'
-        brightnessctl -q -c backlight set "${b}%"
-    fi
-    theme="$(cfg readingTheme "")"
-    if [[ -n $theme ]]; then
-        cur="$(omarchy-theme-current 2>/dev/null || true)"
-        if [[ -n $cur && $cur != "$theme" ]]; then
-            saved+="theme=$cur"$'\n'
-            omarchy-theme-set "$theme" >/dev/null 2>&1 || true
-        fi
-    fi
-    printf '%s' "$saved" >"$STATE"
+    : >"$STATE"
+    set_brightness
+    set_theme
     look
     notify "$(t "Reading mode on")" "$(t "Press again to return to the desktop")"
 }
@@ -140,7 +171,8 @@ toggle) if [[ -f $STATE ]]; then off; else on; fi ;;
 on) on ;;
 off) off ;;
 restore) [[ -f $STATE ]] && apply_look || true ;;
+live) live ;;
 look) look ;;
 status) [[ -f $STATE ]] && echo on || echo off ;;
-*) echo "usage: ${0##*/} [toggle|on|off|status|restore]" >&2; exit 2 ;;
+*) echo "usage: ${0##*/} [toggle|on|off|status|restore|live]" >&2; exit 2 ;;
 esac
