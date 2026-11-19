@@ -1530,7 +1530,7 @@ snapshot_preset() {
     done < <(anim_files)
   fi
   op=$("$OPACITY" current 2>/dev/null || echo subtle)
-  bl=$("$BLUR" current 2>/dev/null || echo medium)
+  bl=$("$BLUR" current 2>/dev/null || true)
   sh=$(current_shader)
   if [[ -s $hypr_state/geometry ]]; then
     local _gn gi go bs r shd
@@ -1600,10 +1600,10 @@ snapshot_preset() {
        wallpaper: $wallpaper,
        anims: $anims
      }
-     # Empty opacity = no preset in use (fresh system): leave the key out, as apply_ops.snapshot does.
+     # Empty opacity / blur = no preset in use (fresh system): leave the key out, as apply_ops.snapshot does.
      + (if $opacity != "" then {opacity: $opacity} else {} end)
+     + (if $blur != "" then {blur: $blur} else {} end)
      + {
-       blur: $blur,
        shader: $shader,
        hyprGeometry: $hyprGeometry
      }

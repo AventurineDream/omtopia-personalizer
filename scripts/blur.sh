@@ -10,8 +10,9 @@
 #   blur.sh set <name>       # apply a preset by name (used by the customizer)
 #   blur.sh preview <name>   # apply without saving or notifying (customizer hover); snapshots the pre-preview live values once
 #   blur.sh restore          # re-apply the saved preset silently (none saved: restore the pre-preview snapshot, else keep the live blur)
+#                              a saved name that is no longer in PRESETS also keeps the live blur (exit 0).
 #   blur.sh list             # "<name> <size> <passes> <vibrancy> <noise> <current 0/1>"
-#   blur.sh current          # name of the preset in use
+#   blur.sh current          # name of the preset in use; empty when none was applied
 #
 # Bind it if you like, e.g. SUPER+ALT+U (next), SUPER+ALT+SHIFT+U (prev).
 set -euo pipefail
@@ -28,7 +29,7 @@ PRESETS=(
     "frosted 14  4 0.30 0.030"
     "liquid  12  3 0.45 0.008"
 )
-DEFAULT=medium
+DEFAULT=medium # what next/prev apply when no preset is in use; never reported as in use (see current)
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
 STATE="$STATE_DIR/blur"
@@ -51,10 +52,12 @@ lookup() { # $1 = name -> "size passes vibrancy noise", fails when unknown
     return 1
 }
 
+# Name of the saved preset, or nothing when none was applied. A fresh system is not "medium": the
+# lists, status and Home card must not mark a preset the compositor is not using.
 current() {
-    local c
+    local c=""
     { read -r c _ <"$STATE"; } 2>/dev/null || true
-    lookup "${c:-}" >/dev/null 2>&1 && echo "$c" || echo "$DEFAULT"
+    if lookup "$c" >/dev/null 2>&1; then echo "$c"; fi
 }
 
 notify() { # $1 = title, $2 = body
@@ -170,7 +173,8 @@ next) step 1 ;;
 prev) step -1 ;;
 set) apply "${2:?preset name}" ;;
 preview) preview "${2:?preset name}" ;;
-restore) if [[ -s $STATE ]]; then set_blur "$(current)"; else restore_live; fi ;;
+# A saved name that no longer exists (renamed or removed preset) keeps the live blur, not an exit 1.
+restore) if [[ -n $(current) ]]; then set_blur "$(current)"; else restore_live; fi ;;
 current) current ;;
 list)
     cur="$(current)"

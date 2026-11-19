@@ -12,7 +12,8 @@ The live desktop is never touched.
   2. A CSS gap with different sides, a failing hyprctl, or non-JSON output falls back to the settings.json default.
   3. A key windows.json sets is always marked; its default is named "Hyprland config".
   4. windowNoGaps reads the flag file; «Reset window geometry» keeps the toggle, and the rows agree.
-  5. Transparency: a fresh system has no preset in use; a saved name that no longer exists restores live.
+  5. Transparency and Blur: a fresh system has no preset in use (the first next applies the default); a saved name
+     that no longer exists restores live; a preset saved on a fresh system stores neither opacity nor blur.
   6. Theme Switcher: sentinel values print the default's words, in rows and in the slider readout.
   7. Dock: pinned ids print the desktop file's Name=, from XDG_DATA_HOME and XDG_DATA_DIRS.
   8. Bash mirror (tests/legacy/customizer.sh): the same rows as the backend; enum step from the live layout;
@@ -29,6 +30,7 @@ PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUN = os.path.join(PLUGIN, "backend/run.py")
 LEGACY = os.path.join(PLUGIN, "tests/legacy/customizer.sh")
 OPACITY = os.path.join(PLUGIN, "scripts/opacity.sh")
+BLUR = os.path.join(PLUGIN, "scripts/blur.sh")
 
 
 def write(path, text, mode=0o644):
@@ -63,6 +65,11 @@ exit 0
     write(os.path.join(stubs, "omarchy-hyprland-toggle"), f"""#!/bin/sh
 printf '%s\\n' "toggle $*" >> "{log}"
 case "$2" in on) mkdir -p "{os.path.dirname(flag)}"; : > "{flag}" ;; off) rm -f "{flag}" ;; esac
+exit 0
+""", mode=0o755)
+    write(os.path.join(stubs, "zenity"), f"""#!/bin/sh
+printf '%s\\n' "zenity $*" >> "{log}"
+case "$*" in *--question*) exit 1 ;; *Description*) echo ;; *--entry*) echo freshblur ;; esac
 exit 0
 """, mode=0o755)
     for name in ("omarchy", "notify-send"):
@@ -247,7 +254,7 @@ def main():
     check("4 toggle off, reset: no-gaps row false and gaps row shows the live 5",
           ng[8] == "false" and gin[8] == "5")
 
-    # ── 5. Transparency: fresh system has no preset in use; a stale saved name restores live ──
+    # ── 5. Transparency and Blur: fresh system has no preset in use; a stale saved name restores live ──
     def opacity(*args):
         r = subprocess.run(["bash", OPACITY, *args], env=env, capture_output=True, text=True)
         return r.returncode, r.stdout.strip()
@@ -255,6 +262,35 @@ def main():
     check("5 fresh system: current is empty, not subtle", opacity("current") == (0, ""))
     check("5 fresh system: no list row is marked in use",
           all(f[3] == "0" for f in rows(env, "opacity")) and len(rows(env, "opacity")) == 6)
+
+    # Blur follows the same rules as Transparency. Status (the Home card) and both bash and Python snapshots must agree.
+    def blur(*args):
+        r = subprocess.run(["bash", BLUR, *args], env=env, capture_output=True, text=True)
+        return r.returncode, r.stdout.strip()
+
+    def status_fields(text):
+        return {k: v for k, _, v in (ln.partition("\t") for ln in text.splitlines())}
+
+    check("5 fresh system: blur current is empty, not medium", blur("current") == (0, ""))
+    check("5 fresh system: no blur row is marked in use",
+          all(f[3] == "0" for f in rows(env, "blur")) and len(rows(env, "blur")) == 7)
+    fresh = status_fields(backend(env, "status")[1])
+    check("5 fresh system: status names no transparency or blur preset",
+          fresh.get("opacity") == "" and fresh.get("blur") == "")
+    fresh_sh = status_fields(legacy(env, "status")[1])
+    check("5 fresh system: bash status names no transparency or blur preset",
+          fresh_sh.get("opacity") == "" and fresh_sh.get("blur") == "")
+    saved_path = os.path.join(home, ".config/omarchy/customizer/presets/freshblur.json")
+    backend(env, "apply", "presets", "save", "Fresh Blur")
+    saved = load_json(saved_path)
+    check("5 fresh snapshot (Python): stores neither opacity nor blur",
+          bool(saved) and "opacity" not in saved and "blur" not in saved)
+    os.unlink(saved_path)  # the bash save does not overwrite a file (zenity question)
+    legacy(env, "apply", "presets", "save", "Fresh Blur")
+    saved_sh = load_json(saved_path)
+    check("5 fresh snapshot (bash): stores neither opacity nor blur",
+          bool(saved_sh) and "opacity" not in saved_sh and "blur" not in saved_sh)
+    os.unlink(saved_path)
     opacity("next")
     check("5 next from a fresh system applies the anchor preset (subtle) and marks it",
           opacity("current") == (0, "subtle")
@@ -265,6 +301,15 @@ def main():
     check("5 stale saved name: restore exits 0 (keeps the live values)", rc == 0)
     check("5 stale saved name: restore applies no preset",
           not any("active_opacity = 1" in c for c in open(calls).read().splitlines()[before:]))
+    blur("next")
+    check("5 blur next from a fresh system applies the default (medium) and marks it",
+          blur("current") == (0, "medium") and [f[1] for f in rows(env, "blur") if f[3] == "1"] == ["medium"])
+    write(os.path.join(state, "hypr/blur"), "frosty 1 1 0.00 0.000\n")
+    before = call_count()
+    rc, _ = blur("restore")
+    check("5 stale saved blur name: restore exits 0", rc == 0)
+    check("5 stale saved blur name: restore applies no preset (no blur eval)",
+          not any("blur = {" in c for c in open(calls).read().splitlines()[before:]))
 
     # ── 6. Theme Switcher: sentinel values print the default's words ──
     write(os.path.join(home, ".config/omarchy/image-picker.json"),

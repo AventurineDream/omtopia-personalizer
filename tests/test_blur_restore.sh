@@ -164,14 +164,46 @@ restore opacity.sh "$r"
 check "opacity restore, state glass: exits 0" test "$code" = "0"
 check "opacity restore, state glass: live opacity becomes glass" test "$(live_field "$r" 6-7)" = "0.90 0.80"
 
-# 9. `current` with no state file: prints the default with no stderr noise.
+# 9. Fresh system (no state file): no preset is in use, as opacity.sh. `current` and `list` mark none, and the
+#    first next or prev applies the default (medium). A blur named by `set` (styles, presets) is in use afterwards.
 r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"
 err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" XDG_RUNTIME_DIR="$r/run" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
     bash "$PLUGIN/scripts/blur.sh" current 2>&1 >/dev/null)"
 check "blur current, no state: no stderr noise" test -z "$err"
+check "blur current, no state: prints nothing (no preset in use)" test -z "$(run_script blur.sh "$r" current)"
+check "blur list, no state: no row is marked in use" test -z "$(run_script blur.sh "$r" list | awk '$6 == 1')"
 err="$(env -i PATH="$r/stubs:/usr/bin:/bin" HOME="$r/home" XDG_STATE_HOME="$r/state" XDG_RUNTIME_DIR="$r/run" FAKE_STATE="$r/state" FAKE_HYPRCTL_MODE=ok \
     bash "$PLUGIN/scripts/opacity.sh" current 2>&1 >/dev/null)"
 check "opacity current, no state: no stderr noise" test -z "$err"
+
+r="$(setup "true 4 2 0.00 0.000 0.85 0.70" ok)"
+run_script blur.sh "$r" next
+check "blur next, fresh: exits 0" test "$code" = "0"
+check "blur next, fresh: applies the default medium" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
+check "blur next, fresh: medium is now in use" test "$(run_script blur.sh "$r" current)" = "medium"
+check "blur next, fresh: state file is medium" test "$(cat "$r/state/hypr/blur")" = "medium 6 3 0.17 0.012"
+
+r="$(setup "true 4 2 0.00 0.000 0.85 0.70" ok)"
+run_script blur.sh "$r" prev
+check "blur prev, fresh: exits 0" test "$code" = "0"
+check "blur prev, fresh: applies the default medium too" test "$(live_field "$r" 1-5)" = "true 6 3 0.17 0.012"
+check "blur prev, fresh: medium is now in use" test "$(run_script blur.sh "$r" current)" = "medium"
+
+r="$(setup "true 4 2 0.00 0.000 0.85 0.70" ok)"
+run_script blur.sh "$r" set strong
+check "blur set strong, fresh: exits 0" test "$code" = "0"
+check "blur set strong, fresh: strong is live" test "$(live_field "$r" 1-5)" = "true 10 4 0.20 0.015"
+check "blur set strong, fresh: strong is in use" test "$(run_script blur.sh "$r" current)" = "strong"
+run_script blur.sh "$r" next
+check "blur next after set strong: continues from strong to frosted" test "$(run_script blur.sh "$r" current)" = "frosted"
+
+# 9b. A stale saved name (renamed or removed preset): no preset is in use, and restore keeps the live blur.
+r="$(setup "true 5 2 0.13 0.007 0.85 0.70" ok)"
+mkdir -p "$r/state/hypr" && echo "frosty 1 1 0.00 0.000" >"$r/state/hypr/blur"
+check "blur current, stale saved name: prints nothing" test -z "$(run_script blur.sh "$r" current)"
+restore blur.sh "$r"
+check "blur restore, stale saved name: exits 0" test "$code" = "0"
+check "blur restore, stale saved name: live blur kept verbatim, not medium" test "$(live_field "$r" 1-5)" = "true 5 2 0.13 0.007"
 
 # 10. blur preview then restore: the hover does not persist.
 r="$(setup "true 6 3 0.17 0.012 0.85 0.70" ok)"

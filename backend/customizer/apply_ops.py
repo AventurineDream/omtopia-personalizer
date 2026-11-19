@@ -311,7 +311,7 @@ def snapshot(out, title="", note=""):
                 anim = os.path.basename(f)[:-4]
                 break
     op = _current_or(state.OPACITY, "subtle")
-    bl = _current_or(state.BLUR, "medium")
+    bl = _current_or(state.BLUR, "")
     shader = state.current_shader()
     geom = None
     gfile = HYPR_STATE / "geometry"
@@ -357,9 +357,11 @@ def snapshot(out, title="", note=""):
     doc["theme"] = theme
     if style_id:
         doc["style"] = style_id
-    doc.update({"wallpaper": wp, "anims": anim, "blur": bl, "shader": shader, "hyprGeometry": geom})
-    if op:  # no preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: ")
-        doc["opacity"] = op
+    doc.update({"wallpaper": wp, "anims": anim, "shader": shader, "hyprGeometry": geom})
+    # No preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: " / "blur: ").
+    for k, v in (("opacity", op), ("blur", bl)):
+        if v:
+            doc[k] = v
     if win_geom:
         doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})
