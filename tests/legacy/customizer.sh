@@ -1204,12 +1204,17 @@ list_bar_widgets() {
     [[ -n $id && -z ${seen[$id]:-} ]] || continue
     seen[$id]=1
     drawer+=("$id")
-  done < <(jq -r '.bar.layout.tray // [] | .[] | if type == "object" then .id else . end' "$SHELL_JSON")
+  done < <(jq -r '.bar.layout.tray // [] | if type == "array" then .[] else empty end
+    | (if type == "object" then .id else . end) | select(type == "string" and . != "")' "$SHELL_JSON")
   if ((${#drawer[@]})); then
+    local not_drawn=""
+    if [[ $(jq -r '.bar.id // ""' "$SHELL_JSON") == kamradsmeshnyavy.bar ]]; then
+      not_drawn="$(t "This bar does not draw the tray drawer, so the widget stays invisible until it is moved onto the bar")"'\n\n'
+    fi
     printf '%s\t%s\t\t0\t\theader\n' "$(t "In the tray drawer")" "section:tray"
     for id in "${drawer[@]}"; do
       printf '%s\t%s\t\t0\t%s\t%s\tadd\t\t\t%s\n' "○ $(widget_label "$id")" "tweak:w:$id" \
-        "$(t "In the tray drawer · %s" "$id")"'\n\n'"$(t "⏎ — move onto the bar (end of the right section, settings kept)")" "$id" \
+        "$(t "In the tray drawer · %s" "$id")"'\n\n'"$not_drawn$(t "⏎ — move onto the bar (end of the right section, settings kept)")" "$id" \
         "$(widget_label "$id")"
     done
   fi

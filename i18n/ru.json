@@ -447,6 +447,7 @@
   "h/l — move earlier / later (across sections at the edge) · ⏎ — remove from the bar": "h/l — сдвинуть раньше / позже (на краю — в соседнюю секцию) · ⏎ — убрать с бара",
   "In the tray drawer": "В ящике трея",
   "In the tray drawer · %s": "В ящике трея · %s",
+  "This bar does not draw the tray drawer, so the widget stays invisible until it is moved onto the bar": "Этот бар не рисует ящик трея, поэтому виджет остаётся невидимым, пока его не перенесли на бар",
   "⏎ — move onto the bar (end of the right section, settings kept)": "⏎ — перенести на бар (в конец правой секции, параметры сохраняются)",
   "Not on the bar": "Не на баре",
   "Not on the bar · %s": "Не на баре · %s",

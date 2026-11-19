@@ -291,6 +291,12 @@ def widget_step(wid, how):
 
 
 def _widget_hide(wid, sec, idx):
+    """Take a widget off the bar: stash its visible copy, then drop every copy of its id from the layout.
+
+    Copies in tray and in centerBegin/centerEnd go too: the shell counts a copy in any section as on the
+    bar, so keeping one would leave the widget drawn, or listed as «in the tray drawer», after «remove».
+    The stash keeps the visible copy only; a drawer copy's inline settings are dropped with it.
+    """
     shell, lay = _layout()
     entry = (lay.get(sec) or [])[idx]
     hidden = jsonio.read(BAR_HIDDEN) if fsutil.nonempty(BAR_HIDDEN) else {}
@@ -299,20 +305,22 @@ def _widget_hide(wid, sec, idx):
     write_inplace(BAR_HIDDEN, hidden)
     shell = dict(shell)
     shell["bar"] = dict(shell["bar"])
-    shell["bar"]["layout"] = dict(lay)
-    items = list(lay.get(sec) or [])
-    shell["bar"]["layout"][sec] = items[:idx] + items[idx + 1:]
+    lay = dict(lay)
+    for s, items in lay.items():
+        if isinstance(items, list):
+            lay[s] = [e for e in items if (e.get("id") if isinstance(e, dict) else e) != wid]
+    shell["bar"]["layout"] = lay
     write_inplace(paths.SHELL_JSON, shell)
 
 
 def _widget_show(wid):
     """Put a widget that is off the bar back on it, as exactly one layout entry for its id.
 
-    Where the entry comes from, first match wins: the tray drawer or an un-anchored centerBegin/centerEnd
-    (the entry moves with its inline settings), then the slot stashed by _widget_hide, else a new entry.
-    Where it goes: its stashed slot when that section is drawn, else the end of the right section.
-    Writes shell.json and bar-hidden.json directly, not via putBarWidget: the shell puts a new widget in
-    centerEnd, which is not drawn without a centerAnchor, and it leaves a widget already in the drawer alone.
+    Entry: the first copy found in the tray drawer or an un-anchored centerBegin/centerEnd (it moves with
+    its inline settings, and every such copy is removed), else the entry stashed by _widget_hide, else a new one.
+    Slot: the stashed section and index whenever a stash exists and that section is drawn, else the end of
+    right. Writes shell.json and bar-hidden.json directly, not via putBarWidget: the shell puts a new widget
+    in centerEnd, which is not drawn without a centerAnchor, and it leaves a widget already in the drawer alone.
     """
     shell, lay = _layout()
     visible = _visible_sections()
@@ -332,9 +340,10 @@ def _widget_show(wid):
     hidden = jsonio.read(BAR_HIDDEN)
     stash = hidden.get(wid) if isinstance(hidden, dict) else None
     sec, idx = "right", None
-    if entry is None and stash:
-        entry = stash["entry"]
+    if isinstance(stash, dict):
         sec, idx = stash["section"], stash["index"]
+        if entry is None:
+            entry = stash["entry"]
     if entry is None:
         from .lists_more import BAR_MODULES
         if wid in BAR_MODULES:

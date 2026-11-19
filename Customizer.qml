@@ -959,7 +959,7 @@ Item {
       return
     }
     // Виджеты бара: ⏎ убирает с бара / возвращает (h/l двигают), параметр виджета — переключает.
-    if (root.isTweakRow(root.selectedRow) && /^(w|wset):/.test(root.tweakKey(root.selectedRow))) root.tweak("toggle")
+    if (root.isTweakRow(root.selectedRow) && root.isWidgetKey(root.tweakKey(root.selectedRow))) root.tweak("toggle")
     else if (root.isTweakRow(root.selectedRow) && root.colorTweaks.indexOf(root.tweakKey(root.selectedRow)) === -1) root.tweak("+")
     else root.run(root.selectedRow.value)
   }
@@ -1110,6 +1110,8 @@ Item {
     return row !== null && !root.isHeader(row) && (root.category.tweak === true || /^tweak:/.test(row.value))
   }
   function tweakKey(row) { return String(row.value).replace(/^tweak:/, "") }
+  // Widget rows: w:<id> (bar widget on or off the bar) and wset:<id>:<key> (its inline setting).
+  function isWidgetKey(key) { return /^(w|wset):/.test(key) }
 
   function clickSelect(index) {
     root.pane = 1
@@ -1147,7 +1149,7 @@ Item {
   function predictStep(row, dir) {
     var kind = String(row.kind || ""), args = String(row.args || ""), raw = String(row.raw || "")
     var key = root.tweakKey(row)
-    if (/^(w|wset):/.test(key) || key === "fontProfile") return null
+    if (root.isWidgetKey(key) || key === "fontProfile") return null
     if (kind === "bool") {
       if (dir === "reset") return args
       return raw === "true" ? "false" : "true"
