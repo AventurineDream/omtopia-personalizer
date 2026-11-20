@@ -2751,7 +2751,13 @@ status() {
             for (i = s; i <= e; i++) printf "%s%s", (i > s ? "|" : ""), a[i] }')"
   # Numbers for the preview stage: "active inactive" / "size passes vibrancy noise".
   printf 'opacity-values\t%s\n' "$(awk '$4 == 1 { print $2, $3 }' <<<"$olist")"
-  printf 'blur-values\t%s\n' "$(awk '$6 == 1 { print $2, $3, $4, $5 }' <<<"$blist")"
+  # No preset in use: the live blur Hyprland runs (size 0 when off, empty when unreadable).
+  local bv on s p v n
+  bv=$(awk '$6 == 1 { print $2, $3, $4, $5 }' <<<"$blist")
+  if [[ -z $bv ]] && read -r on s p v n <<<"$("$BLUR" live 2>/dev/null)"; then
+    case $on in false) bv="0 0 0 0" ;; true) bv="$s $p $v $n" ;; esac
+  fi
+  printf 'blur-values\t%s\n' "$bv"
 }
 
 # Вернуть сохранённое после `hyprctl reload` (Customizer зовёт это на configreloaded и при старте
