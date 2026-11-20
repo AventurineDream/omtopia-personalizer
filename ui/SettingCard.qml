@@ -20,8 +20,9 @@ Rectangle {
   property bool selected: false
   property bool focused: false
   property bool editing: false
-  property string editInitial: ""
+  property string editText: ""   // the draft: a field built again mid-edit starts from it
   property string editError: ""
+  property int focusSeq: 0       // bumps to hand the keyboard back to the field after a footer confirm
 
   signal selectMe()
   signal step(int dir)
@@ -31,7 +32,7 @@ Rectangle {
   signal submit(string text)
   signal cancel()
   signal startEdit()
-  signal edited()
+  signal edited(string text)
   signal hoverAt(point p)
 
   readonly property bool changed: /^●/.test(label)
@@ -73,12 +74,14 @@ Rectangle {
   border.color: selected ? Util.alpha(t.primary, focused ? 0.9 : 0.4) : t.outline
   Behavior on color { ColorAnimation { duration: card.t.ms(120) } }
 
-  onEditingChanged: if (editing) Qt.callLater(function() {
-    if (!card.editing) return
-    editInput.text = card.editInitial
+  // The value field takes the draft and the keyboard as soon as it is shown (see ListCard.beginEdit).
+  function beginEdit() {
+    editInput.text = card.editText
     editInput.selectAll()
     editInput.forceActiveFocus()
-  })
+  }
+  Component.onCompleted: if (editing) beginEdit()
+  onFocusSeqChanged: if (editing) editInput.forceActiveFocus()
 
   MouseArea {
     id: cardHover
@@ -147,6 +150,7 @@ Rectangle {
     // i — ручной ввод значения; Enter применяет, Esc отменяет (проверяет customizer.sh).
     Rectangle {
       visible: card.editing
+      onVisibleChanged: if (visible) card.beginEdit()
       width: parent.width
       height: visible ? editInput.implicitHeight + Style.space(14) : 0
       radius: card.t.rSmall
@@ -164,7 +168,7 @@ Rectangle {
         font.pixelSize: Style.font.body
         selectByMouse: true
         clip: true
-        onTextEdited: card.edited()
+        onTextEdited: card.edited(text)
         Keys.onReturnPressed: card.submit(text)
         Keys.onEnterPressed: card.submit(text)
         Keys.onEscapePressed: card.cancel()
