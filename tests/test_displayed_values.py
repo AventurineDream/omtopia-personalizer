@@ -284,6 +284,22 @@ def main():
     fresh_sh = status_fields(legacy(env, "status")[1])
     check("5 fresh system: bash status names no transparency or blur preset",
           fresh_sh.get("opacity") == "" and fresh_sh.get("blur") == "")
+    # The Transparency preview stage draws status blur-values; with no preset in use it must be
+    # the blur Hyprland runs, not empty (which drew no blur at all). Hyprland's stock 4 × 2 here, then off.
+    for opt, obj in (("decoration:blur:enabled", {"bool": True, "set": True}),
+                     ("decoration:blur:size", {"int": 4, "set": True}),
+                     ("decoration:blur:passes", {"int": 2, "set": True}),
+                     ("decoration:blur:vibrancy", {"float": 0.1696, "set": True}),
+                     ("decoration:blur:noise", {"float": 0.0117, "set": True})):
+        set_opt(base, opt, obj)
+    for engine, run in (("Python", backend), ("bash", legacy)):
+        check(f"5 fresh system ({engine}): status blur-values are the live blur",
+              status_fields(run(env, "status")[1]).get("blur-values") == "4 2 0.1696 0.0117")
+    set_opt(base, "decoration:blur:enabled", {"bool": False, "set": True})
+    for engine, run in (("Python", backend), ("bash", legacy)):
+        check(f"5 fresh system ({engine}): live blur off gives size 0, so the stage draws none",
+              status_fields(run(env, "status")[1]).get("blur-values") == "0 0 0 0")
+    set_opt(base, "decoration:blur:enabled", {"bool": True, "set": True})
     saved_path = os.path.join(home, ".config/omarchy/customizer/presets/freshblur.json")
     backend(env, "apply", "presets", "save", "--name", "freshblur")
     saved = load_json(saved_path)

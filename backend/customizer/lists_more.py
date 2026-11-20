@@ -867,6 +867,14 @@ def status():
     out.append("picker-previews\t" + "|".join(files[s - 1:e]))
     ov = next((f"{f[1]} {f[2]}" for f in (fsutil.read_ws(ln, 5) for ln in olist.split("\n") if ln) if f[3] == "1"), "")
     bv = next((f"{f[1]} {f[2]} {f[3]} {f[4]}" for f in (fsutil.read_ws(ln, 7) for ln in blist.split("\n") if ln) if f[5] == "1"), "")
+    if not bv:
+        # No preset in use (a fresh system, or a saved name that no longer exists): the preview stage draws
+        # the blur Hyprland really runs, not none. Blur off gives size 0; an unreadable compositor leaves it empty.
+        on, *live = fsutil.read_ws(fsutil.run([str(state.BLUR), "live"]), 5)
+        if on == "false":
+            bv = "0 0 0 0"
+        elif on == "true":
+            bv = " ".join(live)
     out += [f"opacity-values\t{ov}", f"blur-values\t{bv}"]
     return out
 
