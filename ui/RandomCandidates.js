@@ -37,7 +37,10 @@ var WALLPAPER_FX_TRANSITIONS = {
   random: true,
 };
 
-var ACTION_VALUE = /^(pick-|toggle$|next$|save$|regen-thumbs$|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/;
+// One-off actions and two-state toggles, by value: a row matching here never takes the random pick.
+// "reading" is also a shader name, but apply_ops runs reading-mode for that value, so the row is the action.
+// A new action value goes here too; tests/test_random_candidates.cjs pins the action rows of each category.
+var ACTION_VALUE = /^(pick-|pin-pick$|unpin:|toggle$|next$|save$|regen-thumbs$|missing-thumbs$|geometry-reset$|reading$|autohide$|sddm-|tweak:|section:|cache$|prune$|none$|dir:|current$|arch$|test:|open$)/;
 
 /**
  * Report whether a row can be selected by the keyboard random action.

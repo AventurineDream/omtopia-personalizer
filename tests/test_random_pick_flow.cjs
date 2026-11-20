@@ -59,10 +59,10 @@ function sandbox(fxType) {
   return home;
 }
 
-// Read-only backend list; the sandbox keeps it away from real config and state.
-function listWallpaperFx(home) {
+// Read-only backend list of one category; the sandbox keeps it away from real config and state.
+function listRows(home, category) {
   return execFileSync('/usr/bin/python3', ['-I', path.join(PLUGIN, 'backend/run.py'),
-    'list', 'wallpaper-fx'], {
+    'list', category], {
     env: {
       ...process.env,
       HOME: home,
@@ -79,7 +79,7 @@ function listWallpaperFx(home) {
 // `/` opens the filter, "cut" narrows the list, Enter keeps the filter: these are
 // the rows the overlay would display when `r` is pressed.
 function filteredFxRows(home) {
-  return flow.filterRows(flow.parseRows(listWallpaperFx(home)), 'cut');
+  return flow.filterRows(flow.parseRows(listRows(home, 'wallpaper-fx')), 'cut');
 }
 
 function indexOfValue(rows, value) {
@@ -144,4 +144,57 @@ test('the backend writes its runtime directory inside the sandbox', () => {
   filteredFxRows(home);
   assert.ok(fs.existsSync(path.join(home, 'run', 'omarchy-customizer')),
     'XDG_RUNTIME_DIR override keeps paths.RUN in the fixture HOME');
+});
+
+// `r` over a spread of random draws: every value it can pick on this list.
+function pickedValues(category, rows, selected) {
+  const values = new Set();
+  for (let i = 0; i <= 20; i++) {
+    const pick = flow.decideRandomPick(candidates.isCandidate, category, rows, selected, i / 21);
+    if (pick) values.add(pick.value);
+  }
+  return values;
+}
+
+test('r on Windows never picks the geometry reset', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'windows'));
+  assert.ok(rows.some((r) => r.value === 'geometry-reset'), 'reset row listed');
+  assert.deepEqual([...pickedValues('windows', rows, -1)], []);
+});
+
+test('r on Dock picks only a dock edge, never pin, unpin, auto-hide or the dock toggle', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'dock'));
+  assert.ok(rows.some((r) => r.value === 'pin-pick'), 'pin row listed');
+  const picked = [...pickedValues('dock', rows, -1)];
+  assert.ok(picked.length > 0 && picked.every((v) => v.startsWith('pos:')), picked.join(' '));
+});
+
+test('r on Shader never picks Reading mode, toggle or next', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'shaders'));
+  assert.ok(rows.some((r) => r.value === 'reading'), 'reading mode row listed');
+  const picked = pickedValues('shaders', rows, -1);
+  for (const value of ['reading', 'toggle', 'next']) assert.equal(picked.has(value), false, value);
+  assert.ok(picked.has('crt'), 'a shader is still picked');
+});
+
+test('r on Sounds picks a sound pack, never a test event or the current pack', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'sounds'));
+  const picked = [...pickedValues('sounds', rows, -1)];
+  assert.ok(picked.length > 0 && picked.every((v) => v.startsWith('pack:') && v !== 'pack:theme'), picked.join(' '));
+});
+
+test('Surprise me is shown exactly where r can pick', () => {
+  const qml = fs.readFileSync(path.join(PLUGIN, 'Customizer.qml'), 'utf8');
+  const refusal = /function randomPick\(\) \{\n\s*if \(([^)]*)\) return/.exec(qml);
+  assert.ok(refusal, 'randomPick refusal line');
+  const refused = [...refusal[1].matchAll(/root\.category\.key === "([^"]+)"/g)].map((m) => m[1]);
+  // The button's visible: is the last one before its row (the Rectangle that wraps it).
+  const head = qml.slice(0, qml.indexOf('id: randomRow'));
+  const visible = [...head.matchAll(/visible: ([^\n]*)/g)].pop()[1];
+  const hidden = [...visible.matchAll(/root\.category\.key !== "([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(visible.includes('presetStage') && visible.includes('category.tweak'), 'button hides stage and tweak categories');
+  for (const key of refused) {
+    const stage = new RegExp(`key: "${key}",[^}]*presetStage: true`).test(qml);
+    assert.ok(hidden.includes(key) || stage, `${key}: r refuses it but Surprise me is shown`);
+  }
 });
