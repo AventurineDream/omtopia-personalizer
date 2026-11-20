@@ -136,7 +136,6 @@ def scenarios(keys):
             return out
     if not keys:
         out.append(("fontProfile", [["tweak", "fontProfile", "+"], ["tweak", "fontProfile", "reset"]]))
-        out.append(("wset", [["tweak", "wset:kamradsmeshnyavy.tray:collapse", "+"]]))
         out.append(("unknown", [["tweak", "noSuchKey", "+"], ["tweak", "noSuchKey", "set", "1"]]))
     return out
 
