@@ -41,6 +41,62 @@ def theme_names():
     return sorted(n for n in names if n)
 
 
+# windows.json, который видит каждая песочница. Живой файл у каждой машины свой, а снимок windowsGeometry
+# копирует его в пресет, поэтому фикстура фиксирует все шесть WINDOW_GEOM_KEYS (apply_ops.py).
+# Значения специально не равны дефолтам apply (gaps 4/8, border 1, rounding 12, shadow и noGaps выключены):
+# снимок, упавший на дефолты или потерявший ключ, перестанет совпадать с фикстурой. windowNoGaps=true
+# проверяет восстановление set_no_gaps при re-apply, windowShadow=true — ветку тени.
+WINDOWS_FIXTURE = {"windowGapsIn": 6, "windowGapsOut": 9, "windowBorder": 3, "windowDecoRounding": 10,
+                   "windowShadow": True, "windowNoGaps": True}
+LAST_PRESET = ".local/state/omarchy-customizer/last-preset.json"
+WINDOWS_CFG = ".config/omarchy/customizer/windows.json"
+
+
+def _slug(title):
+    """Имя файла сохранённого пресета/стиля по заголовку (как в backend: «Test Preset» → test-preset)."""
+    return title.strip().lower().replace(" ", "-")
+
+
+def expected_geometry_files(orig):
+    """Файлы Python-песочницы (относительно HOME), где шаг orig обязан записать снимок windowsGeometry."""
+    if orig[:2] not in (["apply", "presets"], ["apply", "styles"]):
+        return []
+    kind = orig[1]
+    if orig[2:3] == ["save"]:
+        return [f".config/omarchy/customizer/{kind}/{_slug(orig[3])}.json"]
+    if orig[2:3] == ["geometry-reset"]:
+        return []
+    return [LAST_PRESET]
+
+
+def _read_json(path):
+    """Документ JSON или исключение (OSError/ValueError) — ошибка чтения тоже нарушение."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        return e
+
+
+def geometry_problems(root, orig):
+    """Нарушения точного снимка после шага orig в Python-песочнице root: windowsGeometry в сохранённом
+    документе обязан равняться WINDOWS_FIXTURE целиком, а re-apply последнего пресета обязан вернуть
+    windows.json к фикстуре. Пустой список — всё совпало. Не зависит от allowlist."""
+    problems = []
+    for rel in expected_geometry_files(orig):
+        doc = _read_json(os.path.join(root, "home", rel))
+        if isinstance(doc, Exception):
+            problems.append(f"{rel}: не читается ({doc})")
+        elif not isinstance(doc, dict) or doc.get("windowsGeometry") != WINDOWS_FIXTURE:
+            got = doc.get("windowsGeometry") if isinstance(doc, dict) else doc
+            problems.append(f"{rel}: windowsGeometry = {got!r}, ждём {WINDOWS_FIXTURE!r}")
+    if orig[:2] == ["apply", "presets"] and orig[2:3] and orig[2].endswith("last-preset.json"):
+        win = _read_json(os.path.join(root, "home", WINDOWS_CFG))
+        if win != WINDOWS_FIXTURE:
+            problems.append(f"{WINDOWS_CFG} после восстановления = {win!r}, ждём {WINDOWS_FIXTURE!r}")
+    return problems
+
+
 def sandbox(base, name):
     root, env = ct.sandbox(base, name)
     home = env["HOME"]
@@ -66,6 +122,12 @@ def sandbox(base, name):
         src = os.path.join(REAL, rel)
         if os.path.isfile(src):
             open(os.path.join(home, rel), "w").write(open(src).read())
+    # windows.json живой: его значения зависят от машины, а снапшот windowsGeometry копирует их
+    # в каждый пресет. Пин фиксирует содержимое в обеих песочницах, и подпись расхождения не зависит от хоста.
+    wcfg = os.path.join(home, ".config/omarchy/customizer/windows.json")
+    os.makedirs(os.path.dirname(wcfg), exist_ok=True)
+    with open(wcfg, "w") as f:
+        json.dump(WINDOWS_FIXTURE, f)
     return root, env
 
 
@@ -140,6 +202,7 @@ def main():
         rp, ep = sandbox(base, f"{n:02}-{name}.py")
         for step in steps:
             zen = ""
+            orig = list(step)
             if step[:3] in (["apply", "presets", "save"], ["apply", "styles", "save"], ["apply", "bar-skins", "save"],
                             ["apply", "bar-layouts", "save"], ["apply", "theme-switcher", "prune"]):
                 step, zen = step[:3], step[3]
@@ -147,6 +210,9 @@ def main():
             cb, _ = ct.run(eb, "bash", [s.replace("{HOME}", eb["HOME"]) for s in step], zen)
             cp, _ = ct.run(ep, "py", [s.replace("{HOME}", ep["HOME"]) for s in step], zen)
             sb, sp = norm(ct.snapshot(rb), rb), norm(ct.snapshot(rp), rp)
+            for problem in geometry_problems(rp, orig):
+                bad += 1
+                print("GEOMETRY", name, " ".join(orig)[:120], problem)
             if cb != cp or sb != sp:
                 differing = sorted(k for k in set(sb) | set(sp) if sb.get(k) != sp.get(k))
                 py_only, bash_only = [], []
@@ -180,8 +246,11 @@ def main():
                     break
         else:
             print("ok   ", name)
-    print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
+    print(f"{total - bad - known}/{total} шагов совпадают"
           + (f" ({known} известных)" if known else ""))
+    if bad:
+        print("песочницы сохранены: " + base)
+    ct.discard_if_green(base, bad)
     return 1 if bad else 0
 
 

@@ -125,7 +125,10 @@ def sandbox():
     # State dir (ACTIVE_PRESET / ACTIVE_STYLE writes) and user layouts dir.
     os.makedirs(os.path.join(home, ".local/state/omarchy-customizer"), exist_ok=True)
     os.makedirs(os.path.join(home, ".config/omarchy/bar-layouts"), exist_ok=True)
-    env = dict(os.environ, HOME=home, PATH=stubs + ":" + os.environ["PATH"])
+    # Свой XDG_RUNTIME_DIR: backend пишет omarchy-customizer/*.tmp, иначе — в живой /run/user/<uid>.
+    run_dir = os.path.join(base, "run")
+    os.makedirs(run_dir)
+    env = dict(os.environ, HOME=home, XDG_RUNTIME_DIR=run_dir, PATH=stubs + ":" + os.environ["PATH"])
     env.pop("XDG_CONFIG_HOME", None)
     return base, home, env
 
@@ -425,10 +428,18 @@ def main():
             layout_fails += 1
             continue
         print(f"ok    {name}")
-    print(f"{len(layouts) - layout_fails}/{len(layouts)} layouts carry over; sandbox: {base}")
+    print(f"{len(layouts) - layout_fails}/{len(layouts)} layouts carry over")
     fails += test_snapshot_restore(home, env)
     fails += test_user_layout_verbatim(home, env)
-    return 1 if fails else 0
+    if fails:
+        print(f"FAIL; песочница сохранена: {base}")
+        return 1
+    # Песочницы под $XDG_RUNTIME_DIR (tmpfs) копятся, если не удалять зелёные прогоны.
+    try:
+        shutil.rmtree(base)
+    except OSError as e:
+        print(f"не удалось удалить песочницу {base}: {e}")
+    return 0
 
 
 if __name__ == "__main__":

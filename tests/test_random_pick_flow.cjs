@@ -24,12 +24,29 @@ function loadJs(rel) {
 }
 const candidates = loadJs('ui/RandomCandidates.js');
 const flow = loadJs('ui/RandomPickFlow.js');
+// Sandboxes live in os.tmpdir() (RAM here). They are removed when the file passes and kept,
+// with their paths printed, when it fails. Node sets the exit code from the test results.
+const sandboxes = [];
+process.on('exit', (code) => {
+  for (const home of sandboxes) {
+    if (code === 0) {
+      try {
+        fs.rmSync(home, { recursive: true, force: true });
+      } catch (err) {
+        console.error('could not remove sandbox ' + home + ': ' + err.message);
+      }
+    } else {
+      console.error('sandbox kept: ' + home);
+    }
+  }
+});
 
 // Fresh HOME with the Wallpaper FX plugin enabled; every XDG path stays inside it.
 // Language is pinned to English both ways (customizer.json "lang" wins over locale,
 // LC_ALL backs it up) because the filter fixture matches English row labels.
 function sandbox(fxType) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-flow-'));
+  sandboxes.push(home);
   const cfg = path.join(home, '.config', 'omarchy');
   fs.mkdirSync(cfg, { recursive: true });
   fs.mkdirSync(path.join(home, 'run'), { recursive: true });

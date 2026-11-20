@@ -6,7 +6,8 @@
 Только в песочнице: две одинаковые копии конфигов в свежем каталоге (mktemp), HOME/XDG_* указывают
 туда; omarchy-shell, hyprctl, omarchy-hyprland-toggle, omarchy-font-profile, zenity — заглушки,
 которые пишут вызовы в лог. После каждого шага сравниваются все файлы песочниц и логи вызовов.
-Живой стол не трогается. Каталоги песочниц не удаляются (лежат в $XDG_RUNTIME_DIR, это tmpfs)."""
+Живой стол не трогается. Каталог песочниц удаляется после зелёного прогона; при провале он остаётся
+и печатается (лежит в $XDG_RUNTIME_DIR, это tmpfs)."""
 import os
 import shutil
 import subprocess
@@ -76,6 +77,20 @@ def snapshot(root):
             out[os.path.relpath(p, root)] = open(p, "rb").read()
     out["calls.log"] = open(os.path.join(root, "calls.log"), "rb").read()
     return out
+
+
+def discard_if_green(base, failed):
+    """Удаляет каталог песочниц base после зелёного прогона, чтобы накопленные прогоны не заполняли
+    tmpfs $XDG_RUNTIME_DIR. Вызывают все харнессы, которые создают песочницы (compare_readonly,
+    compare_apply, compare_commands, compare_tweaks). При провале (failed=True) каталог остаётся
+    для разбора — вызывающий печатает его путь. Ошибка удаления не прячется: путь печатается,
+    чтобы каталог не потерялся незамеченным."""
+    if failed:
+        return
+    try:
+        shutil.rmtree(base)
+    except OSError:
+        print("не удалось удалить песочницу: " + base)
 
 
 def run(env, impl, args, zenity=""):
@@ -173,8 +188,11 @@ def main():
                 # DIFF/KNOWN-CHANGED, иначе остаток сценария не проверяется.
                 if not is_known:
                     break
-    print(f"{total - bad - known}/{total} шагов совпадают; песочницы: {base}"
+    print(f"{total - bad - known}/{total} шагов совпадают"
           + (f" ({known} известных)" if known else ""))
+    if bad:
+        print("песочницы сохранены: " + base)
+    discard_if_green(base, bad)
     return 1 if bad else 0
 
 

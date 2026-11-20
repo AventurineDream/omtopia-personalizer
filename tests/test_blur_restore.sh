@@ -10,6 +10,14 @@ set -euo pipefail
 
 PLUGIN="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 fails=0
+# Все песочницы кейсов лежат в одном каталоге: /tmp здесь tmpfs (RAM), а trap удаляет его
+# после зелёного прогона; при провале каталог остаётся, путь печатается.
+BASE="$(mktemp -d)"
+cleanup() {
+    local rc=$?
+    if ((rc == 0)); then rm -rf -- "$BASE"; else echo "песочницы сохранены: $BASE" >&2; fi
+}
+trap cleanup EXIT
 check() { # $1 = name, $2.. = test command
     local name="$1"; shift
     if "$@" >/dev/null 2>&1; then echo "ok    $name"; else echo "FAIL  $name"; fails=$((fails + 1)); fi
@@ -82,7 +90,7 @@ STUB
 
 setup() { # $1 = live line, $2 = hyprctl mode (ok|fail) -> prints sandbox dir
     local root
-    root="$(mktemp -d)"
+    root="$(mktemp -d "$BASE/case.XXXXXX")"
     mkdir -p "$root/home" "$root/state" "$root/stubs" "$root/run"
     echo "$1" >"$root/state/live.txt"
     : >"$root/state/calls.log"
