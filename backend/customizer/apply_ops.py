@@ -1235,7 +1235,7 @@ def apply(category, value):
             opts = ["--mode", "light"] if value == "dynamic:light" else ["--scheme", value[8:]]
             notify("-t", "3000", "Theme", t("Building a theme from the wallpaper…"))
             if sh(["omarchy-wallpaper-theme", *opts], quiet=False)[0] != 0:
-                notify("-u", "critical", "Theme", t("matugen failed"))
+                notify("-u", "critical", "Theme", t("Could not build the theme from the wallpaper"))
                 raise Exit(1)
             notify("-t", "3000", "Theme", t("Applied %s", "dynamic"))
             raise Exit(0)

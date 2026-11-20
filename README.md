@@ -87,14 +87,14 @@ Each is a separate plugin; the Customizer finds them on its own.
 - `zenity` — dialogs for colours, text and files in the tweaks
 - `kamradsmeshnyavy.widgets` plugin — **Widgets** category in Desktop (clock, now playing, cava visualizer, system rings)
 - `lutgen` — Recolor (shown only when both lutgen and zenity are there)
-- `omarchy-wallpaper-theme` on `PATH` + `matugen` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper (a video / GIF wallpaper gives its colours through a representative frame and stays live) ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
+- `omarchy-wallpaper-theme` on `PATH` — “🎨 Theme from wallpaper” rows in **Theme**: a Material You theme `dynamic` built from the current wallpaper (a video / GIF wallpaper gives its colours through a representative frame and stays live); the script runs `omarchy-rice-dynamic` ([script](https://github.com/KamradSmeshnyavy/dotfiles/blob/main/omarchy-themes/scripts/omarchy-wallpaper-theme))
 
 ## Requirements
 
 Omarchy 4 (Quattro) with its shell. Tested on Omarchy 4.0.6 with Quickshell 0.3.2.
 
 - `python3` and `jq` (both ship with Omarchy).
-- Optional: `libvips` (thumbnails), `zenity` (colour/text/file dialogs), `lutgen` (Recolor), `matugen` (theme from a wallpaper), `ffmpeg` and `pipewire` (`pw-play`) for sounds, `uv` (builds the Dotify fonts). Each feature hides itself when its program is missing.
+- Optional: `libvips` (thumbnails), `zenity` (colour/text/file dialogs), `lutgen` (Recolor), `omarchy-wallpaper-theme` (theme from a wallpaper), `ffmpeg` and `pipewire` (`pw-play`) for sounds, `uv` (builds the Dotify fonts). Each feature hides itself when its program is missing.
 - Companion plugins are optional — see the table above.
 
 ## Uninstall
