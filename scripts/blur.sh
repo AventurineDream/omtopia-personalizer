@@ -10,8 +10,11 @@
 #   blur.sh set <name>       # apply a preset by name (used by the customizer)
 #   blur.sh preview <name>   # apply without saving or notifying (customizer hover); snapshots the pre-preview live values once
 #   blur.sh restore          # re-apply the saved preset silently (none saved: restore the pre-preview snapshot, else keep the live blur)
+#                              a saved name that is no longer in PRESETS also keeps the live blur (exit 0).
 #   blur.sh list             # "<name> <size> <passes> <vibrancy> <noise> <current 0/1>"
-#   blur.sh current          # name of the preset in use
+#   blur.sh current          # name of the preset in use; empty when none was applied
+#   blur.sh live             # "enabled size passes vibrancy noise" of the live blur; fails when the compositor cannot be read
+#   blur.sh set-live "<enabled size passes vibrancy noise>"  # restore exact live values with no preset in use (rollback snapshots)
 #
 # Bind it if you like, e.g. SUPER+ALT+U (next), SUPER+ALT+SHIFT+U (prev).
 set -euo pipefail
@@ -28,7 +31,7 @@ PRESETS=(
     "frosted 14  4 0.30 0.030"
     "liquid  12  3 0.45 0.008"
 )
-DEFAULT=medium
+DEFAULT=medium # what next/prev apply when no preset is in use; never reported as in use (see current)
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
 STATE="$STATE_DIR/blur"
@@ -51,10 +54,12 @@ lookup() { # $1 = name -> "size passes vibrancy noise", fails when unknown
     return 1
 }
 
+# Name of the saved preset, or nothing when none was applied. A fresh system is not "medium": the
+# lists, status and Home card must not mark a preset the compositor is not using.
 current() {
-    local c
+    local c=""
     { read -r c _ <"$STATE"; } 2>/dev/null || true
-    lookup "${c:-}" >/dev/null 2>&1 && echo "$c" || echo "$DEFAULT"
+    if lookup "$c" >/dev/null 2>&1; then echo "$c"; fi
 }
 
 notify() { # $1 = title, $2 = body
@@ -100,9 +105,20 @@ match_preset() { # $1..$5 = enabled(true/false) size passes vibrancy noise -> pr
     return 1
 }
 
-set_blur_raw() { # $1..$4 = size passes vibrancy noise; re-applies exact live values, no state write
-    local s="$1" p="$2" v="$3" n="$4"
-    hyprctl eval "hl.config({ decoration = { blur = { enabled = true, size = $((s > 0 ? s : 1)), passes = $p, vibrancy = $v, noise = $n } } })" >/dev/null
+set_blur_raw() { # $1..$5 = enabled size passes vibrancy noise; re-applies exact live values, no state write
+    local on="$1" s="$2" p="$3" v="$4" n="$5"
+    hyprctl eval "hl.config({ decoration = { blur = { enabled = $on, size = $((s > 0 ? s : 1)), passes = $p, vibrancy = $v, noise = $n } } })" >/dev/null
+}
+
+# Rollback of a snapshot taken while no preset was in use: re-applies the exact live values it recorded and
+# leaves no preset in use (the state file goes, so current and list mark none). Hyprland evals the value, so
+# only the five live fields, exactly, are accepted; anything else changes nothing.
+set_live() { # $1 = "enabled size passes vibrancy noise", as `live` prints it
+    local re='^(true|false) [0-9]+ [0-9]+ [0-9.]+ [0-9.]+$' on s p v n
+    [[ ${1:-} =~ $re ]] || { echo "blur.sh: not live blur values: ${1:-}" >&2; return 1; }
+    read -r on s p v n <<<"$1"
+    set_blur_raw "$on" "$s" "$p" "$v" "$n"
+    rm -f "$STATE" "$SNAPSHOT"
 }
 
 restore_live() {
@@ -125,7 +141,7 @@ restore_live() {
     if name="$(match_preset "$on" "$s" "$p" "$v" "$n")"; then
         set_blur "$name"
     else
-        set_blur_raw "$s" "$p" "$v" "$n"
+        set_blur_raw "$on" "$s" "$p" "$v" "$n"
     fi
 }
 
@@ -170,8 +186,11 @@ next) step 1 ;;
 prev) step -1 ;;
 set) apply "${2:?preset name}" ;;
 preview) preview "${2:?preset name}" ;;
-restore) if [[ -s $STATE ]]; then set_blur "$(current)"; else restore_live; fi ;;
+# A saved name that no longer exists (renamed or removed preset) keeps the live blur, not an exit 1.
+restore) if [[ -n $(current) ]]; then set_blur "$(current)"; else restore_live; fi ;;
 current) current ;;
+live) live_blur ;;
+set-live) set_live "${2:-}" ;;
 list)
     cur="$(current)"
     for p in "${PRESETS[@]}"; do
@@ -179,5 +198,5 @@ list)
         echo "$n $s $ps $v $no $([[ $n == "$cur" ]] && echo 1 || echo 0)"
     done
     ;;
-*) echo "usage: $0 [next|prev|set <name>|preview <name>|restore|list|current]" >&2; exit 1 ;;
+*) echo "usage: $0 [next|prev|set <name>|preview <name>|restore|list|current|live|set-live <values>]" >&2; exit 1 ;;
 esac

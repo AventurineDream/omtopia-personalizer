@@ -28,6 +28,36 @@ STUBS = ("notify-send", "omarchy", "hyprctl", "setsid", "gio", "zenity", "omarch
          "omarchy-hyprland-toggle", "omarchy-app-themes", "omarchy-firefox-chrome")
 SANDBOXES = []
 
+# Stateful hyprctl for the blur scenarios: @LIVE@ holds "enabled size passes vibrancy noise", as Hyprland's
+# decoration.blur does. getoption reads it; a `blur = {` eval rewrites it. Other calls are logged and ignored.
+BLUR_HYPRCTL = r"""#!/bin/sh
+printf '%s\n' "hyprctl $*" >> "@LOG@"
+live="@LIVE@"
+case "$1" in
+  getoption)
+    case "$2" in
+      decoration:blur:enabled) f=1; k=bool ;;
+      decoration:blur:size) f=2; k=int ;;
+      decoration:blur:passes) f=3; k=int ;;
+      decoration:blur:vibrancy) f=4; k=float ;;
+      decoration:blur:noise) f=5; k=float ;;
+      *) exit 0 ;;
+    esac
+    printf '{"option": "%s", "%s": %s}\n' "$2" "$k" "$(cut -d' ' -f$f "$live")"
+    ;;
+  eval)
+    case "$2" in *"blur = {"*) ;; *) exit 0 ;; esac
+    en=$(printf '%s\n' "$2" | sed -n -E 's/.*enabled = (true|false).*/\1/p')
+    s=$(printf '%s\n' "$2" | sed -n -E 's/.*size = ([0-9]+).*/\1/p')
+    p=$(printf '%s\n' "$2" | sed -n -E 's/.*passes = ([0-9]+).*/\1/p')
+    v=$(printf '%s\n' "$2" | sed -n -E 's/.*vibrancy = ([0-9.]+).*/\1/p')
+    n=$(printf '%s\n' "$2" | sed -n -E 's/.*noise = ([0-9.]+).*/\1/p')
+    echo "$en $s $p $v $n" >"$live"
+    ;;
+esac
+exit 0
+"""
+
 
 class Box:
     """One engine's sandbox: its own HOME, runtime and cache dirs, stubs, and a call log."""
@@ -85,6 +115,33 @@ class Box:
         except FileNotFoundError:
             return []
 
+    def use_blur_stub(self, live):
+        """Replace the hyprctl stub with the stateful blur one, holding `live` ("enabled size passes vibrancy noise")."""
+        self.live_path = os.path.join(self.base, "blur-live")
+        with open(self.live_path, "w") as f:
+            f.write(live + "\n")
+        with open(os.path.join(self.base, "stubs", "hyprctl"), "w") as f:
+            f.write(BLUR_HYPRCTL.replace("@LOG@", self.log).replace("@LIVE@", self.live_path))
+
+    def live_blur(self):
+        """The live blur values as the stateful stub holds them."""
+        with open(self.live_path) as f:
+            return f.read().strip()
+
+    def write_text(self, path, text):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def blur_in_use(self):
+        """Value of the `blur` line in status ("" when no blur preset is in use)."""
+        _rc, out = self.run("status")
+        for line in out.splitlines():
+            key, _, val = line.partition("\t")
+            if key == "blur":
+                return val
+        raise AssertionError(f"{self.engine}: no blur line in status:\n{out}")
+
     def run(self, *args):
         r = subprocess.run(ENGINES[self.engine] + list(args), env=self.env, capture_output=True, text=True)
         return r.returncode, r.stdout
@@ -109,6 +166,49 @@ class Box:
 
     def restore(self):
         return self.apply(os.path.join(self.state, "last-preset.json"))
+
+
+def scenario_blur_rollback_fresh(box):
+    """Fresh system, no blur preset in use: a preset with blur strong, then Restore previous setup.
+
+    The restore must put back the live 4x2 blur the desktop had, and name no blur preset: the snapshot
+    stores the live values, because a preset name would mark that preset in use after the restore.
+    """
+    box.use_blur_stub("true 4 2 0.00 0.000")
+    box.write_json(os.path.join(box.cfg, "customizer/preset-apply.json"), {"presetTheme": False})
+    strong = os.path.join(box.cfg, "customizer/presets/strong-blur.json")
+    box.write_json(strong, {"name": "Strong blur", "blur": "strong"})
+    obs = {"fresh_blur": box.blur_in_use()}
+    obs["apply_rc"] = box.apply(strong)
+    obs["just_applied_live"] = box.live_blur()
+    obs["just_applied_blur"] = box.blur_in_use()
+    with open(os.path.join(box.state, "last-preset.json"), encoding="utf-8") as f:
+        snap = json.load(f)
+    obs["snapshot_blur"] = snap.get("blur")
+    obs["snapshot_blur_live"] = snap.get("blurLive")
+    obs["restore_rc"] = box.restore()
+    obs["after_restore_live"] = box.live_blur()
+    obs["after_restore_blur"] = box.blur_in_use()
+    return obs
+
+
+def scenario_blur_rollback_named(box):
+    """Blur light in use by name, then a preset with blur strong: Restore previous setup names light again."""
+    box.use_blur_stub("true 3 2 0.10 0.010")
+    box.write_text(os.path.join(box.home, ".local/state/hypr/blur"), "light 3 2 0.10 0.010\n")
+    box.write_json(os.path.join(box.cfg, "customizer/preset-apply.json"), {"presetTheme": False})
+    strong = os.path.join(box.cfg, "customizer/presets/strong-blur.json")
+    box.write_json(strong, {"name": "Strong blur", "blur": "strong"})
+    obs = {"before_blur": box.blur_in_use()}
+    obs["apply_rc"] = box.apply(strong)
+    obs["just_applied_live"] = box.live_blur()
+    with open(os.path.join(box.state, "last-preset.json"), encoding="utf-8") as f:
+        snap = json.load(f)
+    obs["snapshot_blur"] = snap.get("blur")
+    obs["restore_rc"] = box.restore()
+    obs["after_restore_live"] = box.live_blur()
+    obs["after_restore_blur"] = box.blur_in_use()
+    return obs
 
 
 def scenario_restore_and_glob(box):
@@ -159,6 +259,16 @@ def scenario_theme(box):
 
 
 SCENARIOS = {
+    "blur_rollback_fresh": (scenario_blur_rollback_fresh, {
+        "fresh_blur": "", "apply_rc": 0, "just_applied_live": "true 10 4 0.20 0.015", "just_applied_blur": "strong",
+        "snapshot_blur": None, "snapshot_blur_live": "true 4 2 0.00 0.000",
+        "restore_rc": 0, "after_restore_live": "true 4 2 0.00 0.000", "after_restore_blur": "",
+    }),
+    "blur_rollback_named": (scenario_blur_rollback_named, {
+        "before_blur": "light", "apply_rc": 0, "just_applied_live": "true 10 4 0.20 0.015",
+        "snapshot_blur": "light", "restore_rc": 0,
+        "after_restore_live": "true 3 2 0.10 0.010", "after_restore_blur": "light",
+    }),
     "restore_and_glob": (scenario_restore_and_glob, {
         "fresh": "custom", "fresh_rows": [],
         "apply_rc": 0, "just_applied": "DOT-MATRIX", "just_applied_rows": ["DOT-MATRIX"],

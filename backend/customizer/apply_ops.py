@@ -311,7 +311,7 @@ def snapshot(out, title="", note=""):
                 anim = os.path.basename(f)[:-4]
                 break
     op = _current_or(state.OPACITY, "subtle")
-    bl = _current_or(state.BLUR, "medium")
+    bl = _current_or(state.BLUR, "")
     shader = state.current_shader()
     geom = None
     gfile = HYPR_STATE / "geometry"
@@ -357,9 +357,17 @@ def snapshot(out, title="", note=""):
     doc["theme"] = theme
     if style_id:
         doc["style"] = style_id
-    doc.update({"wallpaper": wp, "anims": anim, "blur": bl, "shader": shader, "hyprGeometry": geom})
-    if op:  # no preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: ")
-        doc["opacity"] = op
+    doc.update({"wallpaper": wp, "anims": anim, "shader": shader, "hyprGeometry": geom})
+    # No preset in use on a fresh system: store nothing rather than "" (the summary would print "opacity: " / "blur: ").
+    for k, v in (("opacity", op), ("blur", bl)):
+        if v:
+            doc[k] = v
+    # Automatic rollback with no blur preset in use keeps the exact live values (not a preset name, which would
+    # mark that preset in use after the restore). A restore re-applies them with `blur.sh set-live`.
+    if not bl and os.path.realpath(out) == os.path.realpath(state.LAST_PRESET):
+        code, live = sh([str(state.BLUR), "live"], quiet=False)
+        if code == 0 and live.strip():
+            doc["blurLive"] = live.strip()
     if win_geom:
         doc["windowsGeometry"] = win_geom
     doc.update({"barSkin": skin_name} if skin_name else {"barSkinData": skin_data})
@@ -490,8 +498,11 @@ def apply_form_sections(path, cfg, prefix, is_backup, mode, keep_look=False):
         if op:
             sh([str(state.OPACITY), "set", op])
         blr = jq_str(alt(d.get("blur"), ""))
+        blr_live = jq_str(alt(d.get("blurLive"), ""))
         if blr:
             sh([str(state.BLUR), "set", blr])
+        elif blr_live:
+            sh([str(state.BLUR), "set-live", blr_live])
     shader = jq_str(alt(d.get("shader"), "")) if on("Shader") else ""
     if shader == "off":
         sh([str(state.TOGGLE), "off"])
