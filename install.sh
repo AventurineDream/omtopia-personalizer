@@ -11,6 +11,8 @@
 set -euo pipefail
 
 BASE=https://github.com/KamradSmeshnyavy
+# This fork ships as Omtopia Personalizer; the upstream plugin of the same id is a different repo.
+CUSTOMIZER_URL=https://github.com/AventurineDream/omtopia-personalizer
 PLUGINS="$HOME/.config/omarchy/plugins"
 BINDINGS="$HOME/.config/hypr/bindings.lua"
 
@@ -25,39 +27,70 @@ COMPANIONS=(
 
 mode=ask
 with=""
+
+usage() { # the help text; a bad flag prints it to stderr and exits 2
+  cat <<'USAGE'
+usage: bash install.sh [--all | --with KEY[,KEY…] | --none]
+  (no flag)    the Customizer, then a question per companion plugin
+  --all        the Customizer and every companion plugin
+  --with LIST  the Customizer and the listed companions
+  --none       the Customizer only
+companions: bar (bar skins), lock (lock designs), fx (wallpaper transitions),
+            picker (image picker styles), launcher (launcher skins)
+USAGE
+}
+
 while (($#)); do
   case $1 in
   --all) mode=all ;;
   --none) mode=none ;;
-  --with) mode=with with=${2:?--with needs a list, e.g. bar,lock}; shift ;;
+  --with) mode=with with=${2-}; if (($# >= 2)); then shift; fi ;;
   --with=*) mode=with with=${1#--with=} ;;
-  -h | --help) sed -n '2,10p' "$0" 2>/dev/null || true; exit 0 ;;
-  *) echo "unknown option: $1" >&2; exit 1 ;;
+  -h | --help) usage; exit 0 ;;
+  *) usage >&2; echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
 
-command -v omarchy >/dev/null || { echo "Omarchy not found: this installs Omarchy shell plugins." >&2; exit 1; }
+# Split without globbing: a "*" in the list must reach the unknown-companion check, not the file names
+# in the current directory. Blanks around names are trimmed, so "bar, lock" works.
+wanted=()
+if [[ $mode == with ]]; then
+  IFS=, read -ra names <<<"$with"
+  for k in "${names[@]}"; do
+    k=${k//[[:space:]]/}
+    [[ -n $k ]] || continue
+    [[ " bar lock fx picker launcher " == *" $k "* ]] || { usage >&2; echo "unknown companion: $k" >&2; exit 2; }
+    wanted+=("$k")
+  done
+  ((${#wanted[@]})) || { usage >&2; echo "--with needs a list, e.g. --with bar,lock" >&2; exit 2; }
+fi
 
-add() { # repo id
+command -v omarchy >/dev/null || { echo "Omarchy not found: this installs Omarchy shell plugins." >&2; exit 1; }
+# With no terminal there is nobody to answer the questions: say so and install the Customizer alone,
+# instead of skipping each companion silently.
+if [[ $mode == ask ]] && ! { : </dev/tty; } 2>/dev/null; then
+  echo "• no terminal to ask on — installing the Customizer only; add companions with --all or --with bar,lock" >&2
+  mode=none
+fi
+
+add() { # url id: skips a plugin whose manifest is already in place
   if [[ -e $PLUGINS/$2/manifest.json ]]; then
     echo "• $2 is already installed — skipping (update it with: omarchy plugin update $2)"
     return
   fi
   echo "• adding $2 …"
-  omarchy plugin add "$BASE/$1" --enable --yes
+  omarchy plugin add "$1" --enable --yes
 }
 
 # Questions go to the terminal even when the script itself comes from a pipe.
 ask() { # prompt -> 0 for yes
   local reply=""
-  if [[ -r /dev/tty ]]; then
-    read -r -p "$1 [y/N] " reply </dev/tty || true
-  fi
+  read -r -p "$1 [y/N] " reply </dev/tty || true
   [[ $reply == [yY]* ]]
 }
 
-add omarchy-customizer kamradsmeshnyavy.customizer
+add "$CUSTOMIZER_URL" kamradsmeshnyavy.customizer
 
 # Fonts of the DOT-MATRIX (dot-matrix) style — Doto, Space Grotesk, Space Mono (SIL OFL 1.1).
 # Without them the DOT-MATRIX skins fall back to the Omarchy font.
@@ -72,9 +105,9 @@ fi
 for c in "${COMPANIONS[@]}"; do
   IFS='|' read -r key repo id what <<<"$c"
   case $mode in
-  all) add "$repo" "$id" ;;
-  with) [[ ",$with," == *",$key,"* ]] && add "$repo" "$id" ;;
-  ask) ask "Also install $repo — $what?" && add "$repo" "$id" ;;
+  all) add "$BASE/$repo" "$id" ;;
+  with) [[ " ${wanted[*]} " == *" $key "* ]] && add "$BASE/$repo" "$id" ;;
+  ask) ask "Also install $repo — $what?" && add "$BASE/$repo" "$id" ;;
   none) ;;
   esac
 done
@@ -82,7 +115,7 @@ done
 if [[ -f $BINDINGS ]] && ! grep -q "kamradsmeshnyavy.customizer" "$BINDINGS"; then
   cat >>"$BINDINGS" <<'BIND'
 
--- Omarchy Customizer (https://github.com/KamradSmeshnyavy/omarchy-customizer)
+-- Omtopia Personalizer (https://github.com/AventurineDream/omtopia-personalizer)
 o.bind("SUPER + SHIFT + T", "Omarchy Customizer", "omarchy-shell shell toggle kamradsmeshnyavy.customizer")
 BIND
   echo "• bound Super+Shift+T in $BINDINGS"
