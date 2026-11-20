@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- Surprise me (`r`) is shown, and its `r random` footer hint listed, only where `r` can pick a row: Windows, which lists only tweaks and «Reset window geometry», no longer shows the button or the hint for a key that did nothing. The button, the hint and the key share one eligibility check. The footer also lists `r` on Sounds, Lock, Wallpaper FX and Launcher when the button is shown there.
 - Surprise me (`r`) no longer picks one-off actions: Windows «Reset window geometry», Dock «Pin an app…», the «unpin» rows and Auto-hide, Shader «Reading mode» (the shader named `reading` shares its value and runs the same toggle, so it is excluded too), and Lock's «Capture missing previews» and the SDDM download and login rows. Surprise me on Sounds and Fonts was shown but did nothing; both now pick a random sound pack or font profile like the other choice lists.
 - The bar button's tooltip follows the Customizer's language: "— open" is translated in the Russian UI (it stayed English). The language is read again each time the overlay opens.
 - Widgets: the 24-hour clock row now changes the widgets config instead of the lock screen's `lock-design.json`. The key `clock24` is declared in both Lock Tweaks and Widgets; a key declared in more than one table is now listed and searched as `TABLE:key` (only from its second table on), and `customizer.sh tweak` resolves that form to its own table. The bare `clock24` still means the Lock Tweaks setting.

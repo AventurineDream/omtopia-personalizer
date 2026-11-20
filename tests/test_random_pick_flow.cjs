@@ -183,18 +183,75 @@ test('r on Sounds picks a sound pack, never a test event or the current pack', (
   assert.ok(picked.length > 0 && picked.every((v) => v.startsWith('pack:') && v !== 'pack:theme'), picked.join(' '));
 });
 
-test('Surprise me is shown exactly where r can pick', () => {
-  const qml = fs.readFileSync(path.join(PLUGIN, 'Customizer.qml'), 'utf8');
-  const refusal = /function randomPick\(\) \{\n\s*if \(([^)]*)\) return/.exec(qml);
-  assert.ok(refusal, 'randomPick refusal line');
-  const refused = [...refusal[1].matchAll(/root\.category\.key === "([^"]+)"/g)].map((m) => m[1]);
-  // The button's visible: is the last one before its row (the Rectangle that wraps it).
-  const head = qml.slice(0, qml.indexOf('id: randomRow'));
-  const visible = [...head.matchAll(/visible: ([^\n]*)/g)].pop()[1];
-  const hidden = [...visible.matchAll(/root\.category\.key !== "([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(visible.includes('presetStage') && visible.includes('category.tweak'), 'button hides stage and tweak categories');
-  for (const key of refused) {
-    const stage = new RegExp(`key: "${key}",[^}]*presetStage: true`).test(qml);
-    assert.ok(hidden.includes(key) || stage, `${key}: r refuses it but Surprise me is shown`);
+// The Surprise me button is shown iff canRandomPick says r has a row to pick; both run the same
+// candidate rule on the same displayed rows, so the button and the key cannot disagree.
+function shown(category, rows, selected) {
+  return flow.canRandomPick(candidates.isCandidate, category, rows, selected);
+}
+
+test('Surprise me hidden on Windows: the list is only tweak rows and the geometry reset', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'windows'));
+  assert.ok(rows.some((r) => r.value === 'geometry-reset'), 'reset row listed');
+  assert.ok(rows.every((r) => r.value.startsWith('section:') || r.value.startsWith('tweak:') || r.value === 'geometry-reset'),
+    rows.map((r) => r.value).join(' '));
+  assert.equal(shown('windows', rows, -1), false);
+  assert.equal(flow.decideRandomPick(candidates.isCandidate, 'windows', rows, -1, 0), null);
+});
+
+test('Surprise me shown on Dock: a dock edge can be picked, action rows alone cannot', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'dock'));
+  assert.equal(shown('dock', rows, -1), true);
+  const actionsOnly = rows.filter((r) => !r.value.startsWith('pos:'));
+  assert.ok(actionsOnly.length > 0 && actionsOnly.length < rows.length, 'list has both kinds');
+  assert.equal(shown('dock', actionsOnly, -1), false);
+});
+
+test('Surprise me shown on Sounds when a pack other than the current one exists', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'sounds'));
+  assert.equal(shown('sounds', rows, -1), true);
+});
+
+test('Surprise me hidden when the list is empty', () => {
+  assert.equal(shown('dock', [], -1), false);
+  assert.equal(shown('sounds', flow.parseRows(''), -1), false);
+});
+
+test('Surprise me hidden when the only eligible row is current or highlighted', () => {
+  const row = (value, current) => ({ label: value, value, current });
+  const rows = [row('pos:top', false), row('pos:bottom', true)];
+  assert.equal(shown('dock', rows, -1), true, 'pos:top is eligible');
+  assert.equal(shown('dock', rows, 0), false, 'highlighting pos:top leaves only the current row');
+  assert.equal(shown('dock', [row('pos:bottom', true)], -1), false, 'only the current row');
+});
+
+test('the button rule and the key agree for every highlight position', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'dock'));
+  for (let s = -1; s < rows.length; s++) {
+    const pick = flow.decideRandomPick(candidates.isCandidate, 'dock', rows, s, 0.5);
+    assert.equal(shown('dock', rows, s), pick !== null, `selected ${s}`);
   }
+});
+
+// The footer's r hint and the Surprise me button both ask randomAvailable (category refusal, then the row
+// rule), so these checks cover the hint's decision on the real backend rows.
+function gate(category, tweak, rows, selected = -1) {
+  return flow.randomAvailable(candidates.isCandidate, category, tweak, rows, selected);
+}
+
+test('r hint hidden on Windows, where every row is a tweak or the geometry reset', () => {
+  const rows = flow.parseRows(listRows(sandbox(null), 'windows'));
+  assert.equal(gate('windows', false, rows), false);
+});
+
+test('r hint shown on Dock and Sounds, where a candidate row exists', () => {
+  assert.equal(gate('dock', false, flow.parseRows(listRows(sandbox(null), 'dock'))), true);
+  assert.equal(gate('sounds', false, flow.parseRows(listRows(sandbox(null), 'sounds'))), true);
+});
+
+test('r hint hidden in refused categories and tweak categories, even with candidate rows', () => {
+  const dock = flow.parseRows(listRows(sandbox(null), 'dock'));
+  for (const category of ['walls', 'dotify', 'presets', 'styles', 'glyph']) {
+    assert.equal(gate(category, false, dock), false, category);
+  }
+  assert.equal(gate('dock', true, dock), false, 'tweak category');
 });

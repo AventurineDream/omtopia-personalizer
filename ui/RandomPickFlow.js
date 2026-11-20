@@ -66,6 +66,24 @@ function decideRandomPick(isCandidate, categoryKey, rows, selectedIndex, rand) {
   return { index: i, value: rows[i].value }
 }
 
+// Whether `r` would pick a row over the same rows: the Surprise me button is shown only then, so the
+// button and the key cannot disagree. Same candidate rule as decideRandomPick; nothing is chosen here.
+function canRandomPick(isCandidate, categoryKey, rows, selectedIndex) {
+  return candidateIndexes(isCandidate, categoryKey, rows, selectedIndex).length > 0
+}
+
+// Categories where `r` never picks, whatever the rows: the image grids with their own keys (walls,
+// dotify), the preset and style stage, and the glyph test sweep. Tweak categories are refused by flag.
+var REFUSED_CATEGORY = { walls: true, dotify: true, presets: true, styles: true, glyph: true }
+
+// Whether `r` can act on the displayed rows: the category refusal randomPick applies first, then the
+// row rule. The Surprise me button, the footer's r hint and randomPick all call this one function, so
+// they cannot disagree. Returns false for a refused category even when its rows hold candidates.
+function randomAvailable(isCandidate, categoryKey, tweak, rows, selectedIndex) {
+  if (tweak === true || REFUSED_CATEGORY[categoryKey] === true) return false
+  return canRandomPick(isCandidate, categoryKey, rows, selectedIndex)
+}
+
 // The only external command a successful pick produces. The caller executes it:
 // Quickshell in the shell, a recording stub in tests.
 function applyCommand(scriptPath, categoryKey, value) {
