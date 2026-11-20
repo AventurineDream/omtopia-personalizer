@@ -5,7 +5,7 @@
 
 The overlay passes strings through tr() / localized() from these places; each is
 extracted from the QML source:
-  - tr("…") and tr(cond ? "…" : "…") calls in Customizer.qml, ui/, previews/, dotmatrix/, BarMock.qml;
+  - tr("…") and tr(cond ? "…" : "…") calls in Customizer.qml, BarWidget.qml, ui/, previews/, dotmatrix/, BarMock.qml;
   - title / hint of allCategories, allGroups and allStatusChips (localized());
   - the label (second item) of [keys, label] pairs in keyHints() and the Keys dialog;
   - widget box titles (defs) and font roles, which reach tr(modelData.…).
@@ -140,7 +140,7 @@ def extract():
         for s in strings:
             found.setdefault(s, set()).add(source)
 
-    qml_files = [CUSTOMIZER, os.path.join(PLUGIN, "BarMock.qml")] + sorted(glob.glob(os.path.join(PLUGIN, "ui", "*.qml"))
+    qml_files = [CUSTOMIZER, os.path.join(PLUGIN, "BarWidget.qml"), os.path.join(PLUGIN, "BarMock.qml")] + sorted(glob.glob(os.path.join(PLUGIN, "ui", "*.qml"))
                                       + glob.glob(os.path.join(PLUGIN, "previews", "*.qml"))
                                       + glob.glob(os.path.join(PLUGIN, "dotmatrix", "*.qml")))
     for path in qml_files:
@@ -189,6 +189,7 @@ EXPECTED_SOURCES = {
     "settings: type a value": "Keys dialog",
     "Now playing": "widget defs",
     "Titles": "font roles",
+    "Omtopia Personalizer — open": "tr() in BarWidget.qml",
 }
 
 
