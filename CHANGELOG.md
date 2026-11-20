@@ -43,3 +43,6 @@
 - Presets saved on a fresh system no longer store an empty opacity; `opacity.sh restore` with a saved name that no longer exists keeps the live values instead of exiting 1.
 - Theme Switcher rows whose value equals the sentinel (0 / -1, "from the style / theme") show the default's words, not a bare number or a stray change mark.
 - Dock pinned rows resolve app names from desktop files in $XDG_DATA_HOME and $XDG_DATA_DIRS, not only the fixed directories.
+- Bar Widgets no longer lists the Tray collapse and monochrome settings: no installed plugin provides them, so they never took effect.
+- Unexpected errors in a Customizer step now show as a toast with the error text; before, the step failed silently.
+- DOT-MATRIX style names the current widget ids (`omarchy.tray`, `omarchy.agents`, `omarchy.monitor`, `omarchy.network`, `omarchy.bluetooth`, `omarchy.audio`), so applying it puts the tray and the panels on the bar instead of adding widgets nobody draws.

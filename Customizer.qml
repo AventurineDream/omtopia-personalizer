@@ -1131,8 +1131,8 @@ Item {
     return row !== null && !root.isHeader(row) && (root.category.tweak === true || /^tweak:/.test(row.value))
   }
   function tweakKey(row) { return String(row.value).replace(/^tweak:/, "") }
-  // Widget rows: w:<id> (bar widget on or off the bar) and wset:<id>:<key> (its inline setting).
-  function isWidgetKey(key) { return /^(w|wset):/.test(key) }
+  // Widget rows: w:<id> (bar widget on or off the bar).
+  function isWidgetKey(key) { return /^w:/.test(key) }
 
   function clickSelect(index) {
     root.pane = 1
@@ -1840,7 +1840,11 @@ Item {
     host: root
     property string key: ""
     property string category: ""
-    onExited: root.tweakDone()
+    // A failed step says why on stderr; show that text as a toast, as for a refused write.
+    onExited: function(code) {
+      if (code !== 0 && tweaker.err.trim()) root.showToast(tweaker.err.trim())
+      root.tweakDone()
+    }
   }
 
   BackendJob {

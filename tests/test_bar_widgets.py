@@ -343,8 +343,8 @@ def main():
               "root.isWidgetKey(key) ||" in qml)
         check("QML: matches w:<id> (drawer, absent and on-bar rows)",
               pattern is not None and bool(re.search(pattern, "w:omarchy.weather")))
-        check("QML: still matches wset:<id>:<key> rows",
-              pattern is not None and bool(re.search(pattern, "wset:kamradsmeshnyavy.tray:collapse")))
+        check("QML: wset:<id>:<key> rows are not widget rows (tray settings removed)",
+              pattern is not None and not re.search(pattern, "wset:kamradsmeshnyavy.tray:collapse"))
         check("QML: other tweak rows are not widget rows",
               pattern is not None and not any(re.search(pattern, k) for k in ("fontProfile", "shape", "wallpaper")))
     finally:
