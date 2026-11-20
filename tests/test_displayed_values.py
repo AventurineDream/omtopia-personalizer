@@ -284,7 +284,7 @@ def main():
     fresh_sh = status_fields(legacy(env, "status")[1])
     check("5 fresh system: bash status names no transparency or blur preset",
           fresh_sh.get("opacity") == "" and fresh_sh.get("blur") == "")
-    # The preview stage (Home card, Transparency) draws status blur-values; with no preset in use it must be
+    # The Transparency preview stage draws status blur-values; with no preset in use it must be
     # the blur Hyprland runs, not empty (which drew no blur at all). Hyprland's stock 4 × 2 here, then off.
     for opt, obj in (("decoration:blur:enabled", {"bool": True, "set": True}),
                      ("decoration:blur:size", {"int": 4, "set": True}),
