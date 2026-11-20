@@ -223,10 +223,20 @@ def owe_after():
     _quiet(["owe", "reload-config"])
 
 
-def reading_after():
-    """После шага по ключам reading*: если режим чтения включён — перепечь шейдер и перезагрузить Hyprland."""
+def reading_after(name=""):
+    """После шага по ключам reading*: если режим чтения включён — применить сразу.
+
+    readingTheme и readingBrightness: `reading-mode.sh live` — только тема и яркость, шейдер не трогаем.
+    Остальные ключи: `restore` — перепечь шейдер и перезагрузить Hyprland (apply_look). Тему через restore не
+    применяем: restore сам перезагружает Hyprland, и смена темы тоже — получился бы цикл. Перезагрузка конфига
+    не доходит до подкоманды `reading-mode.sh restore`: customizer.sh restore запускает `reading-mode.sh look`.
+    """
     from . import state
-    if (state.STATE_HYPR / "reading-mode").is_file():
+    if not (state.STATE_HYPR / "reading-mode").is_file():
+        return
+    if name in ("readingTheme", "readingBrightness"):
+        _quiet([str(state.READING), "live"])
+    else:
         _quiet([str(state.READING), "restore"])
 
 
@@ -555,7 +565,7 @@ def run(args):
     if name.startswith("window"):
         window_after()
     elif name.startswith("reading"):
-        reading_after()
+        reading_after(name)
     elif name.startswith("owe"):
         owe_after()
     return code, "", err

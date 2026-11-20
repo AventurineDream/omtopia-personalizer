@@ -1339,7 +1339,7 @@ def apply(category, value, opts=None):
     elif category == "shaders":
         if value.startswith("tweak:"):
             tweak_pick(value)
-            tweak_ops.reading_after()
+            tweak_ops.reading_after(value[len("tweak:"):])
         elif value == "reading":
             out = sh([str(state.READING)], quiet=False)[1]
         elif not value.startswith("section:"):
