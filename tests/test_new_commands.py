@@ -325,6 +325,61 @@ def main():
     run(wenv, "restore")
     check("issue #15: restore with no geometry keys emits no hl.config eval",
           not any(c.startswith("hyprctl eval hl.config") for c in calls(log)[n:]))
+    # 5) Углы окон без геометрии: restore повторяет power и правило из хука (без хука тоже).
+    json.dump({"windowRounding": "float", "windowRadius": 12, "windowRoundingPower": 3}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: restore re-applies rounding power and the float rule without the hook",
+          any("rounding_power = 3" in c for c in evs)
+          and any("hl.window_rule({ match = { float = true }, rounding = 12 })" in c for c in evs))
+    check("window corners: restore disables the rule it registered before",
+          any("pcall(CUSTOMIZER_CORNER_RULE.set_enabled" in c for c in evs))
+    # Explicit float mode, no radius saved: the rule takes the settings default 16, not Hyprland's global rounding.
+    json.dump({"windowRounding": "float"}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: explicit float mode with no radius takes the settings default 16",
+          any("hl.window_rule({ match = { float = true }, rounding = 16 })" in c for c in evs))
+    # 6) mode off: ни power, ни правила.
+    json.dump({"windowRounding": "off", "windowRadius": 12, "windowRoundingPower": 3}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: mode off applies neither rounding power nor a rule",
+          not any("rounding_power" in c or "hl.window_rule" in c for c in evs))
+    # 7) Только power: применяется сохранённое; правила без mode нет.
+    json.dump({"windowRoundingPower": 3}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: a saved power applies alone; no rule without a mode",
+          any("rounding_power = 3" in c for c in evs) and not any("hl.window_rule" in c for c in evs))
+    # 8) A radius with no mode is a float rule, as the hook has always read it; with no power saved,
+    # no power is emitted (no 2.5 default).
+    json.dump({"windowRadius": 12}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: a radius with no mode is a float rule (saved radius still applies)",
+          any("hl.window_rule({ match = { float = true }, rounding = 12 })" in c for c in evs)
+          and not any("rounding_power" in c for c in evs))
+    # 9) No corner key saved: no power and no rule, so Hyprland's live corners stay.
+    json.dump({"windowGapsIn": 6}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: no corner keys saved → no rounding power and no rule",
+          not any("rounding_power" in c or "hl.window_rule" in c for c in evs))
+    # 10) mode all with a radius and a power: the class rule and the saved power.
+    json.dump({"windowRounding": "all", "windowRadius": 8, "windowRoundingPower": 2.5}, open(wincfg, "w"))
+    n = len(calls(log))
+    run(wenv, "restore")
+    evs = [c for c in calls(log)[n:] if c.startswith("hyprctl eval")]
+    check("window corners: mode all → class rule with the saved radius, and the saved power",
+          any('hl.window_rule({ match = { class = ".*" }, rounding = 8 })' in c for c in evs)
+          and any("rounding_power = 2.5" in c for c in evs))
 
     if fails:
         print(f"FAIL; песочница сохранена: {base}")

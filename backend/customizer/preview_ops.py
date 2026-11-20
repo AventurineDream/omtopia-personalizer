@@ -282,12 +282,34 @@ def window_overrides_lua():
         if n("windowShadowRange") is not None:
             sh_parts.append("range = " + n("windowShadowRange"))
         deco.append("shadow = { " + ", ".join(sh_parts) + " }")
-    # Iolite nit (PR #16): windows.json без ключей геометрии — пустой eval
-    # не нужен; restore() уже пропускает None (см. `if lua:`).
-    if not g_parts and not deco:
+    # Window corners: the keys and rules of the Window corners block in hypr/customizer.lua. Only the keys
+    # windows.json has are applied (no defaults): the power unless the mode is "off"; a rule only for
+    # "float" / "all" with a radius. A radius with no mode means "float", as the hook has always read it;
+    # dropping that rule would silently change a saved radius.
+    mode = d.get("windowRounding")
+    power, radius = n("windowRoundingPower"), n("windowRadius")
+    if mode is None and radius is not None:
+        mode = "float"
+    if power is not None and mode != "off":
+        deco.append("rounding_power = " + power)
+    rules = []
+    # A float/all mode with no radius takes 16, the settings default, as the hook always did. No mode and no radius
+    # means no rule: the window keeps Hyprland's global rounding.
+    if mode in ("float", "all"):
+        if radius is None:
+            radius = "16"
+        match = "{ class = \".*\" }" if mode == "all" else "{ float = true }"
+        # hl.window_rule keeps every rule enabled, and a rule with the same name does not replace an earlier one (probed
+        # in a box). The handle lives in a global, so each restore disables the rule it registered before and never stacks.
+        rules.append("if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end "
+                     "CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = " + match + ", rounding = " + radius + " })")
+    # Iolite nit (PR #16): windows.json без ключей геометрии и углов — пустой eval не нужен;
+    # restore() уже пропускает None (см. `if lua:`).
+    if not g_parts and not deco and not rules:
         return None
-    return ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
-            "decoration = { " + ", ".join(deco) + " } })")
+    lua = ("hl.config({ general = { " + ", ".join(g_parts) + " }, "
+           "decoration = { " + ", ".join(deco) + " } })") if g_parts or deco else ""
+    return " ".join(part for part in [lua, *rules] if part)
 
 
 def restore():

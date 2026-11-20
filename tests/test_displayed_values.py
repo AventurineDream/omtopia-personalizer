@@ -123,6 +123,7 @@ LIVE = {
     "decoration:dim_inactive": {"bool": False, "set": False},
     "decoration:dim_strength": {"float": 0.5, "set": False},
     "general:layout": {"str": "master", "set": True},
+    "decoration:rounding_power": {"float": 2.0, "set": False},
 }
 
 
@@ -156,6 +157,12 @@ def main():
           and row(env, "windows", "tweak:windowDimStrength")[8] == "0.5")
     check("1 layout: string option → live master", row(env, "windows", "tweak:windowLayout")[8] == "master")
     check("1 no-gaps: no flag file → false", row(env, "windows", "tweak:windowNoGaps")[8] == "false")
+    rp = row(env, "windows", "tweak:windowRoundingPower")
+    check("1 corner power: absent key shows the live rounding_power 2, not settings' 2.5",
+          rp is not None and rp[8] == "2" and rp[5] == "default: 2")
+    rad = row(env, "windows", "tweak:windowRadius")
+    check("1 corner radius: absent key shows the global rounding it falls back to (live 0), not settings' 16",
+          rad is not None and rad[8] == "0" and rad[5] == "default: 0")
 
     # A step from an absent key starts from the live value: 5 → 6, and the enum from master → dwindle.
     backend(env, "tweak", "windowGapsIn", "+")
@@ -203,6 +210,17 @@ def main():
     os.unlink(win_json)
     gin = row(env, "windows", "tweak:windowGapsIn")
     check("3 key absent: not marked, default is the live value", not gin[0].startswith("●") and gin[5] == "default: 5")
+    write(win_json, json.dumps({"windowRoundingPower": 3}))
+    rp = row(env, "windows", "tweak:windowRoundingPower")
+    check("3 corner power set to 3 (live 2): marked, default named as the Hyprland config, shows 3",
+          rp[0].startswith("●  ") and rp[5] == "default: Hyprland config" and rp[8] == "3")
+    os.unlink(win_json)
+    # An explicit float mode with no radius gives the rule its settings default 16 (not the global rounding), so the row shows it.
+    write(win_json, json.dumps({"windowRounding": "float"}))
+    rad = row(env, "windows", "tweak:windowRadius")
+    check("3 float mode, radius absent: not marked, default 16 (the rule's radius), not live rounding",
+          not rad[0].startswith("●") and rad[8] == "16" and rad[5] == "default: 16")
+    os.unlink(win_json)
 
     # ── 4. windowNoGaps reads the flag; «Reset window geometry» keeps the toggle and the rows agree ──
     write(win_json, json.dumps({"windowNoGaps": True, "windowGapsOut": 12}))

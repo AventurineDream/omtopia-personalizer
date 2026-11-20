@@ -137,22 +137,34 @@ end
 -- A window rule, not decoration.rounding: rules beat the global value and Omarchy's "no gaps"
 -- toggle, and tiled windows can stay square so the grid stays seamless (the bar's screen frame
 -- already rounds their outer corners). "float" = floating and popped windows, "all", "off".
+-- Only the keys windows.json has are applied, with no defaults: a user who saved nothing keeps
+-- Hyprland's own corners. The power applies unless the mode is "off". A rule needs a radius; a radius
+-- with no mode is "float", as it always was: a saved radius must not stop working.
 do
 	local f = io.open(home .. "/.config/omarchy/customizer/windows.json", "r")
 	local json = f and f:read("*a") or ""
 	if f then
 		f:close()
 	end
-	local mode = json:match('"windowRounding"%s*:%s*"(%a+)"') or "float"
-	local radius = tonumber(json:match('"windowRadius"%s*:%s*([%d.]+)')) or 16
-	local power = tonumber(json:match('"windowRoundingPower"%s*:%s*([%d.]+)')) or 2.5
-	if mode ~= "off" then
+	local mode = json:match('"windowRounding"%s*:%s*"(%a+)"')
+	local radius = tonumber(json:match('"windowRadius"%s*:%s*([%d.]+)'))
+	if mode == nil and radius ~= nil then
+		mode = "float"
+	end
+	if (mode == "float" or mode == "all") and radius == nil then
+		radius = 16
+	end
+	local power = tonumber(json:match('"windowRoundingPower"%s*:%s*([%d.]+)'))
+	if power ~= nil and mode ~= "off" then
 		hl.config({ decoration = { rounding_power = power } })
-		if mode == "all" then
-			hl.window_rule({ match = { class = ".*" }, rounding = radius })
-		else
-			hl.window_rule({ match = { float = true }, rounding = radius })
-		end
+	end
+	-- restore() in preview_ops.py disables the handle it kept in CUSTOMIZER_CORNER_RULE before it registers its own,
+	-- so this rule and the restored one never stack: both places use the same global.
+	if CUSTOMIZER_CORNER_RULE then pcall(CUSTOMIZER_CORNER_RULE.set_enabled, CUSTOMIZER_CORNER_RULE, false) end
+	if radius ~= nil and mode == "all" then
+		CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = { class = ".*" }, rounding = radius })
+	elseif radius ~= nil and mode == "float" then
+		CUSTOMIZER_CORNER_RULE = hl.window_rule({ match = { float = true }, rounding = radius })
 	end
 end
 
