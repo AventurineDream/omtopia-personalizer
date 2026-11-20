@@ -5,6 +5,8 @@ import re
 import shutil
 import subprocess
 
+from .i18n import t
+
 try:
     locale.setlocale(locale.LC_COLLATE, "")
 except locale.Error:
@@ -120,6 +122,22 @@ def run(args, stdin=None) -> str:
 
 def which(name) -> bool:
     return shutil.which(name) is not None
+
+
+class NotInstalled(Exception):
+    """A program the command needs is not installed. The command fails with exit 1 and str(e) as its
+    message: the overlay must say why nothing happened, not close silently."""
+
+
+def zenity(args):
+    """Answer of a zenity dialog: stdout without trailing newlines, or None when the user cancelled
+    (non-zero exit). A missing zenity raises NotInstalled: treating it as a cancel would look like
+    the dialog was dismissed."""
+    try:
+        p = subprocess.run(["zenity", *args], capture_output=True, text=True)
+    except OSError as e:
+        raise NotInstalled(t("%s is not installed", "zenity")) from e
+    return p.stdout.rstrip("\n") if p.returncode == 0 else None
 
 
 def tsv_escape(s: str) -> str:

@@ -16,6 +16,16 @@ Rectangle {
   property var palette: []
   signal activated()
   signal hoverAt(point p)
+  // Save rows (💾) in Customizer.qml: while editing, ⏎ on the row opens a name field in it, like SettingCard's
+  // i editor. Enter calls submit, Esc calls cancel, typing calls edited(text) with the whole draft; focusSeq hands
+  // the keyboard back to the field after a footer confirm.
+  property bool editing: false
+  property string editText: ""   // the draft: a field built again mid-edit starts from it
+  property string editError: ""
+  property int focusSeq: 0
+  signal submit(string text)
+  signal cancel()
+  signal edited(string text)
 
   implicitHeight: Math.max(Style.space(58), textCol.implicitHeight + Style.space(22))
   radius: t.rCard
@@ -23,6 +33,15 @@ Rectangle {
   border.width: selected ? (focused ? Style.space(2) : 1) : (t.dot ? 1 : 0)
   border.color: selected ? Util.alpha(t.primary, focused ? 0.9 : 0.4) : t.outline
   Behavior on color { ColorAnimation { duration: row.t.ms(120) } }
+  // The name field takes the draft and the keyboard as soon as it is shown (onVisibleChanged below): a key typed
+  // before a deferred focus reached the key catcher in Customizer.qml.
+  function beginEdit() {
+    nameInput.text = row.editText
+    nameInput.selectAll()
+    nameInput.forceActiveFocus()
+  }
+  Component.onCompleted: if (editing) beginEdit()
+  onFocusSeqChanged: if (editing) nameInput.forceActiveFocus()
 
   Rectangle {
     id: badge
@@ -73,6 +92,44 @@ Rectangle {
       font.family: row.t.fontFamily
       font.pixelSize: Style.font.bodySmall
     }
+
+    // Name field of a save row: Enter saves, Esc cancels; the error (or the hint) stays under it.
+    Rectangle {
+      visible: row.editing
+      onVisibleChanged: if (visible) row.beginEdit()
+      width: parent.width
+      height: visible ? nameInput.implicitHeight + Style.space(14) : 0
+      radius: row.t.rSmall
+      color: row.t.surfaceLow
+      border.width: 1
+      border.color: row.editError ? Color.urgent : row.t.primary
+      TextInput {
+        id: nameInput
+        anchors.fill: parent
+        anchors.margins: Style.space(7)
+        verticalAlignment: TextInput.AlignVCenter
+        color: row.t.foreground
+        selectionColor: Util.alpha(row.t.primary, 0.4)
+        font.family: row.t.fontFamily
+        font.pixelSize: Style.font.body
+        selectByMouse: true
+        clip: true
+        onTextEdited: row.edited(text)
+        Keys.onReturnPressed: row.submit(text)
+        Keys.onEnterPressed: row.submit(text)
+        Keys.onEscapePressed: row.cancel()
+      }
+    }
+    Text {
+      visible: row.editing
+      width: parent.width
+      wrapMode: Text.Wrap
+      textFormat: Text.PlainText
+      text: row.editError ? "⚠ " + row.editError : row.t.tr("Enter — save · Esc — cancel")
+      color: row.editError ? Color.urgent : row.t.muted
+      font.family: row.t.fontFamily
+      font.pixelSize: Style.font.caption
+    }
     Row {
       visible: row.palette.length > 0
       spacing: Style.space(3)
@@ -113,9 +170,11 @@ Rectangle {
   MouseArea {
     id: hover
     anchors.fill: parent
+    // Below the labels and the name field, so they take clicks first; the row itself still gets the rest.
+    z: -1
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onClicked: row.activated()
+    onClicked: if (!row.editing) row.activated()
     onPositionChanged: function(mouse) { row.hoverAt(mapToItem(null, mouse.x, mouse.y)) }
   }
 }
