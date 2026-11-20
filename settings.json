@@ -827,7 +827,7 @@
         {
           "key": "clockStyle",
           "type": "enum",
-          "values": ["big", "stacked", "terminal", "minimal"],
+          "values": ["big", "stacked", "terminal", "minimal", "vitreus", "yami", "bruteon"],
           "label": "Clock: style"
         },
         {
@@ -1047,7 +1047,7 @@
         {
           "key": "osdStyle",
           "type": "enum",
-          "values": ["edge", "dotmatrix", "stock"],
+          "values": ["edge", "dotmatrix", "stock", "space", "crt", "modern"],
           "label": "OSD: style (edge — slides out of the screen edge / frame)"
         },
         {
@@ -1182,7 +1182,7 @@
         {
           "key": "notifyCards",
           "type": "enum",
-          "values": ["flat", "bordered", "dotmatrix"],
+          "values": ["flat", "bordered", "dotmatrix", "rumda", "nier", "space", "crt", "modern"],
           "label": "Cards"
         },
         {
@@ -1266,7 +1266,7 @@
         {
           "key": "dashStyle",
           "type": "enum",
-          "values": ["default", "dotmatrix"],
+          "values": ["default", "dotmatrix", "vitreus", "pencils", "rumda", "surface", "bruteon", "unit3", "yami", "cozytile", "glyph", "space", "crt", "modern"],
           "label": "Dashboard: style"
         },
         {

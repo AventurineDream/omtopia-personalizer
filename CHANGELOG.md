@@ -18,6 +18,8 @@
 - `install.sh --with` no longer expands a `*` in the list against the files of the current directory (it is rejected as an unknown companion), and accepts blanks around names such as `bar, lock`.
 - The README's Uninstall section lists the config and state paths the Customizer writes: the Omarchy shell files it changes, `~/.config/owe/config.toml`, the reading-mode and window-geometry state, the thumbnail cache and the SDDM themes it downloads.
 - The README no longer lists `matugen` for the «🎨 Theme from wallpaper» rows: they need only `omarchy-wallpaper-theme` on `PATH` (the script runs `omarchy-rice-dynamic` and does not call matugen). The row text and the failure message no longer name matugen.
+- Offer every style the companion plugins accept in the Clock, OSD, Notification cards and Dashboard style rows; the rows listed only some of them, so the rest could not be picked.
+- The Clock, OSD, Notification cards and Dashboard style rows now list the style values the companion plugins branch on or document, so the rest can be picked. Before, the rows listed only some of them.
 - Keep Wallpaper FX random selection away from one-off actions such as model installation.
 - Format the Home-page date using the Customizer's selected language.
 - Bar Widgets: «Add to bar» works again. ⏎ and the button sent the wrong key for widget rows (the Customizer.qml regex matched `wset:` rows only), so an absent widget was never added.
