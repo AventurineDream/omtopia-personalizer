@@ -92,6 +92,7 @@ Item {
       bar: sp.bar
       palette: sp.palette
       screenWidth: sp.screenWidth
+      t: sp.t
     }
   }
 

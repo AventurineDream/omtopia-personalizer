@@ -115,6 +115,11 @@ Item {
   property var i18n: ({})
   property var available: null       // null — ещё не знаем: показываем всё
   function tr(s) { return root.i18n[s] !== undefined ? root.i18n[s] : s }
+  // Значение чипа превью: из выбранного ряда, если открыта эта категория, иначе из статуса. Переводится; пусто — «—».
+  function stageValue(key) {
+    var v = root.category.key === key && root.selectedRow ? root.selectedRow.value : root.status[key]
+    return v ? root.tr(String(v)) : "—"
+  }
   function localized(item) {
     var out = Object.assign({}, item)
     if (item.title !== undefined) out.title = root.tr(item.title)
@@ -2703,7 +2708,7 @@ Item {
                           }
                         }
                         Text {
-                          text: (mockWindow.isActive ? "active" : "inactive") + "  " + mockWindow.level.toFixed(2)
+                          text: root.tr(mockWindow.isActive ? "active" : "inactive") + "  " + mockWindow.level.toFixed(2)
                           color: Color.foreground
                           font.family: root.fontFamily
                           font.pixelSize: Style.font.heading
@@ -2729,8 +2734,8 @@ Item {
                     anchors.bottom: parent.bottom
                     anchors.margins: Style.space(12)
                     tone: Color.foreground
-                    label: "opacity " + (root.category.key === "opacity" && root.selectedRow ? root.selectedRow.value : root.status.opacity || "—")
-                      + "  ·  blur " + (root.category.key === "blur" && root.selectedRow ? root.selectedRow.value : root.status.blur || "—")
+                    label: root.tr("opacity") + " " + root.stageValue("opacity")
+                      + "  ·  " + root.tr("blur") + " " + root.stageValue("blur")
                   }
                 }
 
@@ -2800,6 +2805,7 @@ Item {
                         skin: root.mockSkin()
                         bar: barStage.bar
                         palette: root.themePalette
+                        t: root
                         screenWidth: barCanvas.sw
                       }
                     }

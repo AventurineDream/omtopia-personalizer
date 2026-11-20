@@ -5,7 +5,7 @@
 
 The overlay passes strings through tr() / localized() from these places; each is
 extracted from the QML source:
-  - tr("…") and tr(cond ? "…" : "…") calls in Customizer.qml, ui/, previews/, dotmatrix/;
+  - tr("…") and tr(cond ? "…" : "…") calls in Customizer.qml, ui/, previews/, dotmatrix/, BarMock.qml;
   - title / hint of allCategories, allGroups and allStatusChips (localized());
   - the label (second item) of [keys, label] pairs in keyHints() and the Keys dialog;
   - widget box titles (defs) and font roles, which reach tr(modelData.…).
@@ -140,7 +140,7 @@ def extract():
         for s in strings:
             found.setdefault(s, set()).add(source)
 
-    qml_files = [CUSTOMIZER] + sorted(glob.glob(os.path.join(PLUGIN, "ui", "*.qml"))
+    qml_files = [CUSTOMIZER, os.path.join(PLUGIN, "BarMock.qml")] + sorted(glob.glob(os.path.join(PLUGIN, "ui", "*.qml"))
                                       + glob.glob(os.path.join(PLUGIN, "previews", "*.qml"))
                                       + glob.glob(os.path.join(PLUGIN, "dotmatrix", "*.qml")))
     for path in qml_files:
@@ -175,6 +175,15 @@ EXPECTED_SOURCES = {
     "Skin": "allStatusChips",
     "Pickers": "allGroups",
     "Good night": "tr() in Customizer.qml",
+    # Mock-window labels, the opacity/blur chip and the bar mock's media placeholder. The guard
+    # checks only that the literal occurs in tr() calls of the named file, not how many: "active",
+    # "blur" and "opacity" are common words, so a tr() of the same word elsewhere also satisfies it.
+    # The point is that the extractor still reaches these literals, so one outside tr() fails here.
+    "active": "tr() in Customizer.qml",
+    "inactive": "tr() in Customizer.qml",
+    "opacity": "tr() in Customizer.qml",
+    "blur": "tr() in Customizer.qml",
+    "Song": "tr() in BarMock.qml",
     "go there": "keyHints()",
     "jump": "keyHints()",
     "settings: type a value": "Keys dialog",
